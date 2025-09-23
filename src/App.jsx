@@ -1,35 +1,80 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+// src/App.jsx
+import React, { useEffect, useState } from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
-function App() {
-  const [count, setCount] = useState(0)
+// Layout & Auth
+import LoginPage from "./Pages/LoginPage";    
+import AppLayout from "./Layout/AppLayout";
+
+// Pages
+import Overview from "./Overview/Overview";
+import ComponentsPage from "./Pages/ComponentsPage";  
+import SalesListPage from "./Pages/SalesListPage";
+import AddSalesPage from "./Pages/AddSalesPage";
+import AddProductPage from "./Pages/AddProductPage";
+import EditSalesPage from "./Pages/EditSalesPage";
+import ServiceList from "./Pages/ServiceList";
+import AddServicePage from "./Pages/AddServicePage";
+import EditService from "./Pages/EditService";
+
+export default function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem("authToken"));
+
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setIsLoggedIn(!!localStorage.getItem("authToken"));
+    };
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, []);
+
+  const handleLogin = () => setIsLoggedIn(true);
+
+  const handleLogout = () => {
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("authEmail");
+    localStorage.removeItem("authName");
+    setIsLoggedIn(false);
+    window.location.href = "/login"; 
+  };
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
-}
+    <Router>
+      <ToastContainer position="top-right" autoClose={3000} hideProgressBar />
+      <Routes>
+        {/* Login route */}
+        <Route
+          path="/login"
+          element={
+            isLoggedIn ? <Navigate to="/overview" replace /> : <LoginPage onLogin={handleLogin} />
+          }
+        />
 
-export default App
+        {/* Protected Routes */}
+        <Route
+          path="/"
+          element={
+            isLoggedIn ? <AppLayout onLogout={handleLogout} /> : <Navigate to="/login" replace />
+          }
+        >
+          {/* Default redirect */}
+          <Route index element={<Navigate to="overview" replace />} />
+
+          {/* Pages */}
+          <Route path="overview" element={<Overview />} />
+          <Route path="sales-order" element={<SalesListPage />} />
+          <Route path="sales/add" element={<AddSalesPage />} />
+          <Route path="sales/edit/:id" element={<EditSalesPage />} />
+          <Route path="add-product" element={<AddProductPage />} />
+          {/* <Route path="product/edit/:id" element={<AddProductPage />} /> */}
+          <Route path="service-product" element={<ServiceList />} />
+          <Route path="service/add" element={<AddServicePage />} />
+          <Route path="service/:id/edit" element={<EditService />} />
+          <Route path="components" element={<ComponentsPage />} />
+        </Route>
+      </Routes>
+    </Router>
+  );
+}
