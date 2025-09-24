@@ -118,7 +118,7 @@ const AddServicePage = () => {
     try {
       await axios.post(`${API_BASE_URL}/service-vci`, formData);
       toast.success("Service added successfully!");
-      navigate("/serviceProduct");
+      navigate("/service-Product");
     } catch (error) {
       toast.error("Failed to add service!");
     }
