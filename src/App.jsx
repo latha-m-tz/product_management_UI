@@ -18,6 +18,18 @@ import EditSalesPage from "./Pages/EditSalesPage";
 import ServiceList from "./Pages/ServiceList";
 import AddServicePage from "./Pages/AddServicePage";
 import EditService from "./Pages/EditService";
+import AddVendor from "./Pages/AddVendor";
+import EditVendor from "./Pages/EditVendor";
+ import ViewVendor from "./Pages/ViewVendor";
+import VendorPage from "./Pages/VendorPage";
+import CustomerPage from "./Pages/CustomerPage";
+import AddCustomer from "./Pages/AddCustomer";
+import EditCustomer from "./Pages/EditCustomer";
+import ViewCustomer from "./Pages/ViewCustomer";
+import Spareparts from "./Pages/Spareparts";
+import SparepartPurchase from "./Pages/SparepartPurchase";
+import AddSparepartPurchase from "./Pages/AddSparepartPurchase";
+import EditSparepartPurchase from "./Pages/EditSparepartPurchase";
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem("authToken"));
@@ -73,6 +85,23 @@ export default function App() {
           <Route path="service/add" element={<AddServicePage />} />
           <Route path="service/:id/edit" element={<EditService />} />
           <Route path="components" element={<ComponentsPage />} />
+          <Route path="vendor" element={<VendorPage/>} />
+          <Route path="vendor/add" element={<AddVendor />} />
+          <Route path="vendor/edit/:id" element={<EditVendor />} />     
+          <Route path="/vendors/view/:id" element={<ViewVendor />} />
+          <Route path="/customer" element={<CustomerPage/>} />
+          <Route path="/customer/add" element={<AddCustomer/>} />
+       <Route path="/customer/:id/edit" element={<EditCustomer/>} />
+       <Route path="/customer/:id" element={<ViewCustomer />} />
+        <Route path="/spare-parts" element={<Spareparts />} />
+             <Route path="/spare-partsPurchase" element={<SparepartPurchase />} />
+            <Route path="/spare-partsPurchase/add" element={<AddSparepartPurchase />} />
+            <Route path="/spare-partsPurchase/:id" element={<EditSparepartPurchase />} />
+
+
+
+
+
         </Route>
       </Routes>
     </Router>

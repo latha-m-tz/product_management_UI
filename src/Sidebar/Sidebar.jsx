@@ -10,16 +10,19 @@ export default function Sidebar({ collapsed }) {
     purchase: [
       { link: "vendor", title: "Vendor", icon: ["/VendorG.png", "/Vendor.png"] },
       { link: "spare-parts", title: "Spare Parts", icon: ["/Purchase Order.png", "/Purchase Order 1.png"] },
+      { link: "spare-partsPurchase", title: "SpareParts Purchase", icon: ["/Purchase Order.png", "/Purchase Order 1.png"] },
       // { link: "assemble", title: "Assemble", icon: ["/AssembleG.png", "/Assemble.png"] },
     ],
     // testing: [
     //   { link: "testing/a", title: "Testing A" },
     //   { link: "testing/b", title: "Testing B" },
     // ],
-    product: [
-      { link: "product/list", title: "Product List" },
-      { link: "product/add", title: "Add Product" },
+  inventory: [
+      { link: "product", title: "Product", icon: ["/Product.png", "/Product.png"] },
+      { link: "product-type", title: "Product Type", icon: ["/Product.png", "/Product.png"] },
+      { link: "assemble", title: "Assemble", icon: ["/Product.png", "/Product.png"] },
     ],
+ 
     sales: [
       { link: "customer", title: "Customer", icon: ["/CustomerG.png", "/Customer.png"] },
       { link: "sales-order", title: "Sales", icon: ["/Sale 1.png", "/Sale 1.png"] },

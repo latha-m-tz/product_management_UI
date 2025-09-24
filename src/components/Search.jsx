@@ -1,20 +1,23 @@
-import React from "react";
+import React from 'react';
 
-export default function Search({ search, setSearch, setPage }) {
-  const handleChange = (e) => {
-    const value = e.target.value;
-    setSearch(value); 
-    setPage(1);       
-  };
+const Search = ({ search, setSearch, setPage }) => {
+    return (
+        <div className="d-flex justify-content-end align-items-center">
+            <label className="d-flex align-items-center mb-0">
+                <span className="me-2 fw-semibold">Search:</span>
+                <input
+                    type="search"
+                    className="form-control form-control-sm"
+                   style={{ fontSize: '0.8rem', minWidth: '32px', height: '28px' }}
+                    value={search}
+                    onChange={(e) => {
+                        setSearch(e.target.value);
+                        setPage(1);
+                    }}
+                />
+            </label>
+        </div>
+    );
+};
 
-  return (
-    <input
-      type="text"
-      placeholder="Search by any detail..."
-      value={search}
-      onChange={handleChange}
-      className="form-control form-control-sm"
-      style={{ width: "250px", padding: "6px", fontSize: "0.85rem" }}
-    />
-  );
-}
+export default Search;
