@@ -10,11 +10,10 @@ import {
 import { toast } from "react-toastify";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
-import "datatables.net-dt/css/dataTables.dataTables.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 
 import { API_BASE_URL } from "../api";
-import Breadcrumb from "../Components/Breadcrumb";
+import Breadcrumb from "../components/Breadcrumb";
 import { useNavigate, useParams } from "react-router-dom";
 
 export default function AddSalesPage() {
@@ -53,49 +52,40 @@ export default function AddSalesPage() {
             }))
           );
         })
-        .catch(() => {
-          toast.error("Failed to load sale data");
-        });
+        .catch(() => toast.error("Failed to load sale data"));
     }
   }, [saleId]);
 
-  
-
-  // ✅ Fetch customer name
- useEffect(() => {
+  // ✅ Fetch customers
+  useEffect(() => {
     axios
       .get(`${API_BASE_URL}/customers/get`)
-      .then((res) => {
-        setCustomers(res.data);
-      })
-      .catch(() => {
-        toast.error("Failed to load customers");
-      })
+      .then((res) => setCustomers(res.data))
+      .catch(() => toast.error("Failed to load customers"))
       .finally(() => setLoading(false));
   }, []);
 
-  // ✅ Load products added from AddProductPage
+  // ✅ Load selected products from AddProductPage
   useEffect(() => {
     const stored = localStorage.getItem("selectedProducts");
-if (stored) {
-  const selected = JSON.parse(stored);
-  const existingSerials = items.map((i) => i.serialNo);
-  const newProducts = selected
-    .filter((item) => !existingSerials.includes(item.serial_no))
-    .map((item) => ({
-      quantity: 1,
-      serialNo: item.serial_no,
-    }));
+    if (stored) {
+      const selected = JSON.parse(stored);
+      const existingSerials = items.map((i) => i.serialNo);
+      const newProducts = selected
+        .filter((item) => !existingSerials.includes(item.serial_no))
+        .map((item) => ({
+          quantity: 1,
+          serialNo: item.serial_no,
+        }));
 
-  if (newProducts.length > 0) {
-    setItems((prev) => [...prev, ...newProducts]);
-  }
-  localStorage.removeItem("selectedProducts");
-}
-
+      if (newProducts.length > 0) {
+        setItems((prev) => [...prev, ...newProducts]);
+      }
+      localStorage.removeItem("selectedProducts");
+    }
   }, [navigate]);
 
-  // ✅ Save
+  // ✅ Handle save/update
   const handleSave = async () => {
     if (!customerId || parseInt(customerId) <= 0) {
       toast.warning("Please select a valid Customer!");
@@ -126,6 +116,7 @@ if (stored) {
       return;
     }
 
+    // Check duplicates & quantity
     const serials = new Set();
     for (let item of items) {
       if (!item.serialNo.trim()) {
@@ -190,23 +181,23 @@ if (stored) {
             <div className="row g-3">
               <div className="col-md-6">
                 <Form.Group className="mb-3">
-      <Form.Label>Customer</Form.Label>
-      {loading ? (
-        <Spinner animation="border" size="sm" />
-      ) : (
-        <Form.Select
-          value={customerId || ""}
-          onChange={(e) => setCustomerId(e.target.value)}
-        >
-          <option value="">-- Select Customer --</option>
-          {customers.map((cust) => (
-            <option key={cust.id} value={cust.id}>
-              {cust.customer} ({cust.email})
-            </option>
-          ))}
-        </Form.Select>
-      )}
-    </Form.Group>
+                  <Form.Label>Customer</Form.Label>
+                  {loading ? (
+                    <Spinner animation="border" size="sm" />
+                  ) : (
+                    <Form.Select
+                      value={customerId || ""}
+                      onChange={(e) => setCustomerId(e.target.value)}
+                    >
+                      <option value="">-- Select Customer --</option>
+                      {customers.map((cust) => (
+                        <option key={cust.id} value={cust.id}>
+                          {cust.customer} ({cust.email})
+                        </option>
+                      ))}
+                    </Form.Select>
+                  )}
+                </Form.Group>
               </div>
               <div className="col-md-6">
                 <Form.Group>
@@ -328,10 +319,7 @@ if (stored) {
             </div>
 
             <div className="mt-4 d-flex justify-content-end gap-2">
-              <Button
-                variant="secondary"
-                onClick={() => navigate("/sales-order")}
-              >
+              <Button variant="secondary" onClick={() => navigate("/sales-order")}>
                 Cancel
               </Button>
               <Button variant="success" onClick={handleSave}>

@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import Sidebar from "../Sidebar/Sidebar";
-import DashboardLayout from "./DashboardLayout"; // optional: top navbar/header
+import DashboardLayout from "./DashboardLayout"; // your top navbar
 
 export default function AppLayout({ onLogout }) {
   const navigate = useNavigate();
@@ -14,12 +14,12 @@ export default function AppLayout({ onLogout }) {
     navigate("/login");
   };
 
-  // Automatically collapse sidebar on small screens
+  // Collapse sidebar on smaller screens
   useEffect(() => {
     const handleResize = () => {
       setAutoCollapsed(window.innerWidth < 992);
     };
-    handleResize(); // initial check
+    handleResize();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
@@ -47,20 +47,18 @@ export default function AppLayout({ onLogout }) {
         <Sidebar collapsed={isCollapsed} />
       </div>
 
-      {/* Main content */}
-      <div
-        className="d-flex flex-column flex-grow-1"
-        style={{ minHeight: 0, overflow: "hidden" }}
-      >
+      {/* Main Section */}
+      <div className="d-flex flex-column flex-grow-1" style={{ minHeight: 0 }}>
+        {/* Top Navbar/Header */}
+        <DashboardLayout onLogout={handleLogout} />
 
         {/* Page Content */}
         <div
           className="flex-grow-1 overflow-auto"
           style={{
-            minHeight: 0,
             backgroundColor: "#f8f9fa",
-            WebkitOverflowScrolling: "touch",
             padding: "16px",
+            WebkitOverflowScrolling: "touch",
           }}
         >
           <Outlet />

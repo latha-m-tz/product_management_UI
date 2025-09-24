@@ -8,9 +8,9 @@ import "bootstrap/dist/css/bootstrap.min.css";
 
 import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../api";
-import Breadcrumb from "../Components/Breadcrumb";
-import Pagination from "../Components/Pagination";
-import Search from "../Components/Search";
+import Breadcrumb from "../components/Breadcrumb";
+import Pagination from "../components/Pagination";
+import Search from "../components/Search";
 
 export default function ServiceList() {
   const [services, setServices] = useState([]);
