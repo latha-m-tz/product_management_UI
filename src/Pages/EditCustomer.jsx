@@ -168,6 +168,8 @@ const [mobileError, setMobileError] = useState("");
 
           city: cities.includes(prev.city) ? prev.city : cities[0],
         }));
+
+        
       } else {
         setCityOptions([]);
         toast.error("Could not fetch cities, enter manually");
@@ -301,6 +303,7 @@ const [mobileError, setMobileError] = useState("");
                   }))
                 }
                 placeholder="Select or type city"
+                  classNamePrefix="my-select"   // ✅ Add this
               />
               {errors.city && (
                 <div style={feedbackStyle}>{errors.city}</div>

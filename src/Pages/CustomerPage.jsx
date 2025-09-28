@@ -11,6 +11,7 @@ import Search from "../components/Search.jsx";
 import Pagination from "../components/Pagination.jsx";
 import "datatables.net-dt/css/dataTables.dataTables.css";
 import "bootstrap/dist/css/bootstrap.min.css";
+import ActionButton from "../components/ActionButton";
 
 const MySwal = withReactContent(Swal);
 
@@ -228,7 +229,7 @@ export default function CustomerListPage() {
                         {c.status}
                       </span>
                     </td>
-                    <td className="text-center" style={{ width: "130px" }}>
+                    {/* <td className="text-center" style={{ width: "130px" }}>
                       <Button
                         size="sm"
                         variant="outline-primary"
@@ -256,7 +257,16 @@ export default function CustomerListPage() {
                       >
                         <i className="bi bi-eye"></i>
                       </Button>
-                    </td>
+                    </td> */}
+
+                    <td className="text-center" style={{ width: "130px" }}>
+  <ActionButton
+    onEdit={() => navigate(`/customer/${c.id}/edit`)}
+    onDelete={() => handleDelete(c.id)}
+    onView={() => navigate(`/customer/${c.id}`)}
+  />
+</td>
+
                   </tr>
                 ))
               )}

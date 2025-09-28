@@ -9,11 +9,14 @@ import "react-phone-number-input/style.css";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { parsePhoneNumberFromString, isValidPhoneNumber } from "libphonenumber-js";
+import ActionButton from "../components/ActionButton";
 
 export default function EditVendor() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [countryCode, setCountryCode] = useState("IN");
+  const [page, setPage] = useState(1);
+const [perPage, setPerPage] = useState(5);
 
   const [vendor, setVendor] = useState({
     vendor: "",
@@ -463,6 +466,7 @@ export default function EditVendor() {
                 options={cityOptionsFormatted}
                 isClearable
                 placeholder="Select or type city"
+                  classNamePrefix="my-select"   // ✅ Add this
               />
 
               {errors.city && <div style={{ color: "red", fontSize: "12px" }}>{errors.city}</div>}
@@ -577,11 +581,93 @@ export default function EditVendor() {
         + Add Contact Person
       </Button>
 
-      {contactPersons.length > 0 && (
-        <div className="mt-3">
-          <DataTable columns={columns} data={contactPersons} pagination highlightOnHover striped responsive />
-        </div>
-      )}
+  {contactPersons.length > 0 && (
+  <div className="mt-3 table-responsive">
+    <table className="table align-middle mb-0">
+      <thead>
+  <tr>
+    <th
+      style={{
+        width: "50px",
+        textAlign: "center",
+        cursor: "pointer",
+        backgroundColor: "#f1f3f5",
+            fontWeight: "normal", // normal text weight
+        color: "inherit", // keeps default text color (black)
+
+      }}
+    >
+      S.No
+    </th>
+    {[
+      { label: "Name", field: "name" },
+      { label: "Designation", field: "designation" },
+      { label: "Mobile", field: "mobile_no" },
+      { label: "Email", field: "email" },
+      { label: "Status", field: "status" },
+    ].map(({ label, field }) => (
+      <th
+        key={field}
+        style={{
+          cursor: "pointer",
+          backgroundColor: "#f1f3f5",
+              fontWeight: "normal", // normal text weight
+        color: "inherit", // keeps default text color (black)
+        }}
+      >
+        {label}
+      </th>
+    ))}
+    <th
+      style={{
+        textAlign: "center",
+        backgroundColor: "#f1f3f5",
+            fontWeight: "normal", // normal text weight
+        color: "inherit", // keeps default text color (black)
+      }}
+    >
+      Action
+    </th>
+  </tr>
+</thead>
+
+      <tbody>
+        {contactPersons.length === 0 ? (
+          <tr>
+            <td colSpan="7" className="text-center py-4 text-muted">
+              No contact persons found
+            </td>
+          </tr>
+        ) : (
+          contactPersons.map((c, index) => (
+            <tr key={index}>
+              <td className="text-center">{index + 1}</td>
+              <td>{c.name}{c.isMain ? " (Main)" : ""}</td>
+              <td>{c.designation}</td>
+              <td>{c.mobile_no}</td>
+              <td>{c.email}</td>
+              <td>
+                <span className={`badge ${c.status === "Active" ? "bg-success" : "bg-danger"}`}>
+                  {c.status}
+                </span>
+              </td>
+             <td className="text-center">
+  <ActionButton
+    onEdit={() => editContact(index)}
+    onDelete={() => deleteContact(index)}
+    // Optional: if you want a view action, you can add it, or omit
+    // onView={() => {}}
+  />
+</td>
+
+            </tr>
+          ))
+        )}
+      </tbody>
+    </table>
+  </div>
+)}
+
 
       {/* --- Save / Cancel Buttons --- */}
       <div className="d-flex justify-content-end mt-3">
@@ -628,6 +714,7 @@ export default function EditVendor() {
                   value={contact.name.replace(" (Main person)", "")}
                   onChange={handleContactChange}
                   isInvalid={!!contactErrors.name}
+                    placeholder="Enter Name"
                 />
                 <Form.Control.Feedback type="invalid">{contactErrors.name}</Form.Control.Feedback>
 
@@ -648,14 +735,15 @@ export default function EditVendor() {
                   value={contact.designation}
                   onChange={handleContactChange}
                   isInvalid={!!contactErrors.designation}
+                    placeholder="Enter Designation"
                 />
                 <Form.Control.Feedback type="invalid">{contactErrors.designation}</Form.Control.Feedback>
               </Form.Group>
             </Col>
-          </Row>
+          {/* </Row> */}
 
           {/* Row 2: Mobile + Email */}
-          <Row className="mb-3 p-2" style={{ background: "#f5f5f5", borderRadius: "6px" }}>
+          {/* <Row className="mb-3 p-2" style={{ background: "#f5f5f5", borderRadius: "6px" }}> */}
             <Col md={6}>
               <Form.Group>
                 <Form.Label>Mobile No*</Form.Label>
@@ -667,7 +755,6 @@ export default function EditVendor() {
                   value={contact.mobile_no}
                   onChange={handleContactMobileChange} 
                   enableSearch
-                  inputClass="form-control"
                 />
                 {contactErrors.mobile_no && (
                   <div className="invalid-feedback" style={{ display: "block" }}>
@@ -686,15 +773,16 @@ export default function EditVendor() {
                   name="email"
                   value={contact.email}
                   onChange={handleContactChange}
+                    placeholder="Enter Email"
                   isInvalid={!!contactErrors.email}
                 />
                 <Form.Control.Feedback type="invalid">{contactErrors.email}</Form.Control.Feedback>
               </Form.Group>
             </Col>
-          </Row>
+          {/* </Row> */}
 
           {/* Row 3: Status */}
-          <Row className="mb-3 p-2" style={{ background: "#f5f5f5", borderRadius: "6px" }}>
+          {/* <Row className="mb-3 p-2" style={{ background: "#f5f5f5", borderRadius: "6px" }}> */}
             <Col md={6}>
               <Form.Group>
                 <Form.Label>Status</Form.Label>

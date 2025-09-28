@@ -184,6 +184,7 @@ export default function PurchaseListPage() {
                         <ActionButton
                         onEdit={() => navigate(`/spare-partsPurchase/${item.purchase_id}`)}
                           onDelete={() => handleDelete(item.purchase_id)}
+                              onView={() => navigate(`/spare-partsPurchase/view/${item.purchase_id}`)}
                         />
                       </div>
                     </td>
