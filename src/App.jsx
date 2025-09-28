@@ -5,12 +5,12 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 // Layout & Auth
-import LoginPage from "./Pages/LoginPage";    
+import LoginPage from "./Pages/LoginPage";
 import AppLayout from "./Layout/AppLayout";
 
 // Pages
 import Overview from "./Overview/Overview";
-import ComponentsPage from "./Pages/ComponentsPage";  
+import ComponentsPage from "./Pages/ComponentsPage";
 import SalesListPage from "./Pages/SalesListPage";
 import AddSalesPage from "./Pages/AddSalesPage";
 import AddProductPage from "./Pages/AddProductPage";
@@ -20,7 +20,7 @@ import AddServicePage from "./Pages/AddServicePage";
 import EditService from "./Pages/EditService";
 import AddVendor from "./Pages/AddVendor";
 import EditVendor from "./Pages/EditVendor";
- import ViewVendor from "./Pages/ViewVendor";
+import ViewVendor from "./Pages/ViewVendor";
 import VendorPage from "./Pages/VendorPage";
 import CustomerPage from "./Pages/CustomerPage";
 import AddCustomer from "./Pages/AddCustomer";
@@ -29,9 +29,15 @@ import ViewCustomer from "./Pages/ViewCustomer";
 import Spareparts from "./Pages/Spareparts";
 import SparepartPurchase from "./Pages/SparepartPurchase";
 import AddSparepartPurchase from "./Pages/AddSparepartPurchase";
-import EditSparepartPurchase from "./Pages/EditSparepartPurchase";
-import PurchaseViewPage from "./Pages/PurchaseViewPage";
-
+// import EditSparepartPurchase from "./Pages/EditSparepartPurchase";
+import ProductPage from "./Pages/ProductPage";
+import ProductTypePage from "./Pages/ProductTypePage";
+import AddAssemblePage from "./Pages/AddAssemblePage";
+import QrScannerPage from "./Pages/QrScannerPage";
+import AssemblePage from "./Pages/AssemblePage";
+import EditAssemblePage from "./Pages/EditAssemblePage";
+import InventoryDetailsPage from "./Pages/InventoryDetailsPage";
+import TrackingPage from "./Pages/TrackingPage";
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem("authToken"));
 
@@ -50,7 +56,7 @@ export default function App() {
     localStorage.removeItem("authEmail");
     localStorage.removeItem("authName");
     setIsLoggedIn(false);
-    window.location.href = "/login"; 
+    window.location.href = "/login";
   };
 
   return (
@@ -86,26 +92,29 @@ export default function App() {
           <Route path="service/add" element={<AddServicePage />} />
           <Route path="service/:id/edit" element={<EditService />} />
           <Route path="components" element={<ComponentsPage />} />
-          <Route path="vendor" element={<VendorPage/>} />
+          <Route path="vendor" element={<VendorPage />} />
           <Route path="vendor/add" element={<AddVendor />} />
-          <Route path="vendor/edit/:id" element={<EditVendor />} />     
+          <Route path="vendor/edit/:id" element={<EditVendor />} />
           <Route path="/vendors/view/:id" element={<ViewVendor />} />
-          <Route path="/customer" element={<CustomerPage/>} />
-          <Route path="/customer/add" element={<AddCustomer/>} />
-       <Route path="/customer/:id/edit" element={<EditCustomer/>} />
-       <Route path="/customer/:id" element={<ViewCustomer />} />
-        <Route path="/spare-parts" element={<Spareparts />} />
-             <Route path="/spare-partsPurchase" element={<SparepartPurchase />} />
-            <Route path="/spare-partsPurchase/add" element={<AddSparepartPurchase />} />
-            <Route path="/spare-partsPurchase/:id" element={<EditSparepartPurchase />} />
-            <Route path="/spare-partsPurchase/view/:id" element={<PurchaseViewPage />}/>
-
-
-
-
-
+          <Route path="/customer" element={<CustomerPage />} />
+          <Route path="/customer/add" element={<AddCustomer />} />
+          <Route path="/customer/:id/edit" element={<EditCustomer />} />
+          <Route path="/customer/:id" element={<ViewCustomer />} />
+          <Route path="/spare-parts" element={<Spareparts />} />
+          <Route path="/spare-partsPurchase" element={<SparepartPurchase />} />
+          <Route path="/spare-partsPurchase/add" element={<AddSparepartPurchase />} />
+          {/* <Route path="/spare-partsPurchase/:id" element={<EditSparepartPurchase />} /> */}
+          <Route path="product" element={<ProductPage />} />
+          <Route path="product-type" element={<ProductTypePage />} />
+          <Route path="add-assemble" element={<AddAssemblePage />} />
+          <Route path="qr-scanner" element={<QrScannerPage />} />
+          <Route path="assemble" element={<AssemblePage />} />
+          <Route path="/inventory/edit/:fromSerial/:toSerial" element={<EditAssemblePage />} />
+          <Route path="/inventory/:range" element={<InventoryDetailsPage />} />
+<Route path="/tracking" element={<TrackingPage />} />
         </Route>
       </Routes>
     </Router>
-  );
+  )
 }
+

@@ -1,0 +1,59 @@
+
+
+.custom-small-text {
+  font-family: 'Inter', 'Poppins', 'Segoe UI', sans-serif;
+  font-weight: 500;
+  color: #878787;
+  font-size: 14px;
+}
+
+
+.scroll-container {
+  max-height: 220px; 
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.scroll-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scroll-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.scroll-container::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 10px;
+}
+
+
+.five-col {
+  width: 20%;
+  padding-right: 12px;
+  box-sizing: border-box;
+}
+
+
+
+@media (max-width: 1200px) {
+  .five-col {
+    width: 25%; 
+  }
+}
+@media (max-width: 992px) {
+  .five-col {
+    width: 33.3333%; 
+  }
+}
+@media (max-width: 768px) {
+  .five-col {
+    width: 50%; 
+  }
+}
+@media (max-width: 576px) {
+  .five-col {
+    width: 100%; 
+  }
+}
