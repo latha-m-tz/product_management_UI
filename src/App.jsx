@@ -30,6 +30,7 @@ import Spareparts from "./Pages/Spareparts";
 import SparepartPurchase from "./Pages/SparepartPurchase";
 import AddSparepartPurchase from "./Pages/AddSparepartPurchase";
 import EditSparepartPurchase from "./Pages/EditSparepartPurchase";
+import PurchaseViewPage from "./Pages/PurchaseViewPage";
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem("authToken"));
@@ -97,6 +98,7 @@ export default function App() {
              <Route path="/spare-partsPurchase" element={<SparepartPurchase />} />
             <Route path="/spare-partsPurchase/add" element={<AddSparepartPurchase />} />
             <Route path="/spare-partsPurchase/:id" element={<EditSparepartPurchase />} />
+            <Route path="/spare-partsPurchase/view/:id" element={<PurchaseViewPage />}/>
 
 
 

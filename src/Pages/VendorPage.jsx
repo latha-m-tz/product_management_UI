@@ -150,7 +150,14 @@ export default function VendorPage() {
             >
               + Add Vendor
             </Button>
-            <Search search={search} setSearch={setSearch} />
+            {/* <Search search={search} setSearch={setSearch} /> */}
+             <Search
+              search={search}
+              setSearch={setSearch}
+              perPage={perPage}
+              setPerPage={setPerPage}
+              setPage={setPage}
+            />
           </div>
         </div>
 

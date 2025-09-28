@@ -14,7 +14,7 @@ import BreadCrumb from "../components/BreadCrumb";
 import Search from "../components/Search.jsx";
 import Pagination from "../components/Pagination.jsx";
 import "datatables.net-dt/css/dataTables.dataTables.css";
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from "react-router-dom";
 
 const MySwal = withReactContent(Swal);
 import { API_BASE_URL } from "../api";
@@ -85,6 +85,8 @@ export default function App() {
   const [search, setSearch] = useState("");
   const [sortField, setSortField] = useState("name"); 
   const [sortDirection, setSortDirection] = useState("asc");
+  const location = useLocation(); 
+  
 
   function initialFormState() {
     return {
@@ -93,96 +95,70 @@ export default function App() {
     };
   }
 
-  const fetchSpareparts = async () => {
-    setLoading(true);
-    const token = localStorage.getItem('authToken');
-    if (!token) {
-      setLoading(false);
-      return;
-    }
-    try {
-      const response = await axios.get(`${API_BASE_URL}/spareparts/get`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      // expecting response.data.data (same as your previous code)
-const fetchedData = response.data.spareparts ?? [];
+ const fetchSpareparts = async () => {
+  setLoading(true);
+  try {
+    const response = await axios.get(`${API_BASE_URL}/spareparts/get`);
+    const fetchedData = response.data.spareparts ?? [];
+    setSpareparts(fetchedData);
+  } catch (error) {
+    console.error("Error fetching spareparts:", error);
+    toast.error("Failed to fetch spare parts.", { toastId: "fetch-fail" });
+  } finally {
+    setLoading(false);
+  }
+};
 
-      setSpareparts(fetchedData);
-    } catch (error) {
-      console.error("Error fetching spareparts:", error);
-      if (error.response?.status === 401) {
-        toast.error("Session expired. Please log in again.", { toastId: 'auth-expired' });
-        navigate('/login');
-      } else {
-        toast.error("Failed to fetch spare parts.", { toastId: "fetch-fail" });
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  useEffect(() => {
-    const token = localStorage.getItem('authToken');
-    if (!token) {
-      toast.error("Please log in to access this page.", { toastId: 'auth-error' });
-      navigate('/login');
-    } else {
-      fetchSpareparts();
-    }
 
-  }, [navigate]);
+useEffect(() => {
+  // just fetch directly, no token check
+  fetchSpareparts();
+}, []);
 
-  useEffect(() => {
+  // useEffect(() => {
  
-    if ($.fn.DataTable.isDataTable(tableRef.current)) {
-      $(tableRef.current).DataTable().destroy();
-    }
-    if (spareparts.length > 0) {
-      $(tableRef.current).DataTable({
-        ordering: true,
-        paging: false,
-        searching: false,
-        lengthChange: false,
-        info: false,
-        columnDefs: [{ targets: 0, className: "text-center" }],
-      });
-    }
-  }, [spareparts]);
+  //   if ($.fn.DataTable.isDataTable(tableRef.current)) {
+  //     $(tableRef.current).DataTable().destroy();
+  //   }
+  //   if (spareparts.length > 0) {
+  //     $(tableRef.current).DataTable({
+  //       ordering: true,
+  //       paging: false,
+  //       searching: false,
+  //       lengthChange: false,
+  //       info: false,
+  //       columnDefs: [{ targets: 0, className: "text-center" }],
+  //     });
+  //   }
+  // }, [spareparts]);
 
   // saveSparepart now posts/puts only { name, sparepart_type }
   const saveSparepart = async (payload) => {
-    const token = localStorage.getItem('authToken');
-    const config = {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    };
-    try {
-      let response;
-      if (editingPart) {
-        response = await axios.put(`${API_BASE_URL}/spareparts/${editingPart.id}`, payload, config);
-      } else {
-        response = await axios.post(`${API_BASE_URL}/spareparts`, payload, config);
-      }
-      toast.success(`Spare part ${editingPart ? "updated" : "added"} successfully!`);
-      closeForm();
-      fetchSpareparts();
-    } catch (error) {
-      console.error("Error saving sparepart:", error.response || error);
-      if (error.response?.data?.errors) {
-        setErrors(error.response.data.errors);
-        Object.values(error.response.data.errors).flat().forEach(msg => {
-          toast.error(msg);
-        });
-      } else if (error.response?.data?.message) {
-        toast.error(`Failed to save spare part: ${error.response.data.message}`);
-      } else {
-        toast.error("Failed to save spare part due to a network or server error.");
-      }
+  try {
+    let response;
+    if (editingPart) {
+      response = await axios.put(`${API_BASE_URL}/spareparts/${editingPart.id}`, payload);
+    } else {
+      response = await axios.post(`${API_BASE_URL}/spareparts`, payload);
     }
-  };
+    toast.success(`Spare part ${editingPart ? "updated" : "added"} successfully!`);
+    closeForm();
+    fetchSpareparts();
+  } catch (error) {
+    console.error("Error saving sparepart:", error.response || error);
+    if (error.response?.data?.errors) {
+      setErrors(error.response.data.errors);
+      Object.values(error.response.data.errors).flat().forEach(msg => {
+        toast.error(msg);
+      });
+    } else if (error.response?.data?.message) {
+      toast.error(`Failed to save spare part: ${error.response.data.message}`);
+    } else {
+      toast.error("Failed to save spare part due to a network or server error.");
+    }
+  }
+};
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -221,40 +197,34 @@ const fetchedData = response.data.spareparts ?? [];
     await saveSparepart(payload);
   };
 
-  const handleDelete = async (id) => {
-    const result = await MySwal.fire({
-      title: "Are you sure?",
-      text: "Do you really want to delete this spare part?",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#2FA64F",
-      confirmButtonText: "Yes, delete it!",
-      customClass: {
-        popup: "custom-compact"
-      }
-    });
-    if (!result.isConfirmed) return;
-    try {
-      const token = localStorage.getItem('authToken');
-      const config = {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      };
-      await axios.delete(`${API_BASE_URL}/spareparts/${id}`, config);
-      toast.success("Spare part deleted successfully!");
-      if (editingPart?.id === id) closeForm();
-      fetchSpareparts();
-    } catch (error) {
-      console.error("Error deleting:", error);
-      if (error.response?.data?.message) {
-        toast.error(`Failed to delete spare part: ${error.response.data.message}`);
-      } else {
-        toast.error("Failed to delete spare part.");
-      }
+ const handleDelete = async (id) => {
+  const result = await MySwal.fire({
+    title: "Are you sure?",
+    text: "Do you really want to delete this spare part?",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonColor: "#d33",
+    cancelButtonColor: "#2FA64F",
+    confirmButtonText: "Yes, delete it!",
+    customClass: {
+      popup: "custom-compact"
     }
-  };
+  });
+  if (!result.isConfirmed) return;
+  try {
+    await axios.delete(`${API_BASE_URL}/spareparts/${id}/del`);
+    toast.success("Spare part deleted successfully!");
+    if (editingPart?.id === id) closeForm();
+    fetchSpareparts();
+  } catch (error) {
+    console.error("Error deleting:", error);
+    if (error.response?.data?.message) {
+      toast.error(`Failed to delete spare part: ${error.response.data.message}`);
+    } else {
+      toast.error("Failed to delete spare part.");
+    }
+  }
+};
 
   const handleSort = (field) => {
     if (field === sortField) {
@@ -298,8 +268,6 @@ const fetchedData = response.data.spareparts ?? [];
     marginTop: "4px",
   };
 
-
-  
   const paginated = spareparts
     .filter(part => {
       const searchLower = search.toLowerCase();

@@ -66,3 +66,38 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+
+.PhoneInputInput {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus,
+button:focus {
+  outline: none !important;
+  box-shadow: none !important;
+  border-color: #ced4da !important; /* normal border color */
+}
+
+/* All CreatableSelect components with classNamePrefix="my-select" */
+.my-select__control {
+  box-shadow: none !important;      /* remove focus outline */
+  border-color: #ced4da !important; /* normal border color */
+}
+
+.my-select__control:hover {
+  border-color: #adb5bd !important; /* subtle hover effect */
+}
+
+.my-select__input input {
+  outline: none !important;          /* remove inner input outline */
+}
+
+.my-select__menu {
+  z-index: 1050;                     /* optional: ensure menu appears above modals */
+}
+
+

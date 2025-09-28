@@ -8,6 +8,7 @@ import { toast } from "react-toastify";
 import { API_BASE_URL } from "../api";
 import "react-toastify/dist/ReactToastify.css";
 import { parsePhoneNumberFromString, isValidPhoneNumber } from "libphonenumber-js";
+import { useNavigate } from "react-router-dom"; // <-- import
 
 export default function AddCustomer() {
   const [customer, setCustomer] = useState({
@@ -26,6 +27,7 @@ export default function AddCustomer() {
   const [cityOptions, setCityOptions] = useState([]);
   const [errors, setErrors] = useState({});
   const [countryCode, setCountryCode] = useState("");
+   const navigate = useNavigate();
 
   useEffect(() => {
     fetch("https://ipapi.co/json/")
@@ -118,6 +120,14 @@ export default function AddCustomer() {
         const postOffices = data[0].PostOffice;
         const cities = postOffices.map((po) => po.Name);
 
+              setErrors((prev) => ({
+        ...prev,
+        pincode: "",
+        state: "",
+        district: "",
+        city: "",
+      }));
+
         setCityOptions(cities);
         setCustomer((prev) => ({
           ...prev,
@@ -157,11 +167,19 @@ export default function AddCustomer() {
 
       const data = await response.json();
 
-      if (!response.ok) {
+    if (!response.ok) {
+      // Check for duplicate fields
+      if (data.errors) {
+        if (data.errors.email) toast.error(`Email already taken: ${data.errors.email}`);
+        if (data.errors.mobile_no) toast.error(`Mobile number already taken: ${data.errors.mobile_no}`);
+      } else if (data.message) {
+        toast.error(data.message);
+      } else {
         toast.error("Error saving customer!");
-        console.error(data);
-        return;
       }
+      console.error(data);
+      return;
+    }
 
       toast.success("Customer saved successfully!");
        navigate("/customer");
@@ -233,6 +251,7 @@ export default function AddCustomer() {
                   setCustomer((prev) => ({ ...prev, city: selected ? selected.value : "" }))
                 }
                 placeholder="Select or type city"
+                  classNamePrefix="my-select"   // ✅ Add this
               />
               {errors.city && <div style={feedbackStyle}>{errors.city}</div>}
             </Form.Group>

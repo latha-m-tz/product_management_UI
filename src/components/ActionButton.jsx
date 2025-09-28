@@ -138,7 +138,23 @@ export default function ActionButtons({ onPdf, onEdit, onDelete, onReturn, onTra
       )}
 
       {onView && (
-        <Button variant="outline-primary" size="sm" onClick={onView} title="View">
+                <Button
+          size="sm"
+          variant="outline-primary"
+          title="Warranty"
+          onClick={onView}
+          className="me-1"
+          style={{
+            borderColor: "#2E3A59",
+            color: "#2E3A59",
+            backgroundColor: "transparent",
+            width: "32px",
+            height: "32px",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            borderRadius: "4px",
+          }}>
           <i className="bi bi-eye"></i>
         </Button>
       )}

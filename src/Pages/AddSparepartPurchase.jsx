@@ -5,6 +5,8 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { useNavigate } from "react-router-dom";
+
 
 
 export default function AddSparepartPurchase() {
@@ -12,6 +14,11 @@ export default function AddSparepartPurchase() {
   const [challanNo, setChallanNo] = useState("");
   const [challanDate, setChallanDate] = useState("");
   const [errors, setErrors] = useState({});
+const navigate = useNavigate();
+const [existingSerials, setExistingSerials] = useState([]);
+
+
+
 
   const [spareparts, setSpareparts] = useState([
     {
@@ -40,6 +47,7 @@ export default function AddSparepartPurchase() {
     };
     fetchData();
   }, []);
+
 
   const sparepartTypeOf = (id) => {
     if (!id) return "";
@@ -156,6 +164,74 @@ export default function AddSparepartPurchase() {
     toast.error("Please fix the errors below");
     return;
   }
+
+   // 2️⃣ Check for overlapping serials within this purchase
+  const serialErrors = {};
+  spareparts.forEach((sp, i) => {
+    if (sp.sparepart_id && sparepartTypeOf(sp.sparepart_id).includes("serial")) {
+      const fromA = sp.from_serial;
+      const toA = sp.to_serial;
+
+      spareparts.forEach((otherSp, j) => {
+        if (i === j) return;
+        if (
+          otherSp.sparepart_id &&
+          sparepartTypeOf(otherSp.sparepart_id).includes("serial")
+        ) {
+          const fromB = otherSp.from_serial;
+          const toB = otherSp.to_serial;
+
+          if (
+            fromA && toA && fromB && toB &&
+            !(toA < fromB || fromA > toB) // check overlap
+          ) {
+            if (!serialErrors.items) serialErrors.items = {};
+            if (!serialErrors.items[i]) serialErrors.items[i] = {};
+            if (!serialErrors.items[j]) serialErrors.items[j] = {};
+
+            serialErrors.items[i].from_serial = "Overlapping serial range";
+            serialErrors.items[i].to_serial = "Overlapping serial range";
+            serialErrors.items[j].from_serial = "Overlapping serial range";
+            serialErrors.items[j].to_serial = "Overlapping serial range";
+          }
+        }
+      });
+    }
+  });
+
+  if (serialErrors.items) {
+    setErrors(serialErrors);
+    toast.error("Duplicate or overlapping serials detected within this purchase!");
+    return;
+  }
+
+  const serialProductsMap = {}; // { product_id: [indexes] }
+  spareparts.forEach((sp, idx) => {
+    const type = sparepartTypeOf(sp.sparepart_id);
+    if (type.includes("serial") && sp.product_id) {
+      if (!serialProductsMap[sp.product_id]) serialProductsMap[sp.product_id] = [];
+      serialProductsMap[sp.product_id].push(idx);
+    }
+  });
+
+  const dupErrors = {};
+  Object.entries(serialProductsMap).forEach(([productId, indexes]) => {
+    if (indexes.length > 1) {
+      indexes.forEach((i) => {
+        if (!dupErrors.items) dupErrors.items = {};
+        if (!dupErrors.items[i]) dupErrors.items[i] = {};
+        dupErrors.items[i].product_id = "Duplicate product not allowed";
+      });
+    }
+  });
+
+    if (dupErrors.items) {
+    setErrors(dupErrors);
+    toast.error("Duplicate product selected in serial-based spareparts!");
+    return;
+  }
+
+  
   const items = spareparts
     .map((sp) => {
       if (!sp.sparepart_id) return null;
@@ -199,16 +275,27 @@ export default function AddSparepartPurchase() {
       payload
     );
     toast.success("Purchase saved successfully!");
+     navigate("/spare-partsPurchase");
     console.log(res.data);
   } catch (err) {
     if (err.response?.data?.errors) {
       setErrors(err.response.data.errors);
 
-      toast.error("Please fix the errors below");
+      // Show backend error message directly in toast
+      if (Array.isArray(err.response.data.errors.items)) {
+        err.response.data.errors.items.forEach((msg) => {
+          toast.error(msg); // show each error line
+        });
+      } else if (typeof err.response.data.errors.items === "string") {
+        toast.error(err.response.data.errors.items);
+      } else {
+        toast.error("Please fix the errors below");
+      }
     } else {
       toast.error("Something went wrong!");
     }
   }
+
 };
 
   const feedbackStyle = { color: "red", fontSize: "0.85rem", marginTop: "4px" };
