@@ -79,13 +79,11 @@ export default function SalesListPage() {
   };
 
   const columns = [
-    { header: "Challan No", accessor: "challan_no" },
     { header: "Customer", accessor: (row) => row.customer?.customer },
-    {
-      header: "Serial No",
-      accessor: (row) => row.items.map((i) => i.testing?.serial_no || "").join(", "),
-      style: { color: "#2FA64F" },
-    },
+    { header: "Challan No", accessor: "challan_no" },
+    { header: "Challan Date", accessor: (row) => row.challan_date },
+    { header: "Shipment Date", accessor: (row) => row.shipment_date },
+
   ];
 
   return (
