@@ -406,9 +406,13 @@ const [mobileError, setMobileError] = useState("");
       </div>
 
       <div className="d-flex justify-content-end">
-        <Button variant="secondary" className="me-2" onClick={() => navigate("/customers")}>
-          Cancel
-        </Button>
+               <Button 
+         variant="secondary" 
+         className="me-2" 
+         onClick={() => navigate(-1)}  // go back to previous page
+       >
+         Cancel
+       </Button>
         <Button variant="success" onClick={updateCustomer}>
           Update
         </Button>

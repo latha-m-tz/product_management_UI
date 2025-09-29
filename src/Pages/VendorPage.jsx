@@ -128,17 +128,18 @@ export default function VendorPage() {
               ))}
             </Form.Select>
           </div>
-          <div className="col-md-6 text-md-end">
+          <div className="col-md-6 text-md-end ">
             <Button
               variant="outline-secondary"
               size="sm"
-              className="me-2"
+              className="me-2 mb-2"
               onClick={fetchVendors}
             >
               <i className="bi bi-arrow-clockwise"></i>
             </Button>
             <Button
               size="sm"
+                 className="me-2 mb-2"
               style={{
                 backgroundColor: "#2FA64F",
                 borderColor: "#2FA64F",

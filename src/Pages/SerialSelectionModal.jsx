@@ -106,7 +106,7 @@ const handleConfirm = () => {
                 <Button size="sm" variant="success" onClick={handleSelectAll}>
                   Select All
                 </Button>{" "}
-                <Button size="sm" variant="warning" onClick={handleDeselectAll}>
+                <Button size="sm" variant="secondary" onClick={handleDeselectAll}>
                   Deselect All
                 </Button>
               </Col>

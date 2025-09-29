@@ -236,7 +236,7 @@ const TrackingPage = () => {
             <p className="mb-1" style={styles.dataCardText}><b>Spare Parts</b></p>
             <p className="mb-1 small" style={styles.dataCardText}><b>Challan No:</b> {challanNo}</p>
             <p className="mb-1 small" style={styles.dataCardText}><b>Challan Date:</b> {item.challan_date || "N/A"}</p>
-            <p className="mb-1 small" style={styles.dataCardText}><b>Vendor:</b> {item.vendor || "N/A"}</p>
+            <p className="mb-1 small" style={styles.dataCardText}><b>Vendor:</b> {item.vendor_name || "N/A"}</p>
             <p className="mb-1 small" style={styles.dataCardText}><b>Product:</b> {item.product_name || "N/A"}</p>
             <p className="mb-0 small pt-2" style={styles.stageDate}>{defaultDate}</p>
           </>
