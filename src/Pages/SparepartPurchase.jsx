@@ -53,7 +53,7 @@ export default function PurchaseListPage() {
     if (!result.isConfirmed) return;
 
     try {
-      await axios.delete(`${API_BASE_URL}/purchases/${id}`);
+      await axios.delete(`${API_BASE_URL}/sparepart-purchase-items/${id}`);
       toast.success("Purchase deleted successfully!");
       const newData = purchaseData.filter((item) => item.purchase_id !== id);
       setPurchaseData(newData);

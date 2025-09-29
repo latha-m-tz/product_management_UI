@@ -8,7 +8,6 @@ import "react-toastify/dist/ReactToastify.css";
 import { useNavigate } from "react-router-dom";
 
 
-
 export default function AddSparepartPurchase() {
   const [vendorId, setVendorId] = useState("");
   const [challanNo, setChallanNo] = useState("");
@@ -701,9 +700,13 @@ const [existingSerials, setExistingSerials] = useState([]);
         </Button>
 
         <div>
-          <Button variant="secondary" className="me-2">
-            Cancel
-          </Button>
+        <Button 
+  variant="secondary" 
+  className="me-2" 
+  onClick={() => navigate(-1)}  // go back to previous page
+>
+  Cancel
+</Button>
           <Button variant="success" onClick={handleSubmit}>
             Save
           </Button>

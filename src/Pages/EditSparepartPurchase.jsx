@@ -8,6 +8,7 @@ import "bootstrap-icons/font/bootstrap-icons.css";
 import { useParams } from "react-router-dom";
 import { Modal } from "react-bootstrap";
 import SerialSelectionModal from "./SerialSelectionModal"; // <-- import modal
+import { useNavigate } from "react-router-dom";
  
 export default function EditSparepartPurchase({ purchaseId }) {
   const [loading, setLoading] = useState(true);
@@ -33,6 +34,7 @@ const [modalIndex, setModalIndex] = useState(null);
 const [modalSerials, setModalSerials] = useState([]);
 const [deletedSparepartIds, setDeletedSparepartIds] = useState([]);
 
+const navigate = useNavigate();
 
  
  
@@ -570,6 +572,7 @@ console.log(`payload`, payload);
     );
     toast.success("Purchase updated successfully!");
     console.log(res.data);
+      navigate("/spare-partsPurchase");
   // } catch (err) {
   //   if (err.response?.data?.errors) {
   //     setErrors(err.response.data.errors);
@@ -885,9 +888,13 @@ console.log(`payload`, payload);
           <i className="bi bi-plus-lg me-1" /> Add Spareparts
         </Button>
         <div>
-          <Button variant="secondary" className="me-2">
-            Cancel
-          </Button>
+      <Button 
+  variant="secondary" 
+  className="me-2" 
+  onClick={() => navigate(-1)}  // go back to previous page
+>
+  Cancel
+</Button>
           <Button variant="success" onClick={handleSubmit}>
             Save
           </Button>
