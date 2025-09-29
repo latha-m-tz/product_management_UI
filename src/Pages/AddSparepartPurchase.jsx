@@ -16,9 +16,6 @@ export default function AddSparepartPurchase() {
 const navigate = useNavigate();
 const [existingSerials, setExistingSerials] = useState([]);
 
-
-
-
   const [spareparts, setSpareparts] = useState([
     {
       sparepart_id: "",
@@ -81,6 +78,8 @@ const [existingSerials, setExistingSerials] = useState([]);
       return prev;
     });
   };
+
+  
 
   const addSparepart = () => {
     setSpareparts((prev) => [
@@ -156,6 +155,8 @@ const [existingSerials, setExistingSerials] = useState([]);
   setErrors(errs);
   return Object.keys(errs).length === 0;
 };
+
+
 
 
  const handleSubmit = async () => {
@@ -277,23 +278,25 @@ const [existingSerials, setExistingSerials] = useState([]);
      navigate("/spare-partsPurchase");
     console.log(res.data);
   } catch (err) {
-    if (err.response?.data?.errors) {
-      setErrors(err.response.data.errors);
+  if (err.response?.data?.errors) {
+    const backendErrors = err.response.data.errors;
+    setErrors(backendErrors);
 
-      // Show backend error message directly in toast
-      if (Array.isArray(err.response.data.errors.items)) {
-        err.response.data.errors.items.forEach((msg) => {
-          toast.error(msg); // show each error line
-        });
-      } else if (typeof err.response.data.errors.items === "string") {
-        toast.error(err.response.data.errors.items);
-      } else {
-        toast.error("Please fix the errors below");
+    // Loop through each field's error messages
+    Object.values(backendErrors).forEach((fieldErrors) => {
+      if (Array.isArray(fieldErrors)) {
+        fieldErrors.forEach((msg) => toast.error(msg));
+      } else if (typeof fieldErrors === "string") {
+        toast.error(fieldErrors);
       }
-    } else {
-      toast.error("Something went wrong!");
-    }
+    });
+  } else if (err.response?.data?.message) {
+    toast.error(err.response.data.message);
+  } else {
+    toast.error("Something went wrong!");
   }
+}
+
 
 };
 
@@ -347,6 +350,7 @@ const [existingSerials, setExistingSerials] = useState([]);
                   value={challanNo}
                   onChange={(e) => setChallanNo(e.target.value)}
                   placeholder="Enter Challan No"
+                  
                 />
                  {errors.challan_no && <div style={feedbackStyle}>{errors.challan_no}</div>}
 

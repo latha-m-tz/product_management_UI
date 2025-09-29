@@ -5,7 +5,7 @@ import CreatableSelect from "react-select/creatable";
 import PhoneInput from "react-phone-number-input";
 import "react-phone-number-input/style.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useNavigate } from "react-router-dom";
  import ActionButton from "../components/ActionButton";
@@ -389,12 +389,35 @@ const handleVendorMobileChange = (value) => {
  
  
       toast.success("Vendor saved successfully!");
-          navigate("/vendor");
+      navigate("/vendor");
       console.log(data);
-    } catch (err) {
-      console.error(err);
-      toast.error("Error saving vendor!");
-    }
+    // } catch (err) {
+    //   console.error(err);
+    //   toast.error("Error saving vendor!");
+    // }
+
+   } catch (err) {
+  console.error(err);
+
+  if (err.response?.data?.errors) {
+    const backendErrors = err.response.data.errors;
+    setErrors(backendErrors);
+
+    // Show each validation error in toast
+    Object.values(backendErrors).forEach((messages) => {
+      if (Array.isArray(messages)) {
+        messages.forEach((msg) => toast.error(msg));
+      } else if (typeof messages === "string") {
+        toast.error(messages);
+      }
+    });
+  } else if (err.response?.data?.message) {
+    toast.error(err.response.data.message);
+  } else {
+    toast.error("Error saving vendor!");
+  }
+}
+
   };
  
   const feedbackStyle = { color: "red", fontSize: "0.85rem", marginTop: "4px" };
@@ -660,7 +683,7 @@ const handleVendorMobileChange = (value) => {
   </div>
 )}
 
-      <div className="d-flex justify-content-end">
+  <div className="d-flex justify-content-end">
   <Button
   variant="secondary"
   className="me-2"
