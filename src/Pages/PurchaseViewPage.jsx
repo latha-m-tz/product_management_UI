@@ -94,6 +94,7 @@ export default function PurchaseViewPage() {
             <thead style={{ backgroundColor: "#2E3A59", color: "white" }}>
               <tr>
                 <th style={{ width: "50px", textAlign: "center" }}>S.No</th>
+                  <th>Sparepart</th>
                 <th>Product</th>
                 <th>Serial No</th>
                 <th>Quantity</th>
@@ -104,6 +105,7 @@ export default function PurchaseViewPage() {
                 purchase.items.map((item, index) => (
                   <tr key={item.id}>
                     <td className="text-center">{index + 1}</td>
+                          <td>{item.sparepart}</td>
                     <td>{item.product}</td>
                     <td>{item.serial_numbers?.join(", ")}</td>
                     <td>{item.quantity}</td>

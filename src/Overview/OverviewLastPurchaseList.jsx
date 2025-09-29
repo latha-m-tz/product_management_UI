@@ -58,7 +58,7 @@ const LastPurchaseList = () => {
                 <tr>
                   <th>S.No.</th>
                   <th>Vendor</th>
-                  <th>Invoice Date</th>
+                  <th>Challan Date</th>
                   <th>Product</th>
                   <th>Quantity</th>
                 </tr>
@@ -69,8 +69,8 @@ const LastPurchaseList = () => {
                     <tr key={index}>
                       <td>{index + 1}</td>
                       <td>{item.vendor}</td>
-                      <td>{new Date(item.invoice_date).toLocaleDateString()}</td>
-                      <td>{item.category}</td>
+                      <td>{new Date(item.challan_date).toLocaleDateString()}</td>
+                      <td>{item.product}</td>
                       <td>{item.quantity}</td>
                     </tr>
                   ))

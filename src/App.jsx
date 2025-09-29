@@ -29,7 +29,7 @@ import ViewCustomer from "./Pages/ViewCustomer";
 import Spareparts from "./Pages/Spareparts";
 import SparepartPurchase from "./Pages/SparepartPurchase";
 import AddSparepartPurchase from "./Pages/AddSparepartPurchase";
-// import EditSparepartPurchase from "./Pages/EditSparepartPurchase";
+import EditSparepartPurchase from "./Pages/EditSparepartPurchase";
 import ProductPage from "./Pages/ProductPage";
 import ProductTypePage from "./Pages/ProductTypePage";
 import AddAssemblePage from "./Pages/AddAssemblePage";
@@ -38,6 +38,8 @@ import AssemblePage from "./Pages/AssemblePage";
 import EditAssemblePage from "./Pages/EditAssemblePage";
 import InventoryDetailsPage from "./Pages/InventoryDetailsPage";
 import TrackingPage from "./Pages/TrackingPage";
+import PurchaseViewPage from "./Pages/PurchaseViewPage";
+
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem("authToken"));
 
@@ -103,7 +105,9 @@ export default function App() {
           <Route path="/spare-parts" element={<Spareparts />} />
           <Route path="/spare-partsPurchase" element={<SparepartPurchase />} />
           <Route path="/spare-partsPurchase/add" element={<AddSparepartPurchase />} />
-          {/* <Route path="/spare-partsPurchase/:id" element={<EditSparepartPurchase />} /> */}
+          <Route path="/spare-partsPurchase/:id" element={<EditSparepartPurchase />} />
+                      <Route path="/spare-partsPurchase/view/:id" element={<PurchaseViewPage />}/>
+
           <Route path="product" element={<ProductPage />} />
           <Route path="product-type" element={<ProductTypePage />} />
           <Route path="add-assemble" element={<AddAssemblePage />} />
