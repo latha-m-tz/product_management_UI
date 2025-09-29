@@ -13,12 +13,12 @@ import withReactContent from "sweetalert2-react-content";
 import "bootstrap/dist/css/bootstrap.min.css";
 
 import { API_BASE_URL } from "../api";
-import BreadCrumb from "../components/BreadCrumb";
+import Breadcrumb from "../components/Breadcrumb";
 import { useNavigate, useParams } from "react-router-dom";
 
 export default function AddSalesPage() {
   const navigate = useNavigate();
-  const { saleId } = useParams(); // optional, for editing
+  const { saleId } = useParams();
   const [customerId, setCustomerId] = useState("");
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -31,7 +31,6 @@ export default function AddSalesPage() {
 
   const MySwal = withReactContent(Swal);
 
-  // ✅ Load existing sale if editing
   useEffect(() => {
     if (saleId) {
       axios
@@ -47,7 +46,7 @@ export default function AddSalesPage() {
           setItems(
             sale.items.map((item) => ({
               id: item.id,
-              serialNo: item.testing?.serial_no || "",
+              serialNo: item.serial_no || "",
               quantity: item.quantity,
             }))
           );
@@ -56,7 +55,6 @@ export default function AddSalesPage() {
     }
   }, [saleId]);
 
-  // ✅ Fetch customers
   useEffect(() => {
     axios
       .get(`${API_BASE_URL}/customers/get`)
@@ -65,7 +63,6 @@ export default function AddSalesPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  // ✅ Load selected products from AddProductPage
   useEffect(() => {
     const stored = localStorage.getItem("selectedProducts");
     if (stored) {
@@ -75,7 +72,7 @@ export default function AddSalesPage() {
         .filter((item) => !existingSerials.includes(item.serial_no))
         .map((item) => ({
           quantity: 1,
-          serialNo: item.serial_no,
+          serialNo: item.serial_no, 
         }));
 
       if (newProducts.length > 0) {
@@ -85,7 +82,6 @@ export default function AddSalesPage() {
     }
   }, [navigate]);
 
-  // ✅ Handle save/update
   const handleSave = async () => {
     if (!customerId || parseInt(customerId) <= 0) {
       toast.warning("Please select a valid Customer!");
@@ -116,7 +112,6 @@ export default function AddSalesPage() {
       return;
     }
 
-    // Check duplicates & quantity
     const serials = new Set();
     for (let item of items) {
       if (!item.serialNo.trim()) {
@@ -174,11 +169,12 @@ export default function AddSalesPage() {
 
   return (
     <div className="container-fluid px-4 py-4 bg-light min-vh-100">
-      <BreadCrumb title={saleId ? "Edit Sale" : "Add Sale"} />
+      <Breadcrumb title={saleId ? "Edit Sale" : "Add Sale"} />
       <Card className="border-0 shadow-sm rounded-3 bg-white">
         <Card.Body>
           <Form>
             <div className="row g-3">
+              {/* Customer */}
               <div className="col-md-6">
                 <Form.Group className="mb-3">
                   <Form.Label>Customer</Form.Label>
@@ -199,6 +195,8 @@ export default function AddSalesPage() {
                   )}
                 </Form.Group>
               </div>
+
+              {/* Challan No */}
               <div className="col-md-6">
                 <Form.Group>
                   <Form.Label>Challan No</Form.Label>
@@ -210,6 +208,8 @@ export default function AddSalesPage() {
                   />
                 </Form.Group>
               </div>
+
+              {/* Dates */}
               <div className="col-md-6">
                 <Form.Group>
                   <Form.Label>Challan Date</Form.Label>
@@ -230,6 +230,8 @@ export default function AddSalesPage() {
                   />
                 </Form.Group>
               </div>
+
+              {/* Shipment */}
               <div className="col-md-6">
                 <Form.Group>
                   <Form.Label>Shipment Name</Form.Label>
@@ -241,6 +243,8 @@ export default function AddSalesPage() {
                   />
                 </Form.Group>
               </div>
+
+              {/* Notes */}
               <div className="col-12">
                 <Form.Group>
                   <Form.Label>Notes</Form.Label>
@@ -318,6 +322,7 @@ export default function AddSalesPage() {
               )}
             </div>
 
+            {/* Actions */}
             <div className="mt-4 d-flex justify-content-end gap-2">
               <Button variant="secondary" onClick={() => navigate("/sales-order")}>
                 Cancel
