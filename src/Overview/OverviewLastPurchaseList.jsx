@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { Card, Spinner } from "react-bootstrap";
-import { API_BASE_URL } from "../api"; // ✅ corrected path
+import { API_BASE_URL } from "../api"; 
 import "./LastSalesList.css";
 
 const LastPurchaseList = () => {
@@ -14,7 +14,7 @@ const LastPurchaseList = () => {
 
   const fetchLastPurchases = async () => {
     try {
-      const res = await axios.get(`${API_BASE_URL}/purchase`);
+      const res = await axios.get(`${API_BASE_URL}/get-purchase`);
 
       const purchases = Array.isArray(res.data)
         ? res.data

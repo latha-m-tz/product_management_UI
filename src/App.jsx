@@ -106,7 +106,7 @@ export default function App() {
           <Route path="/spare-partsPurchase" element={<SparepartPurchase />} />
           <Route path="/spare-partsPurchase/add" element={<AddSparepartPurchase />} />
           <Route path="/spare-partsPurchase/:id" element={<EditSparepartPurchase />} />
-                      <Route path="/spare-partsPurchase/view/:id" element={<PurchaseViewPage />}/>
+          <Route path="/spare-partsPurchase/view/:id" element={<PurchaseViewPage />}/>
 
           <Route path="product" element={<ProductPage />} />
           <Route path="product-type" element={<ProductTypePage />} />
