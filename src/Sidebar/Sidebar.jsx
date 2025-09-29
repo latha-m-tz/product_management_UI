@@ -17,21 +17,19 @@ export default function Sidebar({ collapsed }) {
     //   { link: "testing/a", title: "Testing A" },
     //   { link: "testing/b", title: "Testing B" },
     // ],
-  inventory: [
+    inventory: [
       { link: "product", title: "Product", icon: ["/Product.png", "/Product.png"] },
       { link: "product-type", title: "Product Type", icon: ["/Product.png", "/Product.png"] },
       { link: "assemble", title: "Assemble", icon: ["/Product.png", "/Product.png"] },
     ],
- 
+
     sales: [
       { link: "customer", title: "Customer", icon: ["/CustomerG.png", "/Customer.png"] },
       { link: "sales-order", title: "Sales", icon: ["/Sale 1.png", "/Sale 1.png"] },
     ],
     service: [{ link: "service-product", title: "Service Product", icon: ["/Service VCI.png", "/Service VCI.png"] }],
+    tracking: [{ link: "tracking", title: "Tracking", icon: ["/Service VCI.png", "/Service VCI.png"] }],
   };
-
-  const [testingOpen, setTestingOpen] = useState(false);
-  const [productOpen, setProductOpen] = useState(false);
 
   const handleLinkClick = (link) => navigate(`/${link}`);
 
@@ -56,6 +54,7 @@ export default function Sidebar({ collapsed }) {
   const iconStyle = {
     width: "18px",
     height: "18px",
+    filter: "invert(94%) sepia(0%) saturate(0%) hue-rotate(200deg) brightness(100%) contrast(100%)"
   };
 
   const subLinkStyle = {
@@ -93,84 +92,135 @@ export default function Sidebar({ collapsed }) {
       <nav
         className="small px-4 flex-grow-1"
         style={{
+          height: "100%",
           overflowY: "auto",
-          WebkitOverflowScrolling: "touch",
+          paddingBottom: "1rem",
+          scrollbarWidth: "thin",        // for Firefox
+          scrollbarColor: "#888 transparent", // Firefox colors
         }}
       >
+        <style>
+          {`
+      /* Webkit-based browsers */
+      nav::-webkit-scrollbar {
+        width: 2px;
+      }
+      nav::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      nav::-webkit-scrollbar-thumb {
+        background-color: #888;
+        border-radius: 2px;
+        border: 1px solid transparent;
+        background-clip: content-box;
+      }
+      nav::-webkit-scrollbar-thumb:hover {
+        background-color: #555;
+      }
+    `}
+        </style>
+
         {/* Home */}
         <div className="mb-1 sidebar-link-titles">{!collapsed && "Home"}</div>
         {menu.home.map((item) => (
-          <a key={item.link} href="#" onClick={(e) => { e.preventDefault(); handleLinkClick(item.link); }} style={linkStyle}>
+          <a
+            key={item.link}
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              handleLinkClick(item.link);
+            }}
+            className={`sidebar-link ${location.pathname === `/${item.link}` ? "active-link" : ""}`}
+          >
             <img src={item.icon ? item.icon[1] : ""} alt={item.title} style={iconStyle} />
-            {!collapsed && <span style={linkSpanStyle}>{item.title}</span>}
+            {!collapsed && <span>{item.title}</span>}
           </a>
         ))}
 
         {/* Purchase */}
         <div className="sidebar-link-titles">{!collapsed && "Purchase"}</div>
         {menu.purchase.map((item) => (
-          <a key={item.link} href="#" onClick={(e) => { e.preventDefault(); handleLinkClick(item.link); }} style={linkStyle}>
+          <a
+            key={item.link}
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              handleLinkClick(item.link);
+            }}
+            className={`sidebar-link ${location.pathname === `/${item.link}` ? "active-link" : ""}`}
+          >
             {item.icon && <img src={item.icon[1]} alt={item.title} style={iconStyle} />}
-            {!collapsed && <span style={linkSpanStyle}>{item.title}</span>}
+            {!collapsed && <span >{item.title}</span>}
           </a>
         ))}
 
-        {/* Testing Dropdown */}
-        {/* <div className="sidebar-link-titles">{!collapsed && "Testing"}</div>
-        <button onClick={() => setTestingOpen(!testingOpen)} className="bg-transparent border-0 w-100 text-start p-0 mb-1">
-          <div style={linkStyle}>
-            <img src="/Testing.png" alt="Testing" style={iconStyle} />
-            {!collapsed && (
-              <>
-                <span style={linkSpanStyle}>Testing</span>
-                <span className="ms-auto">{testingOpen ? "▾" : "▸"}</span>
-              </>
-            )}
-          </div>
-        </button>
-        {testingOpen && !collapsed && menu.testing.map((item) => (
-          <a key={item.link} href="#" onClick={(e) => { e.preventDefault(); handleLinkClick(item.link); }} style={subLinkStyle}>
-            - {item.title}
-          </a>
-        ))} */}
-
-        {/* Product Dropdown */}
+        {/* Inventory */}
         <div className="sidebar-link-titles">{!collapsed && "Inventory"}</div>
-        <button onClick={() => setProductOpen(!productOpen)} className="bg-transparent border-0 w-100 text-start p-0 mb-1">
-          <div style={linkStyle}>
-            <img src="/Product.png" alt="Product" style={iconStyle} />
-            {!collapsed && (
-              <>
-                <span style={linkSpanStyle}>Assemble</span>
-                <span className="ms-auto">{productOpen ? "▾" : "▸"}</span>
-              </>
-            )}
-          </div>
-        </button>
-        {productOpen && !collapsed && menu.product.map((item) => (
-          <a key={item.link} href="#" onClick={(e) => { e.preventDefault(); handleLinkClick(item.link); }} style={subLinkStyle}>
-            - {item.title}
+        {menu.inventory.map((item) => (
+          <a
+            key={item.link}
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              handleLinkClick(item.link);
+            }}
+            className={`sidebar-link ${location.pathname === `/${item.link}` ? "active-link" : ""}`}
+          >
+            {item.icon && <img src={item.icon[1]} alt={item.title} style={iconStyle} />}
+            {!collapsed && <span >{item.title}</span>}
           </a>
         ))}
 
         {/* Sales */}
         <div className="sidebar-link-titles">{!collapsed && "Sales"}</div>
         {menu.sales.map((item) => (
-          <a key={item.link} href="#" onClick={(e) => { e.preventDefault(); handleLinkClick(item.link); }} style={linkStyle}>
+          <a
+            key={item.link}
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              handleLinkClick(item.link);
+            }}
+            className={`sidebar-link ${location.pathname === `/${item.link}` ? "active-link" : ""}`}
+          >
             {item.icon && <img src={item.icon[1]} alt={item.title} style={iconStyle} />}
-            {!collapsed && <span style={linkSpanStyle}>{item.title}</span>}
+            {!collapsed && <span >{item.title}</span>}
           </a>
         ))}
 
         {/* Service */}
         <div className="sidebar-link-titles">{!collapsed && "Service"}</div>
         {menu.service.map((item) => (
-          <a key={item.link} href="#" onClick={(e) => { e.preventDefault(); handleLinkClick(item.link); }} style={linkStyle}>
+          <a
+            key={item.link}
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              handleLinkClick(item.link);
+            }}
+            className={`sidebar-link ${location.pathname === `/${item.link}` ? "active-link" : ""}`}
+          >
             {item.icon && <img src={item.icon[1]} alt={item.title} style={iconStyle} />}
-            {!collapsed && <span style={linkSpanStyle}>{item.title}</span>}
+            {!collapsed && <span >{item.title}</span>}
+          </a>
+        ))}
+        {menu.tracking.map((item) => (
+          <a
+            key={item.link}
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              handleLinkClick(item.link);
+            }}
+            className={`sidebar-link ${location.pathname === `/${item.link}` ? "active-link" : ""}`}
+          >
+            {item.icon && <img src={item.icon[1]} alt={item.title} style={iconStyle} />}
+            {!collapsed && <span>{item.title}</span>}
           </a>
         ))}
       </nav>
+
+
     </aside>
   );
 }

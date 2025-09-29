@@ -1,0 +1,40 @@
+@media (max-width: 576px) {
+  .fw-semibold {
+    font-size: 14px;
+  }
+
+  .fw-bold {
+    font-size: 20px !important;
+  }
+
+  .text-muted.fs-5 {
+    font-size: 12px !important;
+  }
+
+  .d-flex.align-items-center.ms-5 {
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-left: 0 !important;
+  }
+
+  .d-flex.align-items-center.gap-1.me-5 {
+    margin-left: auto !important;
+    font-size: 13px;
+  }
+
+  .progress {
+    height: 5px !important;
+    min-width: 100px;
+    flex-grow: 1;
+  }
+
+  .text-muted.ms-5 {
+    margin-left: 0 !important;
+    font-size: 12px;
+    padding-left: 2px;
+  }
+
+  .progress-bar {
+    transition: width 0.6s ease !important;
+  }
+}

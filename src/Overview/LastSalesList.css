@@ -1,0 +1,126 @@
+.sales-card {
+  background-color: #ffffff;
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  max-width: 100%;
+  font-family: "Segoe UI", sans-serif;
+}
+
+.sales-title {
+  font-weight: 600;
+  font-size: 18px;
+  margin-bottom: 16px;
+  color: #111;
+}
+
+.sales-table-wrapper {
+  max-height: 280px;
+  overflow-y: auto;
+  overflow-x: auto; 
+  scrollbar-width: thin;
+  scrollbar-color: #c0cbd9 #f5f7f9;
+}
+
+.sales-table-wrapper::-webkit-scrollbar {
+  width: 6px;
+  height: 6px; 
+}
+
+.sales-table-wrapper::-webkit-scrollbar-track {
+  background: #f5f7f9;
+  border-radius: 10px;
+}
+
+.sales-table-wrapper::-webkit-scrollbar-thumb {
+  background-color: #c0cbd9;
+  border-radius: 10px;
+  /* border: 2px solid #f5f7f9; */
+}
+
+.sales-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0 12px;
+  font-size: 14px;
+  min-width: 600px; 
+}
+
+.sales-table thead th {
+  text-align: left;
+  font-weight: 500;
+  color: #000000A6;
+  font-family: 'Inter', 'Poppins', 'Segoe UI', sans-serif;
+  padding: 8px 12px;
+  font-size: 13.5px;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  border: none;
+}
+
+.sales-table tbody td {
+  text-align: left;
+  font-weight: 500;
+  padding: 8px 12px;
+  color: #111;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border: none;
+}
+
+
+.sales-table th:nth-child(1),
+.sales-table td:nth-child(1) {
+  width: 8%;
+}
+
+.sales-table th:nth-child(2),
+.sales-table td:nth-child(2) {
+  width: 20%;
+}
+
+.sales-table th:nth-child(3),
+.sales-table td:nth-child(3) {
+  width: 20%;
+}
+
+.sales-table th:nth-child(4),
+.sales-table td:nth-child(4) {
+  width: 15%;
+}
+
+.sales-table th:nth-child(5),
+.sales-table td:nth-child(5) {
+  width: 20%;
+}
+
+.sales-table th:nth-child(6),
+.sales-table td:nth-child(6) {
+  width: 17%;
+}
+
+.sales-table tbody tr {
+  background-color: #fff;
+  transition: background-color 0.2s;
+}
+
+.sales-table tbody tr:hover {
+  background-color: #f9f9f9;
+}
+
+
+@media (max-width: 576px) {
+  .sales-table {
+    font-size: 12px;
+  }
+
+  .sales-title {
+    font-size: 16px;
+  }
+
+  .sales-table-wrapper {
+    max-height: none;
+  }
+}

@@ -13,7 +13,7 @@ import withReactContent from "sweetalert2-react-content";
 import "bootstrap/dist/css/bootstrap.min.css";
 
 import { API_BASE_URL } from "../api";
-import Breadcrumb from "../components/Breadcrumb";
+import BreadCrumb from "../components/BreadCrumb";
 import { useNavigate, useParams } from "react-router-dom";
 
 export default function AddSalesPage() {
@@ -174,7 +174,7 @@ export default function AddSalesPage() {
 
   return (
     <div className="container-fluid px-4 py-4 bg-light min-vh-100">
-      <Breadcrumb title={saleId ? "Edit Sale" : "Add Sale"} />
+      <BreadCrumb title={saleId ? "Edit Sale" : "Add Sale"} />
       <Card className="border-0 shadow-sm rounded-3 bg-white">
         <Card.Body>
           <Form>
