@@ -15,6 +15,9 @@ export default function AddProductPage({ onProductsSelected }) {
   const [selectedSerials, setSelectedSerials] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  // Store serial numbers already added to sales
+  const [alreadySoldSerials, setAlreadySoldSerials] = useState([]);
+
   const fetchProducts = async () => {
     try {
       const res = await axios.get(`${API_BASE_URL}/product`);
@@ -29,6 +32,7 @@ export default function AddProductPage({ onProductsSelected }) {
       }
     } catch (err) {
       console.error("Error fetching products:", err);
+      alert("Failed to load products. Please try again.");
       setProducts([]);
     }
   };
@@ -36,16 +40,29 @@ export default function AddProductPage({ onProductsSelected }) {
   const fetchTestingData = async () => {
     try {
       setLoading(true);
+
+      // Fetch inventory items
       let url = `${API_BASE_URL}/inventory/serial-numbers?serial_from=${encodeURIComponent(serialFrom)}&serial_to=${encodeURIComponent(serialTo)}&tested_status=${encodeURIComponent(testFilter)}`;
       if (selectedProductId) url += `&product_id=${encodeURIComponent(selectedProductId)}`;
 
       const res = await axios.get(url);
       let records = Array.isArray(res.data) ? res.data : res.data.data ?? [];
-setTestingData(records);
-      const allSerials = records.map(r => r.id);
-      setSelectedSerials(prev => prev.filter((s) => availableSerials.includes(s)));
+
+      // Fetch already sold serials
+      const soldRes = await axios.get(`${API_BASE_URL}/added-serials`);
+      const soldSerials = Array.isArray(soldRes.data) ? soldRes.data.map((s) => s.trim()) : [];
+      setAlreadySoldSerials(soldSerials);
+
+      // Filter out already sold items so they won't appear
+      const filteredRecords = records.filter(r => !soldSerials.includes(r.serial_no.trim()));
+
+      setTestingData(filteredRecords);
+
+      // Keep selected serials only if they are still available
+      setSelectedSerials(prev => prev.filter(s => filteredRecords.some(r => r.id === s)));
     } catch (err) {
       console.error("Error fetching inventory data:", err);
+      alert("Failed to load inventory. Please try again.");
       setTestingData([]);
     } finally {
       setLoading(false);
@@ -59,10 +76,10 @@ setTestingData(records);
   };
 
   const handleUnselectAll = () => setSelectedSerials([]);
-const handleSelectAll = () => {
-  const allSerials = testingData.map(item => item.id);
-  setSelectedSerials(allSerials);
-};
+  const handleSelectAll = () => {
+    const allSerials = testingData.map(item => item.id);
+    setSelectedSerials(allSerials);
+  };
 
   const handleSubmit = () => {
     if (!selectedSerials.length) {

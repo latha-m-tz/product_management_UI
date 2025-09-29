@@ -315,7 +315,7 @@ const AddServicePage = () => {
                   <Form.Control
                     as="select"
                     name="warranty_status"
-                    value={item.warranty_status}
+                    value={item.warranty_status || item.status}
                     onChange={(e) => handleItemChange(index, e)}
                   >
                     <option value="">Select</option>

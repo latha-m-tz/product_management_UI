@@ -1,104 +1,99 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { Button, Spinner, Card, Form } from "react-bootstrap";
+import { Card, Spinner, Button, Form } from "react-bootstrap";
 import { toast } from "react-toastify";
-import Swal from "sweetalert2";
-import withReactContent from "sweetalert2-react-content";
+import { ArrowClockwise } from "react-bootstrap-icons";
+import { useParams, useNavigate } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 
-
-import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../api";
 import Breadcrumb from "../components/Breadcrumb";
-import ActionButtons from "../components/ActionButton";
 import Pagination from "../components/Pagination";
 import Search from "../components/Search";
 import DataTable from "../components/DataTable";
 
-export default function SalesListPage() {
-  const [sales, setSales] = useState([]);
+export default function SalesOverviewPage() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [sale, setSale] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
-  const [search, setSearch] = useState("");
-
-  const MySwal = withReactContent(Swal);
-  const navigate = useNavigate();
 
   useEffect(() => {
-    fetchSales();
-  }, []);
+    fetchSale();
+  }, [id]);
 
-  const fetchSales = async () => {
+  const fetchSale = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE_URL}/sales`, {
-        headers: { "Cache-Control": "no-cache" },
-        params: { _: new Date().getTime() },
-      });
-      setSales(Array.isArray(res.data) ? res.data : []);
+      const res = await axios.get(`${API_BASE_URL}/sales/${id}`);
+      setSale(res.data);
     } catch (error) {
-      console.error("Failed to fetch sales:", error);
-      toast.error("Failed to fetch sales!");
-      setSales([]);
+      console.error("Failed to fetch sale:", error);
+      toast.error("Failed to fetch sale details!");
+      setSale(null);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (sale) => {
-    try {
-      const result = await MySwal.fire({
-        title: "Are you sure?",
-        text: "Do you want to delete this sale?",
-        icon: "warning",
-        showCancelButton: true,
-        confirmButtonColor: "#d33",
-        cancelButtonColor: "#2FA64F",
-        confirmButtonText: "Yes, delete it!",
-      });
+  if (loading) {
+    return (
+      <div className="text-center mt-4">
+        <Spinner animation="border" />
+      </div>
+    );
+  }
 
-      if (result.isConfirmed) {
-        await axios.delete(`${API_BASE_URL}/sales/${sale.id}`);
-        toast.success("Sale deleted!");
-        fetchSales();
-      }
-    } catch {
-      toast.error("Failed to delete sale!");
-    }
-  };
+  if (!sale) {
+    return <div className="text-center mt-4 text-muted">Sale not found!</div>;
+  }
 
-  const filteredSales = sales.filter((sale) =>
-    (sale.challan_no || "").toLowerCase().includes(search.toLowerCase())
+  const allRows = (sale.items || []).map((item, index) => ({
+    sno: index + 1,
+    challan_no: sale.challan_no,
+    customer: sale.customer?.customer || "N/A",
+    challan_date: sale.challan_date,
+    shipment_date: sale.shipment_date,
+    serial_no: item.serial_no,
+    product: item.product,
+    quantity: item.quantity,
+  }));
+
+  const columns = [
+    // { header: "S.No", accessor: (row) => row.sno },
+    { header: "Challan No", accessor: (row) => row.challan_no },
+    { header: "Customer", accessor: (row) => row.customer },
+    { header: "Challan Date", accessor: (row) => row.challan_date },
+    { header: "Shipment Date", accessor: (row) => row.shipment_date },
+    { header: "Serial No", accessor: (row) => row.serial_no },
+    { header: "Product", accessor: (row) => row.product },
+    { header: "Quantity", accessor: (row) => row.quantity },
+  ];
+
+  const filteredRows = allRows.filter(
+    (row) =>
+      row.challan_no?.toLowerCase().includes(search.toLowerCase()) ||
+      row.customer?.toLowerCase().includes(search.toLowerCase()) ||
+      row.serial_no?.toLowerCase().includes(search.toLowerCase()) ||
+      row.product?.toLowerCase().includes(search.toLowerCase())
   );
 
-  const paginatedSales = filteredSales.slice((page - 1) * perPage, page * perPage);
+  const paginatedRows = filteredRows.slice(
+    (page - 1) * perPage,
+    page * perPage
+  );
 
   const headerStyle = {
     backgroundColor: "#2E3A59",
     color: "white",
   };
 
-  const columns = [
-    { header: "Customer", accessor: (row) => row.customer?.customer },
-    { header: "Challan No", accessor: "challan_no" },
-    { header: "Challan Date", accessor: (row) => row.challan_date },
-    { header: "Shipment Date", accessor: (row) => row.shipment_date },
-    {
-      header: "Actions",
-      accessor: (row) => (
-        <ActionButtons
-          onEdit={() => navigate(`/sales/edit/${row.id}`)}
-          onDelete={() => handleDelete(row)}
-          onView={() => navigate(`/sales-overview/${row.id}`)} 
-        />
-      ),
-    },
-  ];
-
   return (
     <div className="px-4" style={{ fontSize: "0.75rem" }}>
-      <Breadcrumb title="Sales List" />
+      <Breadcrumb title="Sale Overview" />
 
       <Card className="border-0 shadow-sm rounded-3 p-2 px-4 mt-2 bg-white">
         <div className="row mb-2">
@@ -129,13 +124,13 @@ export default function SalesListPage() {
                 variant="outline-secondary"
                 size="sm"
                 className="me-2"
-                onClick={fetchSales}
+                onClick={fetchSale}
               >
-                <i className="bi bi-arrow-clockwise"></i>
+                <ArrowClockwise />
               </Button>
               <Button
                 size="sm"
-                onClick={() => navigate("/sales/add")}
+                onClick={() => navigate("/sales-order")}
                 style={{
                   backgroundColor: "#2FA64F",
                   borderColor: "#2FA64F",
@@ -146,7 +141,7 @@ export default function SalesListPage() {
                   height: "28px",
                 }}
               >
-                + Add Sale
+                ← Back
               </Button>
             </div>
 
@@ -169,21 +164,21 @@ export default function SalesListPage() {
           </div>
         </div>
 
-        {/* ✅ Reusable DataTable */}
         <DataTable
           loading={loading}
-          data={paginatedSales}
+          data={paginatedRows}
           columns={columns}
           page={page}
           perPage={perPage}
           headerStyle={headerStyle}
+          emptyMessage="No sale details found"
         />
 
         <Pagination
           page={page}
           setPage={setPage}
           perPage={perPage}
-          totalEntries={filteredSales.length}
+          totalEntries={filteredRows.length}
         />
       </Card>
     </div>

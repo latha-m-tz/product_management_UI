@@ -28,11 +28,33 @@ export default function AddSalesPage() {
   const [shipmentName, setShipmentName] = useState("");
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState([]);
+  const [formErrors, setFormErrors] = useState({});
 
   const MySwal = withReactContent(Swal);
 
+  // Load customers
   useEffect(() => {
-    if (saleId) {
+    axios
+      .get(`${API_BASE_URL}/customers/get`)
+      .then((res) => setCustomers(res.data))
+      .catch(() => toast.error("Failed to load customers"))
+      .finally(() => setLoading(false));
+  }, []);
+
+  // Load sale for edit or draft
+  useEffect(() => {
+    const draft = localStorage.getItem("draftSale");
+    if (draft && !saleId) {
+      const data = JSON.parse(draft);
+      setCustomerId(data.customer_id || "");
+      setChallanNo(data.challan_no || "");
+      setChallanDate(data.challan_date || "");
+      setShipmentDate(data.shipment_date || "");
+      setShipmentName(data.shipment_name || "");
+      setNotes(data.notes || "");
+      setItems(data.items || []);
+      localStorage.removeItem("draftSale");
+    } else if (saleId) {
       axios
         .get(`${API_BASE_URL}/sales/${saleId}`)
         .then((res) => {
@@ -55,14 +77,7 @@ export default function AddSalesPage() {
     }
   }, [saleId]);
 
-  useEffect(() => {
-    axios
-      .get(`${API_BASE_URL}/customers/get`)
-      .then((res) => setCustomers(res.data))
-      .catch(() => toast.error("Failed to load customers"))
-      .finally(() => setLoading(false));
-  }, []);
-
+  // Load selected products from AddProductPage
   useEffect(() => {
     const stored = localStorage.getItem("selectedProducts");
     if (stored) {
@@ -72,7 +87,7 @@ export default function AddSalesPage() {
         .filter((item) => !existingSerials.includes(item.serial_no))
         .map((item) => ({
           quantity: 1,
-          serialNo: item.serial_no, 
+          serialNo: item.serial_no,
         }));
 
       if (newProducts.length > 0) {
@@ -82,51 +97,52 @@ export default function AddSalesPage() {
     }
   }, [navigate]);
 
-  const handleSave = async () => {
+  // Form validation
+  const validateForm = () => {
+    const errors = {};
     if (!customerId || parseInt(customerId) <= 0) {
-      toast.warning("Please select a valid Customer!");
-      return;
+      errors.customerId = "Customer is required";
     }
     if (!challanNo.trim()) {
-      toast.warning("Challan No is required!");
-      return;
+      errors.challanNo = "Challan No is required";
     }
     if (!challanDate) {
-      toast.warning("Challan Date is required!");
-      return;
+      errors.challanDate = "Challan Date is required";
     }
     if (!shipmentDate) {
-      toast.warning("Shipment Date is required!");
-      return;
-    }
-    if (new Date(shipmentDate) < new Date(challanDate)) {
-      toast.warning("Shipment Date cannot be before Challan Date!");
-      return;
+      errors.shipmentDate = "Shipment Date is required";
+    } else if (new Date(shipmentDate) < new Date(challanDate)) {
+      errors.shipmentDate = "Shipment Date cannot be before Challan Date";
     }
     if (!shipmentName.trim()) {
-      toast.warning("Shipment Name is required!");
-      return;
+      errors.shipmentName = "Shipment Name is required";
     }
     if (items.length === 0) {
-      toast.warning("Please add at least one product!");
-      return;
+      errors.items = "Please add at least one product";
+    } else {
+      const serials = new Set();
+      items.forEach((item, index) => {
+        if (!item.serialNo.trim()) {
+          errors[`serialNo_${index}`] = "Serial No is required";
+        }
+        if (serials.has(item.serialNo)) {
+          errors[`serialNo_${index}`] = `Duplicate Serial No: ${item.serialNo}`;
+        }
+        serials.add(item.serialNo);
+        if (!item.quantity || parseInt(item.quantity) <= 0) {
+          errors[`quantity_${index}`] = "Quantity must be greater than 0";
+        }
+      });
     }
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
-    const serials = new Set();
-    for (let item of items) {
-      if (!item.serialNo.trim()) {
-        toast.warning("Serial No cannot be empty!");
-        return;
-      }
-      if (serials.has(item.serialNo)) {
-        toast.warning(`Duplicate Serial No: ${item.serialNo}`);
-        return;
-      }
-      serials.add(item.serialNo);
-      if (!item.quantity || parseInt(item.quantity) <= 0) {
-        toast.warning(`Quantity must be greater than 0 for ${item.serialNo}`);
-        return;
-      }
+  // Handle save
+  const handleSave = async () => {
+    if (!validateForm()) {
+      toast.warning("Please fix the highlighted errors!");
+      return;
     }
 
     const payload = {
@@ -157,14 +173,62 @@ export default function AddSalesPage() {
     }
   };
 
+  // Update field and clear error dynamically
+  const handleChange = (field, value) => {
+    switch (field) {
+      case "customerId":
+        setCustomerId(value);
+        setFormErrors((prev) => ({ ...prev, customerId: undefined }));
+        break;
+      case "challanNo":
+        setChallanNo(value);
+        setFormErrors((prev) => ({ ...prev, challanNo: undefined }));
+        break;
+      case "challanDate":
+        setChallanDate(value);
+        setFormErrors((prev) => ({ ...prev, challanDate: undefined }));
+        break;
+      case "shipmentDate":
+        setShipmentDate(value);
+        setFormErrors((prev) => ({ ...prev, shipmentDate: undefined }));
+        break;
+      case "shipmentName":
+        setShipmentName(value);
+        setFormErrors((prev) => ({ ...prev, shipmentName: undefined }));
+        break;
+      case "notes":
+        setNotes(value);
+        break;
+      default:
+        break;
+    }
+  };
+
+  // Update item and clear its error dynamically
   const handleItemChange = (index, field, value) => {
     const newItems = [...items];
     newItems[index][field] = value;
     setItems(newItems);
+
+    // Clear field error
+    setFormErrors((prev) => {
+      const updated = { ...prev };
+      if (field === "serialNo") delete updated[`serialNo_${index}`];
+      if (field === "quantity") delete updated[`quantity_${index}`];
+      return updated;
+    });
   };
 
   const removeItem = (index) => {
     setItems(items.filter((_, i) => i !== index));
+
+    // Remove errors for deleted item
+    setFormErrors((prev) => {
+      const updated = { ...prev };
+      delete updated[`serialNo_${index}`];
+      delete updated[`quantity_${index}`];
+      return updated;
+    });
   };
 
   return (
@@ -183,7 +247,8 @@ export default function AddSalesPage() {
                   ) : (
                     <Form.Select
                       value={customerId || ""}
-                      onChange={(e) => setCustomerId(e.target.value)}
+                      onChange={(e) => handleChange("customerId", e.target.value)}
+                      isInvalid={!!formErrors.customerId}
                     >
                       <option value="">-- Select Customer --</option>
                       {customers.map((cust) => (
@@ -193,6 +258,9 @@ export default function AddSalesPage() {
                       ))}
                     </Form.Select>
                   )}
+                  <Form.Control.Feedback type="invalid">
+                    {formErrors.customerId}
+                  </Form.Control.Feedback>
                 </Form.Group>
               </div>
 
@@ -203,9 +271,13 @@ export default function AddSalesPage() {
                   <Form.Control
                     type="text"
                     value={challanNo}
-                    onChange={(e) => setChallanNo(e.target.value)}
+                    onChange={(e) => handleChange("challanNo", e.target.value)}
                     placeholder="Enter Challan No"
+                    isInvalid={!!formErrors.challanNo}
                   />
+                  <Form.Control.Feedback type="invalid">
+                    {formErrors.challanNo}
+                  </Form.Control.Feedback>
                 </Form.Group>
               </div>
 
@@ -216,8 +288,12 @@ export default function AddSalesPage() {
                   <Form.Control
                     type="date"
                     value={challanDate}
-                    onChange={(e) => setChallanDate(e.target.value)}
+                    onChange={(e) => handleChange("challanDate", e.target.value)}
+                    isInvalid={!!formErrors.challanDate}
                   />
+                  <Form.Control.Feedback type="invalid">
+                    {formErrors.challanDate}
+                  </Form.Control.Feedback>
                 </Form.Group>
               </div>
               <div className="col-md-6">
@@ -226,21 +302,29 @@ export default function AddSalesPage() {
                   <Form.Control
                     type="date"
                     value={shipmentDate}
-                    onChange={(e) => setShipmentDate(e.target.value)}
+                    onChange={(e) => handleChange("shipmentDate", e.target.value)}
+                    isInvalid={!!formErrors.shipmentDate}
                   />
+                  <Form.Control.Feedback type="invalid">
+                    {formErrors.shipmentDate}
+                  </Form.Control.Feedback>
                 </Form.Group>
               </div>
 
-              {/* Shipment */}
+              {/* Shipment Name */}
               <div className="col-md-6">
                 <Form.Group>
                   <Form.Label>Shipment Name</Form.Label>
                   <Form.Control
                     type="text"
                     value={shipmentName}
-                    onChange={(e) => setShipmentName(e.target.value)}
+                    onChange={(e) => handleChange("shipmentName", e.target.value)}
                     placeholder="Enter Shipment Name"
+                    isInvalid={!!formErrors.shipmentName}
                   />
+                  <Form.Control.Feedback type="invalid">
+                    {formErrors.shipmentName}
+                  </Form.Control.Feedback>
                 </Form.Group>
               </div>
 
@@ -252,8 +336,7 @@ export default function AddSalesPage() {
                     as="textarea"
                     rows={3}
                     value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder="Enter Notes"
+                    onChange={(e) => handleChange("notes", e.target.value)}
                   />
                 </Form.Group>
               </div>
@@ -261,7 +344,7 @@ export default function AddSalesPage() {
 
             {/* Products */}
             <div className="mt-4">
-              <Form.Label>Serial No</Form.Label>
+              <Form.Label>Products</Form.Label>
               <Button
                 variant="success"
                 size="sm"
@@ -282,7 +365,9 @@ export default function AddSalesPage() {
               >
                 + Add Product
               </Button>
-
+              {formErrors.items && (
+                <div className="text-danger mb-2">{formErrors.items}</div>
+              )}
               {items.length > 0 && (
                 <Table striped bordered hover size="sm">
                   <thead>
@@ -295,16 +380,31 @@ export default function AddSalesPage() {
                   <tbody>
                     {items.map((item, index) => (
                       <tr key={index}>
-                        <td>{item.serialNo}</td>
+                        <td>
+                          <Form.Control
+                            type="text"
+                            value={item.serialNo}
+                            isInvalid={!!formErrors[`serialNo_${index}`]}
+                            onChange={(e) =>
+                              handleItemChange(index, "serialNo", e.target.value)
+                            }
+                          />
+                          <Form.Control.Feedback type="invalid">
+                            {formErrors[`serialNo_${index}`]}
+                          </Form.Control.Feedback>
+                        </td>
                         <td>
                           <Form.Control
                             type="number"
-                            placeholder="Quantity"
                             value={item.quantity}
+                            isInvalid={!!formErrors[`quantity_${index}`]}
                             onChange={(e) =>
                               handleItemChange(index, "quantity", e.target.value)
                             }
                           />
+                          <Form.Control.Feedback type="invalid">
+                            {formErrors[`quantity_${index}`]}
+                          </Form.Control.Feedback>
                         </td>
                         <td>
                           <Button

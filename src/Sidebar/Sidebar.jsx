@@ -28,7 +28,7 @@ export default function Sidebar({ collapsed }) {
       { link: "sales-order", title: "Sales", icon: ["/Sale 1.png", "/Sale 1.png"] },
     ],
     service: [{ link: "service-product", title: "Service Product", icon: ["/Service VCI.png", "/Service VCI.png"] }],
-    tracking: [{ link: "tracking", title: "Tracking", icon: ["/Service VCI.png", "/Service VCI.png"] }],
+    tracking: [{ link: "tracking", title: "Tracking", icon: ["/track.png", "/track.png"] }],
   };
 
   const handleLinkClick = (link) => navigate(`/${link}`);

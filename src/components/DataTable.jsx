@@ -5,16 +5,24 @@ export default function DataTable({
   loading,
   data,
   columns,
-  page,
-  perPage,
+  page = 1,
+  perPage = 10,
   headerStyle,
   onEdit,
   onDelete,
   emptyMessage = "No records found",
 }) {
+  // check if columns already include "Actions"
+  const hasActionsColumn = columns.some(
+    (col) => col.header?.toLowerCase() === "actions"
+  );
+
   return (
     <div className="table-responsive">
-      <Table className="table-sm align-middle mb-0" style={{ fontSize: "0.85rem" }}>
+      <Table
+        className="table-sm align-middle mb-0"
+        style={{ fontSize: "0.85rem" }}
+      >
         <thead
           style={{
             backgroundColor: "#2E3A59",
@@ -25,26 +33,51 @@ export default function DataTable({
           }}
         >
           <tr>
-            <th style={{ ...headerStyle, width: "60px", textAlign: "center" }}>S.No</th>
+            <th
+              style={{ ...headerStyle, width: "60px", textAlign: "center" }}
+            >
+              S.No
+            </th>
             {columns.map((col, idx) => (
               <th key={idx} style={headerStyle}>
                 {col.header}
               </th>
             ))}
-            <th style={{ ...headerStyle, width: "130px", textAlign: "center" }}>Action</th>
+            {/* only render default Action column if not already in columns */}
+            {!hasActionsColumn && (onEdit || onDelete) && (
+              <th
+                style={{
+                  ...headerStyle,
+                  width: "130px",
+                  textAlign: "center",
+                }}
+              >
+                Action
+              </th>
+            )}
           </tr>
         </thead>
 
         <tbody>
           {loading ? (
             <tr>
-              <td colSpan={columns.length + 2} className="text-center py-4">
+              <td
+                colSpan={
+                  columns.length + 1 + (!hasActionsColumn && (onEdit || onDelete) ? 1 : 0)
+                }
+                className="text-center py-4"
+              >
                 <Spinner animation="border" />
               </td>
             </tr>
           ) : data.length === 0 ? (
             <tr>
-              <td colSpan={columns.length + 2} className="text-center py-4 text-muted">
+              <td
+                colSpan={
+                  columns.length + 1 + (!hasActionsColumn && (onEdit || onDelete) ? 1 : 0)
+                }
+                className="text-center py-4 text-muted"
+              >
                 <img
                   src="/empty-box.png"
                   alt={emptyMessage}
@@ -54,8 +87,10 @@ export default function DataTable({
             </tr>
           ) : (
             data.map((row, index) => (
-              <tr key={row.id}>
-                <td className="text-center">{(page - 1) * perPage + index + 1}</td>
+              <tr key={row.id || index}>
+                <td className="text-center">
+                  {(page - 1) * perPage + index + 1}
+                </td>
                 {columns.map((col, idx) => (
                   <td key={idx} style={col.style || {}}>
                     {typeof col.accessor === "function"
@@ -63,33 +98,35 @@ export default function DataTable({
                       : row[col.accessor]}
                   </td>
                 ))}
-                <td className="text-center">
-                  {onEdit && (
-                    <Button
-                      variant=""
-                      size="sm"
-                      className="me-1"
-                      onClick={() => onEdit(row)}
-                      style={{ borderColor: "#2E3A59", color: "#2E3A59" }}
-                    >
-                      <i className="bi bi-pencil-square"></i>
-                    </Button>
-                  )}
-                  {onDelete && (
-                    <Button
-                      variant="outline-primary"
-                      size="sm"
-                      onClick={() => onDelete(row)}
-                      style={{
-                        borderColor: "#2E3A59",
-                        color: "#2E3A59",
-                        backgroundColor: "transparent",
-                      }}
-                    >
-                      <i className="bi bi-trash"></i>
-                    </Button>
-                  )}
-                </td>
+                {!hasActionsColumn && (onEdit || onDelete) && (
+                  <td className="text-center">
+                    {onEdit && (
+                      <Button
+                        variant=""
+                        size="sm"
+                        className="me-1"
+                        onClick={() => onEdit(row)}
+                        style={{ borderColor: "#2E3A59", color: "#2E3A59" }}
+                      >
+                        <i className="bi bi-pencil-square"></i>
+                      </Button>
+                    )}
+                    {onDelete && (
+                      <Button
+                        variant="outline-primary"
+                        size="sm"
+                        onClick={() => onDelete(row)}
+                        style={{
+                          borderColor: "#2E3A59",
+                          color: "#2E3A59",
+                          backgroundColor: "transparent",
+                        }}
+                      >
+                        <i className="bi bi-trash"></i>
+                      </Button>
+                    )}
+                  </td>
+                )}
               </tr>
             ))
           )}

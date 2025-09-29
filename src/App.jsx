@@ -12,6 +12,7 @@ import AppLayout from "./Layout/AppLayout";
 import Overview from "./Overview/Overview";
 import ComponentsPage from "./Pages/ComponentsPage";
 import SalesListPage from "./Pages/SalesListPage";
+import SalesOverviewPage from "./Pages/SalesOverviewPage";
 import AddSalesPage from "./Pages/AddSalesPage";
 import AddProductPage from "./Pages/AddProductPage";
 import EditSalesPage from "./Pages/EditSalesPage";
@@ -88,7 +89,9 @@ export default function App() {
           <Route path="sales-order" element={<SalesListPage />} />
           <Route path="sales/add" element={<AddSalesPage />} />
           <Route path="sales/edit/:id" element={<EditSalesPage />} />
-          <Route path="add-product" element={<AddProductPage />} />
+        <Route path="sales-overview" element={<SalesOverviewPage />} />
+<Route path="sales-overview/:id" element={<SalesOverviewPage />} />           
+<Route path="add-product" element={<AddProductPage />} />
           {/* <Route path="product/edit/:id" element={<AddProductPage />} /> */}
           <Route path="service-product" element={<ServiceList />} />
           <Route path="service/add" element={<AddServicePage />} />
