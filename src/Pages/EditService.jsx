@@ -47,6 +47,27 @@ const EditService = () => {
       try {
         const res = await axios.get(`${API_BASE_URL}/service-vci/${id}`);
         if (res.data) {
+          const serviceData = {
+          challan_no: res.data.challan_no || "",
+          challan_date: res.data.challan_date || "",
+          courier_name: res.data.courier_name || "",
+          from_place: res.data.from_place || "",
+          to_place: res.data.to_place || "",
+          tester_name: "", 
+          quantity: res.data.quantity || "",
+          sent_date: res.data.sent_date || "",
+          received_date: res.data.received_date || "",
+          remarks: res.data.remarks || "",
+          items: res.data.items?.map((item) => ({
+            product: item.product || "", 
+            vci_serial_no: item.vci_serial_no || "",
+            warranty_status: item.warranty_status || "", 
+            testing_assigned_to: item.testing_assigned_to || "",
+            tested_date: item.tested_date || "",
+            testing_status: item.testing_status || "",
+            issue_found: item.issue_found || "",
+          })) || [],
+        };
           setFormData(res.data);
         }
       } catch (error) {
@@ -102,7 +123,7 @@ const EditService = () => {
     try {
       await axios.put(`${API_BASE_URL}/service-vci/${id}`, formData);
       toast.success("Service updated successfully!");
-      navigate("/serviceProduct"); // redirect after update
+      navigate("/service-product");
     } catch (error) {
       toast.error("Failed to update service!");
     }

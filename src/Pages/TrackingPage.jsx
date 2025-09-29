@@ -190,39 +190,59 @@ const TrackingPage = () => {
   };
 
   const fetchTimeline = async () => {
-    if (!serialNumber) {
-      setTimeline([]); 
-      return;
-    }
-    
-    setLoading(true);
-    setError("");
+  if (!serialNumber) {
+    setTimeline([]);
+    return;
+  }
 
-    try {
-      const response = await axios.get(
-        `${API_BASE_URL}/tracking-timeline/${serialNumber}`
-      );
+  setLoading(true);
+  setError("");
 
-      const data = response.data;
+  try {
+    const response = await axios.get(`${API_BASE_URL}/tracking-timeline/${serialNumber}`);
+    const data = response.data;
 
-      const fetchedTimeline = Object.keys(data).map((key) => ({
-        stage: key.replace("_", " ").toUpperCase(),
-        items: Array.isArray(data[key]) ? data[key] : [],
-      }));
-      const completeTimeline = defaultTimelineStructure.map(defaultStage => {
-        const fetchedStage = fetchedTimeline.find(ft => ft.stage === defaultStage.stage);
-        return fetchedStage ? fetchedStage : defaultStage;
-      });
+    // Convert sale object to array for timeline
+    const saleItems = data.sale
+      ? data.sale.items.map((item) => ({
+          ...item,
+          challan_no: data.sale.challan_no,
+          challan_date: data.sale.challan_date,
+          customer: data.sale.customer.customer, // customer name
+          created_at: data.sale.created_at,
+        }))
+      : [];
 
-      setTimeline(completeTimeline);
-    } catch (err) {
-      console.error(err);
-      setError("Failed to fetch tracking timeline. Please try again.");
-      setTimeline(defaultTimelineStructure); 
-    } finally {
-      setLoading(false);
-    }
-  };
+      const serviceItems = data.service_vci
+  ? data.service_vci.map(item => ({
+      ...item,
+      challan_no: item.challan_no || "N/A",
+      challan_date: item.challan_date || "N/A",
+      vendor: item.vendor_name || "N/A",   
+      product: item.product_name || "N/A",    
+      service_type: item.service_type || "N/A", 
+      created_at: item.created_at || "N/A",
+    }))
+  : [];
+
+
+    const fetchedTimeline = [
+      { stage: "SPARE PARTS", items: data.spare_parts || [] },
+      { stage: "INVENTORY", items: data.inventory || [] },
+      { stage: "SALE", items: saleItems },
+      { stage: "SERVICE", items: data.service_vci || [] },
+      { stage: "SERVICE-DELIVERY", items: [] },
+    ];
+
+    setTimeline(fetchedTimeline);
+  } catch (err) {
+    console.error(err);
+    setError("Failed to fetch tracking timeline. Please try again.");
+    setTimeline(defaultTimelineStructure);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const renderCardContent = (stage, item) => {
     const challanNo = item.challan_no || "N/A";
@@ -254,26 +274,27 @@ const TrackingPage = () => {
         );
 
       case "SALE":
-        return (
-          <>
-            <p className="mb-1" style={styles.dataCardText}><b>Sale Record</b></p>
-            <p className="mb-1 small" style={styles.dataCardText}><b>Challan No:</b> {challanNo}</p>
-            <p className="mb-1 small" style={styles.dataCardText}><b>Challan Date:</b> {item.challan_date || "N/A"}</p>
-            <p className="mb-1 small" style={styles.dataCardText}><b>Customer:</b> {item.customer || "N/A"}</p>
-            <p className="mb-1 small" style={styles.dataCardText}><b>product:</b> {item.product_name || "N/A"}</p>
-            <p className="mb-0 small pt-2" style={styles.stageDate}>{defaultDate}</p>
-          </>
-        );
+  return (
+    <>
+      <p className="mb-1" style={styles.dataCardText}><b>Sale Record</b></p>
+      <p className="mb-1 small" style={styles.dataCardText}><b>Challan No:</b> {item.challan_no || "N/A"}</p>
+      <p className="mb-1 small" style={styles.dataCardText}><b>Challan Date:</b> {item.challan_date || "N/A"}</p>
+      <p className="mb-1 small" style={styles.dataCardText}><b>Customer:</b> {item.customer || "N/A"}</p>
+      <p className="mb-1 small" style={styles.dataCardText}><b>Product:</b> {item.product || "N/A"}</p>
+      <p className="mb-0 small pt-2" style={styles.stageDate}>{item.created_at || "N/A"}</p>
+    </>
+  );
 
       case "SERVICE":
         return (
           <>
             <p className="mb-1" style={styles.dataCardText}><b>Service Request</b></p>
-            <p className="mb-1 small" style={styles.dataCardText}><b>Challan No:</b> {challanNo}</p>
+            <p className="mb-1 small" style={styles.dataCardText}><b>Challan No:</b> {item.challanNo}</p>
             <p className="mb-1 small" style={styles.dataCardText}><b>Challan Date:</b> {item.challan_date || "N/A"}</p>
             <p className="mb-1 small" style={styles.dataCardText}><b>Vendor:</b> {item.vendor || "N/A"}</p>
             <p className="mb-1 small" style={styles.dataCardText}><b>Service Type:</b> {item.service_type || "N/A"}</p>
-            <p className="mb-0 small pt-2" style={styles.stageDate}>{defaultDate}</p>
+            <p className="mb-1 small" style={styles.dataCardText}><b>Product:</b> {item.product || "N/A"}</p>
+            <p className="mb-0 small pt-2" style={styles.stageDate}>{item.created_at || "N/A"}</p>
           </>
         );
 
