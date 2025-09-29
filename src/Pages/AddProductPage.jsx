@@ -5,17 +5,16 @@ import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../api";
 
 export default function AddProductPage({ onProductsSelected }) {
-  const navigate = useNavigate(); // <- add this
+  const navigate = useNavigate(); 
   const [serialFrom, setSerialFrom] = useState("");
   const [serialTo, setSerialTo] = useState("");
   const [testFilter, setTestFilter] = useState("");
   const [selectedProductId, setSelectedProductId] = useState("");
   const [products, setProducts] = useState([]);
   const [testingData, setTestingData] = useState([]);
-  const [selectedTestingIds, setSelectedTestingIds] = useState([]);
+  const [selectedSerials, setSelectedSerials] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Fetch products
   const fetchProducts = async () => {
     try {
       const res = await axios.get(`${API_BASE_URL}/product`);
@@ -34,23 +33,19 @@ export default function AddProductPage({ onProductsSelected }) {
     }
   };
 
-  // Fetch inventory data
   const fetchTestingData = async () => {
     try {
       setLoading(true);
-      let url = `${API_BASE_URL}/inventory?serial_from=${encodeURIComponent(serialFrom)}&serial_to=${encodeURIComponent(serialTo)}&tested_status=${encodeURIComponent(testFilter)}`;
+      let url = `${API_BASE_URL}/inventory/serial-numbers?serial_from=${encodeURIComponent(serialFrom)}&serial_to=${encodeURIComponent(serialTo)}&tested_status=${encodeURIComponent(testFilter)}`;
       if (selectedProductId) url += `&product_id=${encodeURIComponent(selectedProductId)}`;
 
       const res = await axios.get(url);
       let records = Array.isArray(res.data) ? res.data : res.data.data ?? [];
-
-      const availableRecords = records.filter((item) => item.sale_status !== "Sold");
-      setTestingData(availableRecords);
-
-      const availableIds = availableRecords.map((r) => r.id);
-      setSelectedTestingIds(selectedTestingIds.filter((id) => availableIds.includes(id)));
+setTestingData(records);
+      const allSerials = records.map(r => r.id);
+      setSelectedSerials(prev => prev.filter((s) => availableSerials.includes(s)));
     } catch (err) {
-      console.error("Error fetching testing data:", err);
+      console.error("Error fetching inventory data:", err);
       setTestingData([]);
     } finally {
       setLoading(false);
@@ -58,35 +53,40 @@ export default function AddProductPage({ onProductsSelected }) {
   };
 
   const handleCheckboxChange = (id) => {
-    setSelectedTestingIds((prev) =>
+    setSelectedSerials((prev) =>
       prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
     );
   };
 
-  const handleUnselectAll = () => setSelectedTestingIds([]);
+  const handleUnselectAll = () => setSelectedSerials([]);
+const handleSelectAll = () => {
+  const allSerials = testingData.map(item => item.id);
+  setSelectedSerials(allSerials);
+};
 
   const handleSubmit = () => {
-    if (!selectedTestingIds.length) {
+    if (!selectedSerials.length) {
       alert("Please select at least one product!");
       return;
     }
 
     const selectedProducts = testingData.filter((item) =>
-      selectedTestingIds.includes(item.id)
+      selectedSerials.includes(item.id)
     );
 
     localStorage.setItem("selectedProducts", JSON.stringify(selectedProducts));
 
     if (onProductsSelected) onProductsSelected(selectedProducts);
 
-    // ✅ Use navigate instead of window.history.back()
-    navigate(-1); // Go back one page
+    navigate(-1);
   };
 
   const getProductName = (item) => {
-    if (item?.product?.name) return item.product.name;
-    if (item?.product_name) return item.product_name;
-    if (item?.product_id) {
+    if (!item) return "N/A";
+    if (item.product && typeof item.product === "object" && item.product.name) return item.product.name;
+    if (item.product && typeof item.product === "string") return item.product;
+    if (item.product_name) return item.product_name;
+    if (item.product_id) {
       const found = products.find((p) => String(p.id) === String(item.product_id));
       if (found) return found.name;
     }
@@ -140,11 +140,9 @@ export default function AddProductPage({ onProductsSelected }) {
                   <th>
                     <Form.Check
                       type="checkbox"
-                      checked={selectedTestingIds.length === testingData.length && testingData.length > 0}
+                      checked={selectedSerials.length === testingData.length && testingData.length > 0}
                       onChange={(e) =>
-                        e.target.checked
-                          ? setSelectedTestingIds(testingData.map((item) => item.id))
-                          : handleUnselectAll()
+                        e.target.checked ? handleSelectAll() : handleUnselectAll()
                       }
                     />
                   </th>
@@ -165,7 +163,7 @@ export default function AddProductPage({ onProductsSelected }) {
                       <td>
                         <Form.Check
                           type="checkbox"
-                          checked={selectedTestingIds.includes(item.id)}
+                          checked={selectedSerials.includes(item.id)}
                           onChange={() => handleCheckboxChange(item.id)}
                         />
                       </td>
