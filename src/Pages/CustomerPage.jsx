@@ -56,7 +56,7 @@ export default function CustomerListPage() {
     if (!result.isConfirmed) return;
 
     try {
-      await axios.delete(`${API_BASE_URL}/customers/${id}`);
+      await axios.delete(`${API_BASE_URL}/customers/del/${id}`);
       toast.success("Customer deleted successfully!");
       setCustomers(customers.filter((c) => c.id !== id));
     } catch {

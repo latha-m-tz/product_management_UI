@@ -11,6 +11,17 @@ export default function PurchaseViewPage() {
   const navigate = useNavigate();
   const [purchase, setPurchase] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+const pageSize = 10; // items per page
+
+const totalItems = purchase?.items ? purchase.items.length : 0;
+const totalPages = Math.ceil(totalItems / pageSize);
+
+const paginatedItems = purchase?.items
+  ? purchase.items.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+  : [];
+
+
 
   useEffect(() => {
     fetchPurchase();
@@ -100,27 +111,56 @@ export default function PurchaseViewPage() {
                 <th>Quantity</th>
               </tr>
             </thead>
-            <tbody>
-              {purchase.items && purchase.items.length > 0 ? (
-                purchase.items.map((item, index) => (
-                  <tr key={item.id}>
-                    <td className="text-center">{index + 1}</td>
-                          <td>{item.sparepart}</td>
-                    <td>{item.product}</td>
-                    <td>{item.serial_numbers?.join(", ")}</td>
-                    <td>{item.quantity}</td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="4" className="text-center py-4 text-muted">
-                    No items found
-                  </td>
-                </tr>
-              )}
-            </tbody>
+           <tbody>
+  {paginatedItems && paginatedItems.length > 0 ? (
+    paginatedItems.map((item, index) => (
+      <tr key={item.id}>
+        <td className="text-center">
+          {(currentPage - 1) * pageSize + index + 1}
+        </td>
+        <td>{item.sparepart}</td>
+        <td>{item.product}</td>
+        <td>{item.serial_numbers?.join(", ")}</td>
+        <td>{item.quantity}</td>
+      </tr>
+    ))
+  ) : (
+    <tr>
+      <td colSpan="5" className="text-center py-4 text-muted">
+        No items found
+      </td>
+    </tr>
+  )}
+</tbody>
+
           </table>
+
+          
         </div>
+        {totalPages > 1 && (
+  <div className="d-flex justify-content-between align-items-center mt-2">
+    <Button
+      size="sm"
+      variant="outline-secondary"
+      disabled={currentPage === 1}
+      onClick={() => setCurrentPage((p) => p - 1)}
+    >
+      Previous
+    </Button>
+    <span>
+      Page {currentPage} of {totalPages}
+    </span>
+    <Button
+      size="sm"
+      variant="outline-secondary"
+      disabled={currentPage === totalPages}
+      onClick={() => setCurrentPage((p) => p + 1)}
+    >
+      Next
+    </Button>
+  </div>
+)}
+
       </SectionCard>
 
       <ToastContainer />

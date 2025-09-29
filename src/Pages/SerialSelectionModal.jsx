@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Modal, Button, Form, Table, Row, Col } from "react-bootstrap";
 
+
 export default function SerialSelectionModal({
   show,
   onClose,
@@ -14,6 +15,26 @@ export default function SerialSelectionModal({
   const [unselectEnd, setUnselectEnd] = useState("");
 
   const cleanAvailableSerials = [...new Set(availableSerials.filter(Boolean))];
+// --- inside component state ---
+const [currentPage, setCurrentPage] = useState(1);
+const pageSize = 10; // number of serials per page
+
+// derived values
+const totalPages = Math.ceil(
+  (cleanAvailableSerials.length + localSelected.filter((s) => !cleanAvailableSerials.includes(s)).length) / pageSize
+);
+
+const paginatedSerials = cleanAvailableSerials.slice(
+  (currentPage - 1) * pageSize,
+  currentPage * pageSize
+);
+
+const manualSerials = localSelected.filter((s) => !cleanAvailableSerials.includes(s));
+const paginatedManuals = manualSerials.slice(
+  Math.max(0, (currentPage - 1) * pageSize - cleanAvailableSerials.length),
+  Math.max(0, currentPage * pageSize - cleanAvailableSerials.length)
+);
+
 
   useEffect(() => {
     if (show) {
@@ -169,46 +190,70 @@ const handleConfirm = () => {
             </Row>
 
             {/* Table */}
-            <Table striped bordered hover size="sm">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Serial Number</th>
-                  <th>Select</th>
-                </tr>
-              </thead>
-              <tbody>
-                {cleanAvailableSerials.map((s, idx) => (
-                  <tr key={s}>
-                    <td>{idx + 1}</td>
-                    <td>{s}</td>
-                    <td>
-                      <Form.Check
-                        type="checkbox"
-                        checked={localSelected.includes(s)}
-                        onChange={() => toggleSerial(s)}
-                      />
-                    </td>
-                  </tr>
-                ))}
-                {localSelected
-                  .filter((s) => !cleanAvailableSerials.includes(s))
-                  .map((s, idx) => (
-                    <tr key={`manual-${s}`}>
-                      <td>{cleanAvailableSerials.length + idx + 1}</td>
-                      <td>{s}</td>
-                      <td>
-                        <Form.Check
-                          type="checkbox"
-                          checked={localSelected.includes(s)}
-                          onChange={() => toggleSerial(s)}
-                        />
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </Table>
-          </>
+            {/* Table */}
+<Table striped bordered hover size="sm">
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Serial Number</th>
+      <th>Select</th>
+    </tr>
+  </thead>
+  <tbody>
+    {paginatedSerials.map((s, idx) => (
+      <tr key={s}>
+        <td>{(currentPage - 1) * pageSize + idx + 1}</td>
+        <td>{s}</td>
+        <td>
+          <Form.Check
+            type="checkbox"
+            checked={localSelected.includes(s)}
+            onChange={() => toggleSerial(s)}
+          />
+        </td>
+      </tr>
+    ))}
+    {paginatedManuals.map((s, idx) => (
+      <tr key={`manual-${s}`}>
+        <td>{cleanAvailableSerials.length + (currentPage - 1) * pageSize + idx + 1}</td>
+        <td>{s}</td>
+        <td>
+          <Form.Check
+            type="checkbox"
+            checked={localSelected.includes(s)}
+            onChange={() => toggleSerial(s)}
+          />
+        </td>
+      </tr>
+    ))}
+  </tbody>
+</Table>
+
+{/* Pagination controls */}
+{totalPages > 1 && (
+  <div className="d-flex justify-content-between align-items-center mt-2">
+    <Button
+      size="sm"
+      variant="outline-secondary"
+      disabled={currentPage === 1}
+      onClick={() => setCurrentPage((p) => p - 1)}
+    >
+      Previous
+    </Button>
+    <span>
+      Page {currentPage} of {totalPages}
+    </span>
+    <Button
+      size="sm"
+      variant="outline-secondary"
+      disabled={currentPage === totalPages}
+      onClick={() => setCurrentPage((p) => p + 1)}
+    >
+      Next
+    </Button>
+  </div>
+)}
+</>
         )}
       </Modal.Body>
       <Modal.Footer>
