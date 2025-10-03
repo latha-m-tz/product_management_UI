@@ -17,23 +17,33 @@ export default function SerialSelectionModal({
   const cleanAvailableSerials = [...new Set(availableSerials.filter(Boolean))];
 // --- inside component state ---
 const [currentPage, setCurrentPage] = useState(1);
-const pageSize = 10; // number of serials per page
+const [searchTerm, setSearchTerm] = useState(""); // NEW search state
+const pageSize = 10;
 
-// derived values
-const totalPages = Math.ceil(
-  (cleanAvailableSerials.length + localSelected.filter((s) => !cleanAvailableSerials.includes(s)).length) / pageSize
+// Filter available serials by search
+const filteredSerials = cleanAvailableSerials.filter((s) =>
+  s.toLowerCase().includes(searchTerm.toLowerCase())
 );
 
-const paginatedSerials = cleanAvailableSerials.slice(
+const totalPages = Math.ceil(
+  (filteredSerials.length +
+    localSelected.filter((s) => !cleanAvailableSerials.includes(s)).length) /
+    pageSize
+);
+
+const paginatedSerials = filteredSerials.slice(
   (currentPage - 1) * pageSize,
   currentPage * pageSize
 );
 
-const manualSerials = localSelected.filter((s) => !cleanAvailableSerials.includes(s));
-const paginatedManuals = manualSerials.slice(
-  Math.max(0, (currentPage - 1) * pageSize - cleanAvailableSerials.length),
-  Math.max(0, currentPage * pageSize - cleanAvailableSerials.length)
+const manualSerials = localSelected.filter(
+  (s) => !cleanAvailableSerials.includes(s)
 );
+const paginatedManuals = manualSerials.slice(
+  Math.max(0, (currentPage - 1) * pageSize - filteredSerials.length),
+  Math.max(0, currentPage * pageSize - filteredSerials.length)
+);
+
 
 
   useEffect(() => {
@@ -121,6 +131,23 @@ const handleConfirm = () => {
           <p>No serials available.</p>
         ) : (
           <>
+
+          {/* Search Bar */}
+<Row className="mb-3">
+  <Col>
+    <Form.Control
+      size="sm"
+      type="text"
+      placeholder="Search serials..."
+      value={searchTerm}
+      onChange={(e) => {
+        setSearchTerm(e.target.value);
+        setCurrentPage(1); // reset to page 1 when searching
+      }}
+    />
+  </Col>
+</Row>
+
             {/* Select / Deselect All */}
             <Row className="mb-3">
               <Col>

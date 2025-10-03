@@ -356,7 +356,7 @@ useEffect(() => {
                   onClick={() => handleSort("name")}
                   style={{ cursor: "pointer", textAlign: "center", backgroundColor: "#2E3A59", color: "white" }}
                 >
-                  Spare Part Name {sortField === "name" && (sortDirection === "asc" ? "▲" : "▼")}
+                  Spare Part Name {sortField === "name"}
                 </th>
                    {/* <th
                   onClick={() => handleSort("sparepart_type")}

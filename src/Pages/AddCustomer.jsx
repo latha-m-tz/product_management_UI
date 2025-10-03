@@ -45,12 +45,13 @@ export default function AddCustomer() {
 
     // Required fields
     if (!customer.customer.trim()) errs.customer = "Customer Name is required";
-    if (!customer.gst_no.trim()) errs.gst_no = "GST No is required";
-    else if (customer.gst_no.length !== 15) errs.gst_no = "GST No must be 15 characters";
+    // if (!customer.gst_no.trim()) errs.gst_no = "GST No is required";
+    // else if (customer.gst_no.length !== 15) errs.gst_no = "GST No must be 15 characters";
+    
+if (customer.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email)) {
+  errs.email = "Invalid email format";
+}
 
-    if (!customer.email.trim()) errs.email = "Email is required";
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email))
-      errs.email = "Invalid email format";
 
 
     if (!customer.pincode.trim()) errs.pincode = "Pincode is required";
@@ -191,6 +192,9 @@ export default function AddCustomer() {
   };
 
   const feedbackStyle = { color: "red", fontSize: "0.85rem", marginTop: "4px" };
+  // ✅ GST regex
+const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+
 
   return (
     <div className="container-fluid p-4" style={{ background: "white", minHeight: "100vh" }}>
@@ -212,17 +216,35 @@ export default function AddCustomer() {
             </Form.Group>
           </Col>
           <Col md={4}>
-            <Form.Group className="mb-3">
-              <Form.Label>GST No</Form.Label>
-              <Form.Control
-                type="text"
-                name="gst_no"
-                value={customer.gst_no}
-                onChange={handleChange}
-                placeholder="Enter GST No"
-              />
-              {errors.gst_no && <div style={feedbackStyle}>{errors.gst_no}</div>}
-            </Form.Group>
+           <Form.Group className="mb-3">
+  <Form.Label>GST No</Form.Label>
+  <Form.Control
+    type="text"
+    name="gst_no"
+    value={customer.gst_no}
+    onChange={(e) => {
+      const value = e.target.value.toUpperCase();
+      setCustomer({ ...customer, gst_no: value });
+
+      if (!value.trim()) {
+        setErrors((prev) => ({ ...prev, gst_no: "GST No is required" }));
+      } else if (value.length !== 15) {
+        setErrors((prev) => ({ ...prev, gst_no: "GST No must be 15 characters" }));
+      } else if (!gstRegex.test(value)) {
+        setErrors((prev) => ({ ...prev, gst_no: "Invalid GST No format (e.g. 33ABCDE1234F1Z5)" }));
+      } else {
+        setErrors((prev) => ({ ...prev, gst_no: "" }));
+      }
+    }}
+    placeholder="Enter GST No"
+  />
+  {errors.gst_no && (
+    <div style={{ color: "red", fontSize: "0.85rem", marginTop: "4px" }}>
+      {errors.gst_no}
+    </div>
+  )}
+</Form.Group>
+
           </Col>
           <Col md={4}>
             <Form.Group className="mb-3">
@@ -295,7 +317,7 @@ export default function AddCustomer() {
                 onChange={handleChange}
                 placeholder="Enter Email"
               />
-              {errors.email && <div style={feedbackStyle}>{errors.email}</div>}
+              {/* {errors.email && <div style={feedbackStyle}>{errors.email}</div>} */}
             </Form.Group>
           </Col>
                <Col md={4}>

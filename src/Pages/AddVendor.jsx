@@ -103,10 +103,11 @@ const handleVendorMobileChange = (value) => {
     const errors = {};
  
     if (!vendor.vendor.trim()) errors.vendor = "Company Name is required";
-    if (!vendor.gst_no.trim()) errors.gst_no = "GST No is required";
-    if (!vendor.email.trim()) errors.email = "Email is required";
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(vendor.email))
-      errors.email = "Invalid email format";
+    // if (!vendor.gst_no.trim()) errors.gst_no = "GST No is required";
+ if (vendor.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(vendor.email)) {
+  errors.email = "Invalid email format";
+}
+
     if (!vendor.mobile_no.trim()) errors.mobile_no = "Mobile number is required";
     if (!vendor.pincode.trim()) errors.pincode = "Pincode is required";
     if (!vendor.city.trim()) errors.city = "City is required";
@@ -121,20 +122,24 @@ const handleVendorMobileChange = (value) => {
   const validateContact = () => {
     const errors = {};
  
-    if (!contact.name.trim()) errors.name = "Name is required";
-    if (!contact.designation.trim()) errors.designation = "Designation is required";
+    // if (!contact.name.trim()) errors.name = "Name is required";
+    // if (!contact.designation.trim()) errors.designation = "Designation is required";
     if (!contact.mobile_no || contact.mobile_no.length < 10)
       errors.mobile_no = "Mobile number is required and must be valid";
  
     // if (!contact.email.trim()) errors.email = "Email is required";
     // else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.email))
     //   errors.email = "Invalid email format";
- 
-      if (!contact.email.trim()) errors.email = "Email is required";
-  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.email))
-    errors.email = "Invalid email format";
-  else if (contact.email.trim().toLowerCase() === vendor.email.trim().toLowerCase())
-    errors.email = "Contact email cannot be the same as company email";
+ if (contact.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.email)) {
+  errors.email = "Invalid email format";
+} else if (
+  contact.email.trim() &&
+  vendor.email &&
+  contact.email.trim().toLowerCase() === vendor.email.trim().toLowerCase()
+) {
+  errors.email = "Contact email cannot be the same as company email";
+}
+
  
     if (!contact.status) errors.status = "Status is required";
  
@@ -421,6 +426,7 @@ const handleVendorMobileChange = (value) => {
   };
  
   const feedbackStyle = { color: "red", fontSize: "0.85rem", marginTop: "4px" };
+  const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
  
   return (
     <div className="container-fluid p-4" style={{ background: "white", minHeight: "100vh", position: "relative" }}>
@@ -445,32 +451,36 @@ const handleVendorMobileChange = (value) => {
             </Form.Group>
           </Col>
           <Col md={4}>
-            <Form.Group className="mb-3">
-              <Form.Label>GST No</Form.Label>
-              <Form.Control
-                type="text"
-                name="gst_no"
-                value={vendor.gst_no}
-                onChange={(e) => {
-                  const value = e.target.value.toUpperCase();
-                  setVendor({ ...vendor, gst_no: value });
- 
-                  if (value.length > 15) {
-                    setVendorErrors((prev) => ({ ...prev, gst_no: "GST No cannot exceed 15 characters" }));
-                  } else if (value.length === 15 && !/^[0-9A-Z]{15}$/.test(value)) {
-                    setVendorErrors((prev) => ({ ...prev, gst_no: "GST No must be 15 alphanumeric characters" }));
-                  } else {
-                    setVendorErrors((prev) => ({ ...prev, gst_no: "" }));
-                  }
-                }}
-                placeholder="Enter GST No"
-              />
-              {vendorErrors.gst_no && (
-                <div style={{ color: "red", fontSize: "0.85rem", marginTop: "4px" }}>
-                  {vendorErrors.gst_no}
-                </div>
-              )}
-            </Form.Group>
+
+<Form.Group className="mb-3">
+  <Form.Label>GST No</Form.Label>
+  <Form.Control
+    type="text"
+    name="gst_no"
+    value={vendor.gst_no}
+    onChange={(e) => {
+      const value = e.target.value.toUpperCase();
+      setVendor({ ...vendor, gst_no: value });
+
+      if (!value.trim()) {
+        setVendorErrors((prev) => ({ ...prev, gst_no: "GST No is required" }));
+      } else if (value.length !== 15) {
+        setVendorErrors((prev) => ({ ...prev, gst_no: "GST No must be 15 characters" }));
+      } else if (!gstRegex.test(value)) {
+        setVendorErrors((prev) => ({ ...prev, gst_no: "Invalid GST No format" }));
+      } else {
+        setVendorErrors((prev) => ({ ...prev, gst_no: "" }));
+      }
+    }}
+    placeholder="Enter GST No"
+  />
+  {vendorErrors.gst_no && (
+    <div style={{ color: "red", fontSize: "0.85rem", marginTop: "4px" }}>
+      {vendorErrors.gst_no}
+    </div>
+  )}
+</Form.Group>
+
  
           </Col>
           <Col md={4}>
@@ -567,10 +577,10 @@ const handleVendorMobileChange = (value) => {
  
  
           </Col>
-          <Col md={4}>
+          <Col md={12}>
             <Form.Group className="mb-3">
               <Form.Label>Address</Form.Label>
-              <Form.Control as="textarea" rows={1} name="address" value={vendor.address} onChange={handleVendorChange}
+              <Form.Control as="textarea" rows={2} name="address" value={vendor.address} onChange={handleVendorChange}
                 placeholder="Enter Address"
               />
               {vendorErrors.address && <div style={feedbackStyle}>{vendorErrors.address}</div>}
