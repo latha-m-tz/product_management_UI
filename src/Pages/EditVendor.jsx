@@ -421,7 +421,10 @@ const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
         <Row>
           <Col md={4}>
             <Form.Group className="mb-3">
-              <Form.Label>Vendor</Form.Label>
+            <Form.Label>
+  Vendor<span style={{ color: "red" }}> *</span>
+</Form.Label>
+
               <Form.Control
                 type="text"
                 name="vendor"
@@ -471,7 +474,10 @@ const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
 
           <Col md={4}>
             <Form.Group className="mb-3">
-              <Form.Label>Pincode</Form.Label>
+              <Form.Label>
+  Pincode<span style={{ color: "red" }}> *</span>
+</Form.Label>
+
               <Form.Control
                 type="text"
                 name="pincode"
@@ -488,7 +494,10 @@ const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
 
           <Col md={4}>
             <Form.Group className="mb-3">
-              <Form.Label>City</Form.Label>
+        <Form.Label>
+  City<span style={{ color: "red" }}> *</span>
+</Form.Label>
+
               <CreatableSelect
                 name="city"
                 value={vendor.city ? { label: vendor.city, value: vendor.city } : null}
@@ -504,7 +513,10 @@ const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
           </Col>
           <Col md={4}>
             <Form.Group className="mb-3">
-              <Form.Label>State</Form.Label>
+          <Form.Label>
+  State<span style={{ color: "red" }}> *</span>
+</Form.Label>
+
               <Form.Control
                 type="text"
                 name="state"
@@ -517,7 +529,10 @@ const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
           </Col>
           <Col md={4}>
             <Form.Group className="mb-3">
-              <Form.Label>District</Form.Label>
+             <Form.Label>
+  District<span style={{ color: "red" }}> *</span>
+</Form.Label>
+
               <Form.Control
                 type="text"
                 name="district"
@@ -548,7 +563,10 @@ const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
           </Col>
           <Col md={4}>
             <Form.Group className="mb-3">
-              <Form.Label>Mobile No*</Form.Label>
+          <Form.Label>
+  Mobile No<span style={{ color: "red" }}> *</span>
+</Form.Label>
+
               <PhoneInput
                 country={countryCode.toLowerCase()}
                 international
@@ -569,7 +587,10 @@ const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
 
           <Col md={12}>
             <Form.Group className="mb-3">
-              <Form.Label>Address</Form.Label>
+           <Form.Label>
+  Address<span style={{ color: "red" }}> *</span>
+</Form.Label>
+
               <Form.Control
                 as="textarea"
                 rows={2}
@@ -737,7 +758,7 @@ const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
           <Row className="mb-3 p-2" style={{ background: "#f5f5f5", borderRadius: "6px" }}>
             <Col md={6}>
               <Form.Group>
-                <Form.Label>Name*</Form.Label>
+                <Form.Label>Name</Form.Label>
                 <Form.Control
                   type="text"
                   name="name"
@@ -758,7 +779,7 @@ const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
             </Col>
             <Col md={6}>
               <Form.Group>
-                <Form.Label>Designation*</Form.Label>
+                <Form.Label>Designation</Form.Label>
                 <Form.Control
                   type="text"
                   name="designation"
@@ -776,7 +797,10 @@ const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
           {/* <Row className="mb-3 p-2" style={{ background: "#f5f5f5", borderRadius: "6px" }}> */}
             <Col md={6}>
               <Form.Group>
-                <Form.Label>Mobile No*</Form.Label>
+               <Form.Label>
+  Mobile No<span style={{ color: "red" }}> *</span>
+</Form.Label>
+
                 <PhoneInput
                   country={countryCode.toLowerCase()}
                   international

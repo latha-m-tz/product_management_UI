@@ -47,7 +47,7 @@ export default function AddCustomer() {
     if (!customer.customer.trim()) errs.customer = "Customer Name is required";
     // if (!customer.gst_no.trim()) errs.gst_no = "GST No is required";
     // else if (customer.gst_no.length !== 15) errs.gst_no = "GST No must be 15 characters";
-    
+
 if (customer.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email)) {
   errs.email = "Invalid email format";
 }
@@ -204,7 +204,10 @@ const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
         <Row>
           <Col md={4}>
             <Form.Group className="mb-3">
-              <Form.Label>Customer Name</Form.Label>
+             <Form.Label>
+  Customer Name<span style={{ color: "red" }}> *</span>
+</Form.Label>
+
               <Form.Control
                 type="text"
                 name="customer"
@@ -248,7 +251,10 @@ const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
           </Col>
           <Col md={4}>
             <Form.Group className="mb-3">
-              <Form.Label>Pincode</Form.Label>
+      <Form.Label>
+  Pincode<span style={{ color: "red" }}> *</span>
+</Form.Label>
+
               <Form.Control
                 type="text"
                 name="pincode"
@@ -264,7 +270,10 @@ const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
         <Row>
           <Col md={4}>
             <Form.Group className="mb-3">
-              <Form.Label>City</Form.Label>
+           <Form.Label>
+  City<span style={{ color: "red" }}> *</span>
+</Form.Label>
+
               <CreatableSelect
                 isClearable
                 options={cityOptions.map((c) => ({ label: c, value: c }))}
@@ -280,7 +289,10 @@ const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
           </Col>
           <Col md={4}>
             <Form.Group className="mb-3">
-              <Form.Label>District</Form.Label>
+             <Form.Label>
+  District<span style={{ color: "red" }}> *</span>
+</Form.Label>
+
               <Form.Control
                 type="text"
                 name="district"
@@ -293,7 +305,10 @@ const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
           </Col>
           <Col md={4}>
             <Form.Group className="mb-3">
-              <Form.Label>State</Form.Label>
+              <Form.Label>
+  State<span style={{ color: "red" }}> *</span>
+</Form.Label>
+
               <Form.Control
                 type="text"
                 name="state"
@@ -322,7 +337,10 @@ const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
           </Col>
                <Col md={4}>
             <Form.Group className="mb-3">
-              <Form.Label>Mobile No</Form.Label>
+             <Form.Label>
+  Mobile No<span style={{ color: "red" }}> *</span>
+</Form.Label>
+
               <PhoneInput international 
                   defaultCountry="IN" 
               className="form-control" value={customer.mobile_no} onChange={handleMobileChange} />
@@ -347,7 +365,10 @@ const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
         <Row>
           <Col md={12}>
             <Form.Group className="mb-3">
-              <Form.Label>Address</Form.Label>
+  <Form.Label>
+  Address<span style={{ color: "red" }}> *</span>
+</Form.Label>
+
               <Form.Control
                 as="textarea"
                 rows={2}

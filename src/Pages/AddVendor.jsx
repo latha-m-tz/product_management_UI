@@ -438,7 +438,10 @@ const handleVendorMobileChange = (value) => {
         <Row>
           <Col md={4}>
             <Form.Group className="mb-3">
-              <Form.Label>Vendor</Form.Label>
+              <Form.Label>
+  Vendor<span style={{ color: "red" }}> *</span>
+</Form.Label>
+
               <Form.Control type="text" name="vendor" value={vendor.vendor} onChange={handleVendorChange}
                 placeholder="Enter company name"
  
@@ -485,7 +488,10 @@ const handleVendorMobileChange = (value) => {
           </Col>
           <Col md={4}>
             <Form.Group className="mb-3">
-              <Form.Label>Pincode</Form.Label>
+             <Form.Label>
+  Pincode<span style={{ color: "red" }}> *</span>
+</Form.Label>
+
               <Form.Control type="text" name="pincode" value={vendor.pincode} onChange={handleVendorChange}
                 placeholder=" Enter pincode"
               />
@@ -498,7 +504,10 @@ const handleVendorMobileChange = (value) => {
         <Row>
           <Col md={4}>
             <Form.Group className="mb-3">
-              <Form.Label>City</Form.Label>
+            <Form.Label>
+  City<span style={{ color: "red" }}> *</span>
+</Form.Label>
+
               <CreatableSelect
                 isClearable
                 options={cityOptionsFormatted}
@@ -521,7 +530,7 @@ const handleVendorMobileChange = (value) => {
                   }
                 }}
                 placeholder="Select or type city"
-                  classNamePrefix="my-select"   // ✅ Add this
+                  classNamePrefix="my-select"   
               />
               {vendorErrors.city && <div style={feedbackStyle}>{vendorErrors.city}</div>}
  
@@ -529,7 +538,10 @@ const handleVendorMobileChange = (value) => {
           </Col>
           <Col md={4}>
             <Form.Group className="mb-3">
-              <Form.Label>District</Form.Label>
+          <Form.Label>
+  District<span style={{ color: "red" }}> *</span>
+</Form.Label>
+
               <Form.Control type="text" name="district" value={vendor.district}
                 onChange={handleVendorChange}
                 placeholder="Enter District" />
@@ -538,7 +550,10 @@ const handleVendorMobileChange = (value) => {
           </Col>
           <Col md={4}>
             <Form.Group className="mb-3">
-              <Form.Label>State</Form.Label>
+             <Form.Label>
+  State<span style={{ color: "red" }}> *</span>
+</Form.Label>
+
               <Form.Control type="text" name="state" value={vendor.state}
                 onChange={handleVendorChange}
                 placeholder="Enter State" />
@@ -560,7 +575,10 @@ const handleVendorMobileChange = (value) => {
           </Col>
           <Col md={4}>
           <Form.Group className="mb-3">
-  <Form.Label>Mobile No</Form.Label>
+ <Form.Label>
+  Mobile No<span style={{ color: "red" }}> *</span>
+</Form.Label>
+
   <PhoneInput
     international
     defaultCountry="IN"
@@ -579,7 +597,10 @@ const handleVendorMobileChange = (value) => {
           </Col>
           <Col md={12}>
             <Form.Group className="mb-3">
-              <Form.Label>Address</Form.Label>
+             <Form.Label>
+  Address<span style={{ color: "red" }}> *</span>
+</Form.Label>
+
               <Form.Control as="textarea" rows={2} name="address" value={vendor.address} onChange={handleVendorChange}
                 placeholder="Enter Address"
               />
@@ -742,7 +763,7 @@ const handleVendorMobileChange = (value) => {
             <Row className="p-2">
               <Col md={6}>
                 <Form.Group>
-                  <Form.Label>Name*</Form.Label>
+                  <Form.Label>Name</Form.Label>
                   <Form.Control
                     type="text"
                     name="name"
@@ -769,7 +790,7 @@ const handleVendorMobileChange = (value) => {
  
               <Col md={6}>
                 <Form.Group>
-                  <Form.Label>Designation*</Form.Label>
+                  <Form.Label>Designation</Form.Label>
                   <Form.Control
                     type="text"
                     name="designation"
@@ -786,7 +807,10 @@ const handleVendorMobileChange = (value) => {
             <Row className="p-2">
               <Col md={6}>
                 <Form.Group>
-                  <Form.Label>Mobile No</Form.Label>
+                  <Form.Label>
+  Mobile No<span style={{ color: "red" }}> *</span>
+</Form.Label>
+
                   <PhoneInput
   international
   defaultCountry="IN"
