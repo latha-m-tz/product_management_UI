@@ -77,9 +77,29 @@ const [existingSerials, setExistingSerials] = useState([]);
       }
       return prev;
     });
+    
   };
 
-  
+  const clearError = (field, index = null) => {
+  setErrors((prev) => {
+    const newErrors = { ...prev };
+
+    if (index !== null) {
+      if (newErrors.items?.[index]?.[field]) {
+        delete newErrors.items[index][field];
+        if (Object.keys(newErrors.items[index]).length === 0) {
+          delete newErrors.items[index];
+        }
+      }
+    } else {
+      if (newErrors[field]) {
+        delete newErrors[field];
+      }
+    }
+    return newErrors;
+  });
+};
+
 
   const addSparepart = () => {
     setSpareparts((prev) => [
@@ -137,6 +157,17 @@ const [existingSerials, setExistingSerials] = useState([]);
     const itemErr = {};
 
     if (!sp.sparepart_id) itemErr.sparepart_id = "Select sparepart";
+
+          // ✅ Check prefix match
+      if (sp.from_serial && sp.to_serial) {
+        const prefixFrom = sp.from_serial.replace(/[0-9]+$/, ""); // take non-numeric part
+        const prefixTo = sp.to_serial.replace(/[0-9]+$/, "");
+        if (prefixFrom !== prefixTo) {
+          itemErr.from_serial = "Prefix mismatch";
+          itemErr.to_serial = "Prefix mismatch";
+        }
+      }
+    
 
     if (type.includes("serial")) {
       if (!sp.product_id) itemErr.product_id = "Select product";
@@ -297,7 +328,6 @@ const [existingSerials, setExistingSerials] = useState([]);
   }
 }
 
-
 };
 
   const feedbackStyle = { color: "red", fontSize: "0.85rem", marginTop: "4px" };
@@ -320,7 +350,12 @@ const [existingSerials, setExistingSerials] = useState([]);
                 <Form.Label>Vendor*</Form.Label>
                 <Form.Select
                   value={vendorId}
-                  onChange={(e) => setVendorId(e.target.value)}
+                  // onChange={(e) => setVendorId(e.target.value)}
+                    onChange={(e) => {
+    setVendorId(e.target.value);
+    clearError("vendor_id");   // clear vendor error live
+  }}
+                  
                 >
                   <option value="">Select Vendor</option>
                   {availableVendors.map((v) =>
@@ -348,7 +383,11 @@ const [existingSerials, setExistingSerials] = useState([]);
                 <Form.Control
                   type="text"
                   value={challanNo}
-                  onChange={(e) => setChallanNo(e.target.value)}
+                  // onChange={(e) => setChallanNo(e.target.value)}
+                    onChange={(e) => {
+    setChallanNo(e.target.value);
+    clearError("challan_no");
+  }}
                   placeholder="Enter Challan No"
                   
                 />
@@ -363,7 +402,11 @@ const [existingSerials, setExistingSerials] = useState([]);
                 <Form.Control
                   type="date"
                   value={challanDate}
-                  onChange={(e) => setChallanDate(e.target.value)}
+                  // onChange={(e) => setChallanDate(e.target.value)}
+                    onChange={(e) => {
+    setChallanDate(e.target.value);
+    clearError("challan_date");
+  }}
                 />
              {errors.challan_date && <div style={feedbackStyle}>{errors.challan_date}</div>}
 
@@ -432,7 +475,9 @@ const [existingSerials, setExistingSerials] = useState([]);
                               onChange={(e) =>
                                 handleInputChange(0, "from_serial", e.target.value)
                               }
+                              
                             />
+                            
                           </Form.Group>
                         </Col>
 
@@ -446,6 +491,7 @@ const [existingSerials, setExistingSerials] = useState([]);
                                 handleInputChange(0, "to_serial", e.target.value)
                               }
                             />
+                            
                           </Form.Group>
                         </Col>
                       </Row>

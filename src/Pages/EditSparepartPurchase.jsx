@@ -33,11 +33,13 @@ const [initialItems, setInitialItems] = useState([]);
 const [modalIndex, setModalIndex] = useState(null);
 const [modalSerials, setModalSerials] = useState([]);
 const [deletedSparepartIds, setDeletedSparepartIds] = useState([]);
+const [deletedItems, setDeletedItems] = useState([]);
+const [deletedItemIds, setDeletedItemIds] = useState([]);
+
 
 const navigate = useNavigate();
 
- 
- 
+
 const [currentIndex, setCurrentIndex] = useState(null);
   const { id } = useParams();
   const purchaseKey = purchaseId || id;
@@ -84,6 +86,16 @@ const [currentIndex, setCurrentIndex] = useState(null);
     const sorted = uniq.sort();
     return { from_serial: sorted[0], to_serial: sorted[sorted.length - 1] };
   };
+
+  const handleDeleteRow = (id) => {
+  if (id) {
+    // If item has an ID (existing in DB), track it for deletion
+    setDeletedItems((prev) => [...prev, id]);
+  }
+  // Remove from UI state
+  setRows((prev) => prev.filter((r) => r.id !== id));
+};
+
  
  
   const estimateQtyFromRange = (from = "", to = "") => {
@@ -185,11 +197,11 @@ const handleSerialConfirm = (selected) => {
     const { from_serial, to_serial } = computeRangeFromSerials(cleanSelected);
     sp.from_serial = from_serial;
     sp.to_serial = to_serial;
-    sp.qty = cleanSelected.length;   // ✅ qty = count of serials only
+    sp.qty = cleanSelected.length;  
   } else {
     sp.from_serial = "";
     sp.to_serial = "";
-    sp.qty = 0;   // ✅ reset qty when no serials
+    sp.qty = 0;   
   }
 
   updated[modalIndex] = sp;
@@ -197,17 +209,43 @@ const handleSerialConfirm = (selected) => {
   setShowModal(false);
 };
 
-const handleRemoveRow = (index, sp) => {
-  if (sp?.id) {
-    // Mark it for deletion
-    setDeletedSparepartIds(prev => [...prev, sp.id]);
+// const handleRemoveRow = (index, sp) => {
+//   if (sp?.id) {
+//     // Mark it for deletion
+//     setDeletedSparepartIds(prev => [...prev, sp.id]);
+//   }
+
+//   const updated = [...spareparts];
+//   updated.splice(index, 1);
+//   setSpareparts(updated);
+// };
+
+const handleRemoveRow = async (index, sp) => {
+  if (sp?.sparepart_id) {
+    try {
+      await axios.delete(
+        `http://localhost:8000/api/purchase-items/${purchaseKey}/${sp.sparepart_id}`
+      );
+      toast.success("Row deleted successfully");
+    } catch (err) {
+      toast.error("Failed to delete row from DB");
+      console.error(err);
+      return;
+    }
   }
 
+  // Remove from frontend state
   const updated = [...spareparts];
   updated.splice(index, 1);
   setSpareparts(updated);
-};
 
+  // Cleanup validation errors
+  setErrors((prev) => {
+    const items = { ...(prev.items || {}) };
+    if (items[index]) delete items[index];
+    return { ...prev, items };
+  });
+};
 
  
   // ---------- fetch & group ----------
@@ -472,6 +510,9 @@ const canDeleteRow = (sp) => {
 };
 
 
+
+
+
  
   // ---------- validate + submit ----------
   const validateForm = () => {
@@ -558,6 +599,8 @@ const payload = {
   items,
   deleted_ids,               // only normal item deletes
   deleted_sparepart_ids: deletedSparepartIds,
+    //  deleted_items: deletedItems, 
+      deleted_item_ids: deletedItemIds,
 
 };
 
@@ -677,7 +720,7 @@ console.log(`payload`, payload);
                   {/* <Button variant="danger" size="sm" onClick={() => removeSparepart(idx)}>
                     <i className="bi bi-trash" />
                   </Button> */}
-
+{/* 
 <Col xs="auto">
   {sp.isNew && (
     <Button
@@ -688,11 +731,39 @@ console.log(`payload`, payload);
       🗑️
     </Button>
   )}
+</Col> */}
+{/*
+<Col xs="auto">
+  <Button
+    variant="danger"
+    size="sm"
+    onClick={() => handleRemoveRow(idx, sp)}
+  >
+    🗑️
+  </Button>
+</Col>*/}
+
+<Col md={2} className="d-flex align-items-end">
+  {sp.id ? (
+    // Existing row -> delete from DB
+    <Button
+      variant="danger"
+      onClick={() => handleRemoveRow(idx, sp)}
+    >
+      <i className="bi bi-trash"></i> 
+    </Button>
+  ) : (
+    // New row -> cancel only from UI
+    <Button
+      variant="danger"
+      onClick={() => {
+        setSpareparts(spareparts.filter((_, i) => i !== idx));
+      }}
+    >
+      <i className="bi bi-trash"></i> 
+    </Button>
+  )}
 </Col>
-
-
-
-
 
                 </Col>
               </Row>

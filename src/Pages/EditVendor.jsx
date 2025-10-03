@@ -134,16 +134,19 @@ const [perPage, setPerPage] = useState(5);
 
     // ------------------- OTHER FIELDS -------------------
     if (name === "vendor") newValue.trim() ? delete newErrors.vendor : newErrors.vendor = "Company name is required";
-    if (name === "gst_no") {
-      if (!newValue.trim()) newErrors.gst_no = "GST number is required";
-      else if (newValue.length > 15) newErrors.gst_no = "GST number cannot exceed 15 characters";
-      else delete newErrors.gst_no;
-    }
-    if (name === "email") {
-      if (!newValue.trim()) newErrors.email = "Email is required";
-      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newValue)) newErrors.email = "Enter a valid email";
-      else delete newErrors.email;
-    }
+    // if (name === "gst_no") {
+    //   if (!newValue.trim()) newErrors.gst_no = "GST number is required";
+    //   else if (newValue.length > 15) newErrors.gst_no = "GST number cannot exceed 15 characters";
+    //   else delete newErrors.gst_no;
+    // }
+if (name === "email") {
+  if (newValue.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newValue)) {
+    newErrors.email = "Enter a valid email";
+  } else {
+    delete newErrors.email;
+  }
+}
+
     if (name === "city") newValue.trim() ? delete newErrors.city : newErrors.city = "City is required";
     if (name === "state") newValue.trim() ? delete newErrors.state : newErrors.state = "State is required";
     if (name === "district") newValue.trim() ? delete newErrors.district : newErrors.district = "District is required";
@@ -167,7 +170,7 @@ const [perPage, setPerPage] = useState(5);
     let newErrors = { ...contactErrors };
 
     if (name === "name") newValue.trim() ? delete newErrors.name : newErrors.name = "Name is required";
-    if (name === "designation") newValue.trim() ? delete newErrors.designation : newErrors.designation = "Designation is required";
+    // if (name === "designation") newValue.trim() ? delete newErrors.designation : newErrors.designation = "Designation is required";
     if (name === "mobile_no") {
       if (!/^\d*$/.test(newValue)) newErrors.mobile_no = "Only digits are allowed";
       else if (newValue.length > 10) newErrors.mobile_no = "Mobile number cannot exceed 10 digits";
@@ -319,8 +322,8 @@ const [perPage, setPerPage] = useState(5);
   const addContactPerson = () => {
     // Validate required fields manually
     const errors = {};
-    if (!contact.name.trim()) errors.name = "Name is required";
-    if (!contact.designation.trim()) errors.designation = "Designation is required";
+    // if (!contact.name.trim()) errors.name = "Name is required";
+    // if (!contact.designation.trim()) errors.designation = "Designation is required";
     if (!contact.mobile_no.trim()) errors.mobile_no = "Mobile number is required";
     if (Object.keys(errors).length > 0) {
       setContactErrors(errors);
@@ -402,6 +405,11 @@ const [perPage, setPerPage] = useState(5);
     ...cityOptions.map(c => ({ label: c, value: c })),
     ...(vendor.city ? [{ label: vendor.city, value: vendor.city }] : [])
   ];
+
+
+const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+
+
   return (
     <div className="container-fluid p-4" style={{ background: "white", minHeight: "100vh", position: "relative" }}>
       <h5 className="mb-3">Edit Vendor Details</h5>
@@ -425,19 +433,41 @@ const [perPage, setPerPage] = useState(5);
             </Form.Group>
           </Col>
 
-          <Col md={4}>
-            <Form.Group className="mb-3">
-              <Form.Label>GST No</Form.Label>
-              <Form.Control
-                type="text"
-                name="gst_no"
-                value={vendor.gst_no}
-                onChange={handleVendorChange}
-                isInvalid={!!errors.gst_no}
-              />
-              <Form.Control.Feedback type="invalid">{errors.gst_no}</Form.Control.Feedback>
-            </Form.Group>
-          </Col>
+
+
+<Col md={4}>
+  <Form.Group className="mb-3">
+    <Form.Label>GST No</Form.Label>
+    <Form.Control
+      type="text"
+      name="gst_no"
+      value={vendor.gst_no}
+      onChange={(e) => {
+        const value = e.target.value.toUpperCase();
+        setVendor({ ...vendor, gst_no: value });
+
+        // Live validation
+        if (!value.trim()) {
+          setErrors((prev) => ({ ...prev, gst_no: "GST No is required" }));
+        } else if (value.length !== 15) {
+          setErrors((prev) => ({ ...prev, gst_no: "GST No must be 15 characters" }));
+        } else if (!gstRegex.test(value)) {
+          setErrors((prev) => ({ ...prev, gst_no: "Invalid GST No format" }));
+        } else {
+          setErrors((prev) => ({ ...prev, gst_no: "" })); 
+        }
+      }}
+      placeholder="Enter GST No"
+      isInvalid={!!errors.gst_no}
+    />
+    {errors.gst_no && (
+      <div style={{ color: "red", fontSize: "0.85rem", marginTop: "4px" }}>
+        {errors.gst_no}
+      </div>
+    )}
+  </Form.Group>
+</Col>
+
 
           <Col md={4}>
             <Form.Group className="mb-3">
@@ -513,7 +543,7 @@ const [perPage, setPerPage] = useState(5);
                 onChange={handleVendorChange}
                 isInvalid={!!errors.email}
               />
-              <Form.Control.Feedback type="invalid">{errors.email}</Form.Control.Feedback>
+              {/* <Form.Control.Feedback type="invalid">{errors.email}</Form.Control.Feedback> */}
             </Form.Group>
           </Col>
           <Col md={4}>
@@ -537,12 +567,12 @@ const [perPage, setPerPage] = useState(5);
           </Col>
 
 
-          <Col md={4}>
+          <Col md={12}>
             <Form.Group className="mb-3">
               <Form.Label>Address</Form.Label>
               <Form.Control
                 as="textarea"
-                rows={1}
+                rows={2}
                 name="address"
                 value={vendor.address}
                 onChange={handleVendorChange}
