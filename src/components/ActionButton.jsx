@@ -141,7 +141,7 @@ export default function ActionButtons({ onPdf, onEdit, onDelete, onReturn, onTra
                 <Button
           size="sm"
           variant="outline-primary"
-          title="Warranty"
+
           onClick={onView}
           className="me-1"
           style={{

@@ -347,7 +347,10 @@ const [existingSerials, setExistingSerials] = useState([]);
           <Row className="mb-2">
             <Col md={4}>
               <Form.Group className="mb-2">
-                <Form.Label>Vendor*</Form.Label>
+               <Form.Label>
+  Vendor<span style={{ color: "red" }}> *</span>
+</Form.Label>
+
                 <Form.Select
                   value={vendorId}
                   // onChange={(e) => setVendorId(e.target.value)}
@@ -379,7 +382,10 @@ const [existingSerials, setExistingSerials] = useState([]);
 
             <Col md={4}>
               <Form.Group className="mb-2">
-                <Form.Label>Challan No</Form.Label>
+              <Form.Label>
+  Challan No<span style={{ color: "red" }}> *</span>
+</Form.Label>
+
                 <Form.Control
                   type="text"
                   value={challanNo}
@@ -398,7 +404,10 @@ const [existingSerials, setExistingSerials] = useState([]);
 
             <Col md={4}>
               <Form.Group className="mb-2">
-                <Form.Label>Challan Date</Form.Label>
+                <Form.Label>
+  Challan Date<span style={{ color: "red" }}> *</span>
+</Form.Label>
+
                 <Form.Control
                   type="date"
                   value={challanDate}
@@ -418,7 +427,10 @@ const [existingSerials, setExistingSerials] = useState([]);
           <Row className="align-items-end">
             <Col md={4}>
               <Form.Group className="mb-2">
-                <Form.Label>Spareparts</Form.Label>
+               <Form.Label>
+  Spareparts<span style={{ color: "red" }}> *</span>
+</Form.Label>
+
                 <Form.Select
                   value={spareparts[0].sparepart_id}
                   onChange={(e) =>
@@ -449,7 +461,10 @@ const [existingSerials, setExistingSerials] = useState([]);
                       <Row>
                         <Col md={4}>
                           <Form.Group className="mb-2">
-                            <Form.Label>Product</Form.Label>
+                           <Form.Label>
+  Product<span style={{ color: "red" }}> *</span>
+</Form.Label>
+
                             <Form.Select
                               value={spareparts[0].product_id}
                               onChange={(e) =>
@@ -468,7 +483,10 @@ const [existingSerials, setExistingSerials] = useState([]);
 
                         <Col md={4}>
                           <Form.Group className="mb-2">
-                            <Form.Label>From Serial</Form.Label>
+                       <Form.Label>
+  From Serial<span style={{ color: "red" }}> *</span>
+</Form.Label>
+
                             <Form.Control
                               type="text"
                               value={spareparts[0].from_serial}
@@ -483,7 +501,10 @@ const [existingSerials, setExistingSerials] = useState([]);
 
                         <Col md={4}>
                           <Form.Group className="mb-2">
-                            <Form.Label>To Serial</Form.Label>
+                        <Form.Label>
+  To Serial<span style={{ color: "red" }}> *</span>
+</Form.Label>
+
                             <Form.Control
                               type="text"
                               value={spareparts[0].to_serial}

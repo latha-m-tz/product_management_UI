@@ -239,7 +239,10 @@ const [mobileError, setMobileError] = useState("");
         <Row>
           <Col md={4}>
             <Form.Group className="mb-3">
-              <Form.Label>Customer Name</Form.Label>
+            <Form.Label>
+  Customer Name<span style={{ color: "red" }}> *</span>
+</Form.Label>
+
               <Form.Control
                 type="text"
                 name="customer"
@@ -269,7 +272,10 @@ const [mobileError, setMobileError] = useState("");
           </Col>
           <Col md={4}>
             <Form.Group className="mb-3">
-              <Form.Label>Pincode</Form.Label>
+           <Form.Label>
+  Pincode<span style={{ color: "red" }}> *</span>
+</Form.Label>
+
               <Form.Control
                 type="text"
                 name="pincode"
@@ -287,7 +293,10 @@ const [mobileError, setMobileError] = useState("");
         <Row>
           <Col md={4}>
             <Form.Group className="mb-3">
-              <Form.Label>City</Form.Label>
+             <Form.Label>
+  City<span style={{ color: "red" }}> *</span>
+</Form.Label>
+
               <CreatableSelect
                 isClearable
                 options={cityOptions.map((c) => ({ label: c, value: c }))}
@@ -312,7 +321,10 @@ const [mobileError, setMobileError] = useState("");
           </Col>
           <Col md={4}>
             <Form.Group className="mb-3">
-              <Form.Label>District</Form.Label>
+              <Form.Label>
+  District<span style={{ color: "red" }}> *</span>
+</Form.Label>
+
               <Form.Control
                 type="text"
                 name="district"
@@ -327,7 +339,10 @@ const [mobileError, setMobileError] = useState("");
           </Col>
           <Col md={4}>
             <Form.Group className="mb-3">
-              <Form.Label>State</Form.Label>
+            <Form.Label>
+  State<span style={{ color: "red" }}> *</span>
+</Form.Label>
+
               <Form.Control
                 type="text"
                 name="state"
@@ -360,7 +375,10 @@ const [mobileError, setMobileError] = useState("");
           </Col>
           <Col md={4}>
             <Form.Group className="mb-3">
-              <Form.Label>Mobile No</Form.Label>
+              <Form.Label>
+  Mobile No<span style={{ color: "red" }}> *</span>
+</Form.Label>
+
               <PhoneInput
                 international
                 defaultCountry="IN"
@@ -391,7 +409,10 @@ const [mobileError, setMobileError] = useState("");
         <Row>
           <Col md={12}>
             <Form.Group className="mb-3">
-              <Form.Label>Address</Form.Label>
+             <Form.Label>
+  Address<span style={{ color: "red" }}> *</span>
+</Form.Label>
+
               <Form.Control
                 as="textarea"
                 rows={2}

@@ -36,7 +36,6 @@ const [deletedSparepartIds, setDeletedSparepartIds] = useState([]);
 const [deletedItems, setDeletedItems] = useState([]);
 const [deletedItemIds, setDeletedItemIds] = useState([]);
 
-
 const navigate = useNavigate();
 
 
@@ -207,6 +206,14 @@ const handleSerialConfirm = (selected) => {
   updated[modalIndex] = sp;
   setSpareparts(updated);
   setShowModal(false);
+
+    setErrors((prev) => {
+    const items = { ...(prev.items || {}) };
+    if (items[modalIndex]?.from_serial) delete items[modalIndex].from_serial;
+    if (items[modalIndex]?.to_serial) delete items[modalIndex].to_serial;
+    if (Object.keys(items[modalIndex] || {}).length === 0) delete items[modalIndex];
+    return { ...prev, items };
+  });
 };
 
 // const handleRemoveRow = (index, sp) => {
@@ -539,6 +546,13 @@ const canDeleteRow = (sp) => {
         //   else if (Number(sp.qty) !== est) itemErr.qty = `Qty mismatch. Expected ${est}`;
         // }
       }
+
+
+          if ((sp.from_serial || sp.to_serial) && (!sp.serials || sp.serials.length === 0)) {
+      itemErr.from_serial = "Please select serials from modal";
+      itemErr.to_serial = "Please select serials from modal";
+    }
+  
       if (!sp.qty || Number(sp.qty) < 1) itemErr.qty = "Quantity must be at least 1";
       if (type.includes("warranty") && !sp.warranty_status) itemErr.warranty_status = "Select warranty status";
  
@@ -666,7 +680,10 @@ console.log(`payload`, payload);
           <Row className="mb-2">
             <Col md={4}>
               <Form.Group className="mb-2">
-                <Form.Label>Vendor*</Form.Label>
+               <Form.Label>
+  Vendor<span style={{ color: "red" }}> *</span>
+</Form.Label>
+
                 <Form.Select value={vendorId} onChange={(e) => setVendorId(e.target.value)}>
                   <option value="">Select Vendor</option>
                   {availableVendors.map((v) =>
@@ -689,7 +706,10 @@ console.log(`payload`, payload);
  
             <Col md={4}>
               <Form.Group className="mb-2">
-                <Form.Label>Challan No</Form.Label>
+                <Form.Label>
+  Challan No<span style={{ color: "red" }}> *</span>
+</Form.Label>
+
                 <Form.Control type="text" value={challanNo} onChange={(e) => setChallanNo(e.target.value)} placeholder="Enter Challan No" />
                 {errors.challan_no && <div style={feedbackStyle}>{errors.challan_no}</div>}
               </Form.Group>
@@ -697,7 +717,10 @@ console.log(`payload`, payload);
  
             <Col md={4}>
               <Form.Group className="mb-2">
-                <Form.Label>Challan Date</Form.Label>
+                <Form.Label>
+  Challan Date<span style={{ color: "red" }}> *</span>
+</Form.Label>
+
                 <Form.Control type="date" value={challanDate} onChange={(e) => setChallanDate(e.target.value)} />
                 {errors.challan_date && <div style={feedbackStyle}>{errors.challan_date}</div>}
               </Form.Group>
@@ -764,7 +787,6 @@ console.log(`payload`, payload);
     </Button>
   )}
 </Col>
-
                 </Col>
               </Row>
  

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Modal, Button, Form, Table, Row, Col } from "react-bootstrap";
+import { ToastContainer,  toast  } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 
 export default function SerialSelectionModal({
@@ -72,26 +74,34 @@ const handleManualAdd = () => {
 
   // Check for duplicates
   const duplicates = manualSerials.filter((s) => localSelected.includes(s));
+  // if (duplicates.length > 0) {
+  //   alert(`Duplicate serial(s) not allowed: ${duplicates.join(", ")}`);
+  //   return;
+  // }
+
   if (duplicates.length > 0) {
-    alert(`Duplicate serial(s) not allowed: ${duplicates.join(", ")}`);
-    return;
-  }
+  toast.error(`Duplicate serial(s) not allowed: ${duplicates.join(", ")}`);
+  return;
+}
 
   setLocalSelected((prev) => [...new Set([...prev, ...manualSerials])]);
   setManualInput("");
 };
 
-
-  
 const handleConfirm = () => {
   // Check for duplicates in localSelected
   const allSelected = [...localSelected];
   const duplicates = allSelected.filter((item, index) => allSelected.indexOf(item) !== index);
 
+  // if (duplicates.length > 0) {
+  //   alert(`Duplicate serial(s) not allowed: ${[...new Set(duplicates)].join(", ")}`);
+  //   return;
+  // }
+
   if (duplicates.length > 0) {
-    alert(`Duplicate serial(s) not allowed: ${[...new Set(duplicates)].join(", ")}`);
-    return;
-  }
+  toast.error(`Duplicate serial(s) not allowed: ${[...new Set(duplicates)].join(", ")}`);
+  return;
+}
 
   onConfirm(localSelected);
 };
@@ -133,20 +143,40 @@ const handleConfirm = () => {
           <>
 
           {/* Search Bar */}
+{/* Search Bar */}
 <Row className="mb-3">
   <Col>
-    <Form.Control
-      size="sm"
-      type="text"
-      placeholder="Search serials..."
-      value={searchTerm}
-      onChange={(e) => {
-        setSearchTerm(e.target.value);
-        setCurrentPage(1); // reset to page 1 when searching
-      }}
-    />
+    <div className="position-relative">
+      <Form.Control
+        size="sm"
+        type="text"
+        placeholder="Search serials..."
+        value={searchTerm}
+        onChange={(e) => {
+          setSearchTerm(e.target.value);
+          setCurrentPage(1); 
+        }}
+      />
+      {searchTerm && (
+        <i
+          className="bi bi-x text-muted"
+          style={{
+            position: "absolute",
+            right: "10px",
+            top: "50%",
+            transform: "translateY(-50%)",
+            cursor: "pointer",
+          }}
+          onClick={() => {
+            setSearchTerm("");
+            setCurrentPage(1);
+          }}
+        />
+      )}
+    </div>
   </Col>
 </Row>
+
 
             {/* Select / Deselect All */}
             <Row className="mb-3">
@@ -199,9 +229,15 @@ const handleConfirm = () => {
                   disabled={!unselectStart}
                 >
                   <option value="">To</option>
-                  {cleanAvailableSerials.map((s) => (
+                  {/* {cleanAvailableSerials.map((s) => (
                     <option key={s}>{s}</option>
-                  ))}
+                  ))} */}
+
+                    {cleanAvailableSerials
+    .filter((s) => s >= unselectStart) 
+    .map((s) => (
+      <option key={s}>{s}</option>
+    ))}
                 </Form.Select>
               </Col>
               <Col xs="auto">
