@@ -10,6 +10,7 @@ import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../api";
 import Breadcrumb from "../components/Breadcrumb";
 import Pagination from "../components/Pagination";
+import ActionButtons from "../components/ActionButton";
 import Search from "../components/Search";
 
 export default function ServiceList() {
@@ -223,6 +224,9 @@ export default function ServiceList() {
                       >
                         <i className="bi bi-trash"></i>
                       </Button>
+                      <ActionButtons
+                      onView={() => navigate(`/service/${service.id}/view`)}
+                      />
                     </td>
                   </tr>
                 ))
@@ -236,6 +240,7 @@ export default function ServiceList() {
           setPage={setPage}
           perPage={perPage}
           totalEntries={filteredServices.length}
+
         />
       </Card>
     </div>
