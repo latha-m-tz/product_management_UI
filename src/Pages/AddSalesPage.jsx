@@ -231,6 +231,12 @@ export default function AddSalesPage() {
     });
   };
 
+  const RequiredLabel = ({ children }) => (
+  <Form.Label>
+    {children}<span style={{ color: "red" }}> *</span>
+  </Form.Label>
+);
+
   return (
     <div className="container-fluid px-4 py-4 bg-light min-vh-100">
       <Breadcrumb title={saleId ? "Edit Sale" : "Add Sale"} />
@@ -241,7 +247,7 @@ export default function AddSalesPage() {
               {/* Customer */}
               <div className="col-md-6">
                 <Form.Group className="mb-3">
-                  <Form.Label>Customer</Form.Label>
+                  <RequiredLabel>Customer</RequiredLabel>
                   {loading ? (
                     <Spinner animation="border" size="sm" />
                   ) : (
@@ -267,7 +273,7 @@ export default function AddSalesPage() {
               {/* Challan No */}
               <div className="col-md-6">
                 <Form.Group>
-                  <Form.Label>Challan No</Form.Label>
+                  <RequiredLabel>Challan No</RequiredLabel>
                   <Form.Control
                     type="text"
                     value={challanNo}
@@ -284,7 +290,7 @@ export default function AddSalesPage() {
               {/* Dates */}
               <div className="col-md-6">
                 <Form.Group>
-                  <Form.Label>Challan Date</Form.Label>
+                  <RequiredLabel>Challan Date</RequiredLabel>
                   <Form.Control
                     type="date"
                     value={challanDate}
@@ -298,7 +304,7 @@ export default function AddSalesPage() {
               </div>
               <div className="col-md-6">
                 <Form.Group>
-                  <Form.Label>Shipment Date</Form.Label>
+                  <RequiredLabel>Shipment Date</RequiredLabel>
                   <Form.Control
                     type="date"
                     value={shipmentDate}
@@ -344,7 +350,7 @@ export default function AddSalesPage() {
 
             {/* Products */}
             <div className="mt-4">
-              <Form.Label>Products</Form.Label>
+              <RequiredLabel>Products</RequiredLabel>
               <Button
                 variant="success"
                 size="sm"

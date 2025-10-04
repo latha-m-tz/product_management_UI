@@ -19,6 +19,7 @@ import EditSalesPage from "./Pages/EditSalesPage";
 import ServiceList from "./Pages/ServiceList";
 import AddServicePage from "./Pages/AddServicePage";
 import EditService from "./Pages/EditService";
+import ViewServicePage from "./Pages/ViewServicePage";
 import AddVendor from "./Pages/AddVendor";
 import EditVendor from "./Pages/EditVendor";
 import ViewVendor from "./Pages/ViewVendor";
@@ -96,6 +97,7 @@ export default function App() {
           <Route path="service-product" element={<ServiceList />} />
           <Route path="service/add" element={<AddServicePage />} />
           <Route path="service/:id/edit" element={<EditService />} />
+          <Route path="service/:id/view" element={<ViewServicePage />} />
           <Route path="components" element={<ComponentsPage />} />
           <Route path="vendor" element={<VendorPage />} />
           <Route path="vendor/add" element={<AddVendor />} />

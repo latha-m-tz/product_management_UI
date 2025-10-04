@@ -1,22 +1,17 @@
 import React, { useState, useEffect } from "react";
-import {
-  Container,
-  Row,
-  Col,
-  Form,
-  Button,
-  Table,
-} from "react-bootstrap";
+import { Container, Row, Col, Form, Button, Table } from "react-bootstrap";
 import axios from "axios";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { useNavigate, useParams } from "react-router-dom"; // ✅ useParams added
+import { useNavigate, useParams } from "react-router-dom";
 import { API_BASE_URL } from "../api";
 
 const EditService = () => {
   const navigate = useNavigate();
-  const { id } = useParams(); // service ID from route params
+  const { id } = useParams();
 
+  const [products, setProducts] = useState([]);
+  const [serialNumbersByProduct, setSerialNumbersByProduct] = useState({});
   const [formData, setFormData] = useState({
     challan_no: "",
     challan_date: "",
@@ -41,34 +36,60 @@ const EditService = () => {
     ],
   });
 
-  // Fetch service data on mount
+  // Fetch all products for dropdown
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const res = await axios.get(`${API_BASE_URL}/product`);
+        setProducts(res.data);
+      } catch (error) {
+        toast.error("Failed to fetch products!");
+      }
+    };
+    fetchProducts();
+  }, []);
+
+  // Fetch service data and populate form
   useEffect(() => {
     const fetchService = async () => {
       try {
         const res = await axios.get(`${API_BASE_URL}/service-vci/${id}`);
         if (res.data) {
-          const serviceData = {
-          challan_no: res.data.challan_no || "",
-          challan_date: res.data.challan_date || "",
-          courier_name: res.data.courier_name || "",
-          from_place: res.data.from_place || "",
-          to_place: res.data.to_place || "",
-          tester_name: "", 
-          quantity: res.data.quantity || "",
-          sent_date: res.data.sent_date || "",
-          received_date: res.data.received_date || "",
-          remarks: res.data.remarks || "",
-          items: res.data.items?.map((item) => ({
-            product: item.product || "", 
-            vci_serial_no: item.vci_serial_no || "",
-            warranty_status: item.warranty_status || "", 
-            testing_assigned_to: item.testing_assigned_to || "",
-            tested_date: item.tested_date || "",
-            testing_status: item.testing_status || "",
-            issue_found: item.issue_found || "",
-          })) || [],
-        };
-          setFormData(res.data);
+          const data = {
+            challan_no: res.data.challan_no || "",
+            challan_date: res.data.challan_date || "",
+            courier_name: res.data.courier_name || "",
+            from_place: res.data.from_place || "",
+            to_place: res.data.to_place || "",
+            tester_name: res.data.tester_name || "",
+            quantity: res.data.quantity || "",
+            sent_date: res.data.sent_date || "",
+            received_date: res.data.received_date || "",
+            remarks: res.data.remarks || "",
+            items: res.data.items?.map(item => ({
+              product: item.product || "",
+              vci_serial_no: item.vci_serial_no || "",
+              warranty_status: item.warranty_status || "",
+              testing_assigned_to: item.testing_assigned_to || "",
+              tested_date: item.tested_date || "",
+              testing_status: item.testing_status || "",
+              issue_found: item.issue_found || "",
+            })) || [],
+          };
+          setFormData(data);
+
+          // Fetch serials for each existing item
+          res.data.items?.forEach(async item => {
+            if (item.product) {
+              const serialRes = await axios.get(
+                `${API_BASE_URL}/sales/serials/${item.product}`
+              );
+              setSerialNumbersByProduct(prev => ({
+                ...prev,
+                [item.product]: serialRes.data,
+              }));
+            }
+          });
         }
       } catch (error) {
         toast.error("Failed to fetch service data!");
@@ -77,23 +98,37 @@ const EditService = () => {
     fetchService();
   }, [id]);
 
-  // handle form field change
+  // Handle form field changes
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  // handle dynamic row change
-  const handleItemChange = (index, e) => {
+  // Handle item row changes
+  const handleItemChange = async (index, e) => {
     const { name, value } = e.target;
     const items = [...formData.items];
     items[index][name] = value;
-    setFormData((prev) => ({ ...prev, items }));
+    setFormData(prev => ({ ...prev, items }));
+
+    if (name === "product" && value) {
+      try {
+        const res = await axios.get(`${API_BASE_URL}/sales/serials/${value}`);
+        setSerialNumbersByProduct(prev => ({
+          ...prev,
+          [value]: res.data,
+        }));
+        items[index].vci_serial_no = "";
+        setFormData(prev => ({ ...prev, items }));
+      } catch (error) {
+        toast.error("Failed to fetch serial numbers!");
+      }
+    }
   };
 
-  // add new row
+  // Add new item row
   const addRow = () => {
-    setFormData((prev) => ({
+    setFormData(prev => ({
       ...prev,
       items: [
         ...prev.items,
@@ -110,14 +145,14 @@ const EditService = () => {
     }));
   };
 
-  // remove row
+  // Remove item row
   const removeRow = (index) => {
     const items = [...formData.items];
     items.splice(index, 1);
-    setFormData((prev) => ({ ...prev, items }));
+    setFormData(prev => ({ ...prev, items }));
   };
 
-  // submit form (update service)
+  // Submit form
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -264,7 +299,7 @@ const EditService = () => {
           </Col>
         </Row>
 
-        {/* Service Items */}
+        {/* Service Items Table */}
         <h5 className="mt-4">Service Items</h5>
         <Table bordered responsive>
           <thead>
@@ -290,23 +325,29 @@ const EditService = () => {
                     onChange={(e) => handleItemChange(index, e)}
                   >
                     <option value="">Select Product</option>
-                    <option value="product1">Product 1</option>
-                    <option value="product2">Product 2</option>
+                    {products.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
                   </Form.Control>
                 </td>
                 <td>
                   <Form.Control
-                    type="text"
+                    as="select"
                     name="vci_serial_no"
-                    value={item.vci_serial_no}
+                    value={item.vci_serial_no || ""}
                     onChange={(e) => handleItemChange(index, e)}
-                  />
+                  >
+                    <option value="">Select Serial No</option>
+                    {(serialNumbersByProduct[item.product] || []).map(s => (
+                      <option key={s.id} value={s.serial_no}>{s.serial_no}</option>
+                    ))}
+                  </Form.Control>
                 </td>
                 <td>
                   <Form.Control
                     as="select"
                     name="warranty_status"
-                    value={item.warranty_status}
+                    value={item.warranty_status || ""}
                     onChange={(e) => handleItemChange(index, e)}
                   >
                     <option value="">Select</option>
@@ -318,7 +359,7 @@ const EditService = () => {
                   <Form.Control
                     type="text"
                     name="testing_assigned_to"
-                    value={item.testing_assigned_to}
+                    value={item.testing_assigned_to || ""}
                     onChange={(e) => handleItemChange(index, e)}
                   />
                 </td>
@@ -326,7 +367,7 @@ const EditService = () => {
                   <Form.Control
                     type="date"
                     name="tested_date"
-                    value={item.tested_date}
+                    value={item.tested_date || ""}
                     onChange={(e) => handleItemChange(index, e)}
                   />
                 </td>
@@ -334,7 +375,7 @@ const EditService = () => {
                   <Form.Control
                     as="select"
                     name="testing_status"
-                    value={item.testing_status}
+                    value={item.testing_status || ""}
                     onChange={(e) => handleItemChange(index, e)}
                   >
                     <option value="">Select</option>
@@ -347,16 +388,12 @@ const EditService = () => {
                   <Form.Control
                     type="text"
                     name="issue_found"
-                    value={item.issue_found}
+                    value={item.issue_found || ""}
                     onChange={(e) => handleItemChange(index, e)}
                   />
                 </td>
                 <td>
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    onClick={() => removeRow(index)}
-                  >
+                  <Button variant="danger" size="sm" onClick={() => removeRow(index)}>
                     Remove
                   </Button>
                 </td>
@@ -370,11 +407,7 @@ const EditService = () => {
         </Button>
 
         <div className="mt-4 d-flex justify-content-end">
-          <Button
-            variant="secondary"
-            className="me-2"
-            onClick={() => navigate("/service-product")}
-          >
+          <Button variant="secondary" className="me-2" onClick={() => navigate("/service-product")}>
             Cancel
           </Button>
           <Button type="submit" variant="primary">

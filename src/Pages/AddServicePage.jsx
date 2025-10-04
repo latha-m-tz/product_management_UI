@@ -17,7 +17,10 @@ const AddServicePage = () => {
   const navigate = useNavigate();
 
   const [products, setProducts] = useState([]);
-  const [serialNumbers, setSerialNumbers] = useState([]);
+  const [serialNumbersByProduct, setSerialNumbersByProduct] = useState({});
+  const [alreadySoldSerials, setAlreadySoldSerials] = useState([]);
+  
+  // const [serialNumbers, setSerialNumbers] = useState([]);
   const [formData, setFormData] = useState({
     challan_no: "",
     challan_date: "",
@@ -46,43 +49,70 @@ const AddServicePage = () => {
 
   // Fetch products from API
   useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        const res = await axios.get(`${API_BASE_URL}/product`);
-        setProducts(res.data);
-      } catch (error) {
-        toast.error("Failed to fetch products!");
-      }
-    };
-    fetchProducts();
-  }, []);
-
-  useEffect(() => {
-  const fetchSerialNumbers = async () => {
+  // Fetch products
+  const fetchProducts = async () => {
     try {
-      const res = await axios.get(`${API_BASE_URL}/inventory/serial-numbers`);
-      setSerialNumbers(res.data); // keep full objects with id + serial_no
+      const res = await axios.get(`${API_BASE_URL}/product`);
+      setProducts(res.data);
     } catch (error) {
-      console.error("Failed to fetch serial numbers:", error);
+      toast.error("Failed to fetch products!");
     }
   };
-  fetchSerialNumbers();
+
+  // Fetch already added serials
+  const fetchAlreadyAddedSerials = async () => {
+    try {
+      const res = await axios.get(`${API_BASE_URL}/service-vci/added-serials`);
+      setAlreadySoldSerials(res.data || []);
+    } catch (error) {
+      setAlreadySoldSerials([]);
+    }
+  };
+
+  fetchProducts();
+  fetchAlreadyAddedSerials();
 }, []);
 
 
-  // handle form field change
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // handle dynamic row change
-  const handleItemChange = (index, e) => {
-    const { name, value, type, checked } = e.target;
-    const items = [...formData.items];
-    items[index][name] = type === "checkbox" ? checked : value; // Handle checkbox value
-    setFormData((prev) => ({ ...prev, items }));
-  };
+const handleItemChange = async (index, e) => {
+  const { name, value, type, checked } = e.target;
+  const items = [...formData.items];
+
+  items[index][name] = type === "checkbox" ? checked : value;
+  setFormData((prev) => ({ ...prev, items }));
+
+  if (name === "product" && value) {
+    try {
+      const res = await axios.get(`${API_BASE_URL}/sales/serials/${value}`);
+      const serials = res.data || [];
+
+      // Filter out serials that are already added in services
+      const filteredSerials = serials.filter(
+        (s) => !alreadySoldSerials.includes(s.serial_no)
+      );
+
+      setSerialNumbersByProduct((prev) => ({
+        ...prev,
+        [value]: filteredSerials,
+      }));
+
+      // Reset selected serial for this row
+      items[index].vci_serial_no = "";
+      setFormData((prev) => ({ ...prev, items }));
+    } catch (error) {
+      console.error("Failed to fetch serials:", error);
+      toast.error("Failed to fetch serial numbers!");
+    }
+  }
+};
+
+
 
   // add new row
   const addRow = () => {
@@ -98,8 +128,8 @@ const AddServicePage = () => {
           tested_date: "",
           testing_status: "",
           issue_found: "",
-          action_taken: "", // Add new fields to new rows
-          urgent: false,     // Add new fields to new rows
+          action_taken: "",
+          urgent: false,     
         },
       ],
     }));
@@ -123,6 +153,11 @@ const AddServicePage = () => {
       toast.error("Failed to add service!");
     }
   };
+  const RequiredLabel = ({ children }) => (
+  <Form.Label>
+    {children}<span style={{ color: "red" }}> *</span>
+  </Form.Label>
+);
 
   return (
     <Container fluid>
@@ -132,7 +167,7 @@ const AddServicePage = () => {
         <Row className="mb-3">
           <Col md={4}>
             <Form.Group>
-              <Form.Label>Challan No</Form.Label>
+              <RequiredLabel>Challan No</RequiredLabel>
               <Form.Control
                 type="text"
                 name="challan_no"
@@ -143,7 +178,7 @@ const AddServicePage = () => {
           </Col>
           <Col md={4}>
             <Form.Group>
-              <Form.Label>Challan Date</Form.Label>
+              <RequiredLabel>Challan Date</RequiredLabel>
               <Form.Control
                 type="date"
                 name="challan_date"
@@ -169,7 +204,7 @@ const AddServicePage = () => {
         <Row className="mb-3">
           <Col md={4}>
             <Form.Group>
-              <Form.Label>From Place</Form.Label>
+              <RequiredLabel>From Place</RequiredLabel>
               <Form.Control
                 type="text"
                 name="from_place"
@@ -180,7 +215,7 @@ const AddServicePage = () => {
           </Col>
           <Col md={4}>
             <Form.Group>
-              <Form.Label>To Place</Form.Label>
+              <RequiredLabel>To Place</RequiredLabel>
               <Form.Control
                 type="text"
                 name="to_place"
@@ -189,7 +224,7 @@ const AddServicePage = () => {
               />
             </Form.Group>
           </Col>
-          <Col md={4}>
+          {/* <Col md={4}>
             <Form.Group>
               <Form.Label>Tester Name</Form.Label>
               <Form.Control
@@ -203,7 +238,7 @@ const AddServicePage = () => {
                 <option value="tester2">Tester 2</option>
               </Form.Control>
             </Form.Group>
-          </Col>
+          </Col> */}
         </Row>
 
         {/* Row 3 */}
@@ -212,7 +247,7 @@ const AddServicePage = () => {
             <Form.Group>
               <Form.Label>Quantity</Form.Label>
               <Form.Control
-                type="number"
+                type="text"
                 name="quantity"
                 value={formData.quantity}
                 onChange={handleChange}
@@ -221,7 +256,7 @@ const AddServicePage = () => {
           </Col>
           <Col md={4}>
             <Form.Group>
-              <Form.Label>Send Date</Form.Label>
+              <RequiredLabel>Send Date</RequiredLabel>
               <Form.Control
                 type="date"
                 name="sent_date"
@@ -232,7 +267,7 @@ const AddServicePage = () => {
           </Col>
           <Col md={4}>
             <Form.Group>
-              <Form.Label>Received Date</Form.Label>
+              <RequiredLabel>Received Date</RequiredLabel>
               <Form.Control
                 type="date"
                 name="received_date"
@@ -296,21 +331,24 @@ const AddServicePage = () => {
                 </td>
                 <td>
                 <Form.Control
-                    as="select"
-                    name="vci_serial_no"
-                    value={item.vci_serial_no}
-                    onChange={(e) => handleItemChange(index, e)}
-                    >
-                    <option value="">Select Serial No</option>
-                    {serialNumbers.map((s) => (
-                        <option key={s.id} value={s.serial_no}>
-                        {s.serial_no}
-                        </option>
-                    ))}
-                    </Form.Control>
+                  as="select"
+                  name="vci_serial_no"
+                  value={item.vci_serial_no || ""}
+                  onChange={(e) => handleItemChange(index, e)}
+                >
+                  <option value="">Select Serial No</option>
+                  {(serialNumbersByProduct[item.product] || []).map((s) => (
+                    <option key={s.id || s.serial_no} value={s.serial_no}>
+                      {s.serial_no}
+                    </option>
+                  ))}
+                </Form.Control>
+
+
+
+
 
                 </td>
-
                 <td>
                   <Form.Control
                     as="select"
