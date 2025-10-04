@@ -755,7 +755,7 @@ console.log(`payload`, payload);
     </Button>
   )}
 </Col> */}
-{/*
+
 <Col xs="auto">
   <Button
     variant="danger"
@@ -764,9 +764,9 @@ console.log(`payload`, payload);
   >
     🗑️
   </Button>
-</Col>*/}
+</Col>
 
-<Col md={2} className="d-flex align-items-end">
+{/* <Col md={2} className="d-flex align-items-end">
   {sp.id ? (
     // Existing row -> delete from DB
     <Button
@@ -786,7 +786,7 @@ console.log(`payload`, payload);
       <i className="bi bi-trash"></i> 
     </Button>
   )}
-</Col>
+</Col> */}
                 </Col>
               </Row>
  
