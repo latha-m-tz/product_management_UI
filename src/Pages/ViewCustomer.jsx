@@ -84,7 +84,7 @@ export default function ViewCustomerPage() {
         </Row>
 
         <div className="d-flex justify-content-end">
-          <Button variant="secondary" onClick={() => navigate("/customers")}>
+          <Button variant="secondary" onClick={() => navigate(-1)}>
             Back
           </Button>
         </div>
