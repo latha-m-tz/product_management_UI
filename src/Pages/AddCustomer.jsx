@@ -9,6 +9,7 @@ import { API_BASE_URL } from "../api";
 import "react-toastify/dist/ReactToastify.css";
 import { parsePhoneNumberFromString, isValidPhoneNumber } from "libphonenumber-js";
 import { useNavigate } from "react-router-dom"; // <-- import
+import { API_BASE_URL } from "../api";
 
 export default function AddCustomer() {
   const [customer, setCustomer] = useState({
@@ -160,7 +161,7 @@ if (customer.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email))
     if (!validateCustomer()) return;
 
     try {
-      const response = await fetch("http://localhost:8000/api/customers", {
+      const response = await fetch(`${API_BASE_URL}/customers`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(customer),

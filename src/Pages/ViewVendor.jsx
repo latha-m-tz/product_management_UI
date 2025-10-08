@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, Row, Col, Button, Spinner } from "react-bootstrap";
+import { API_BASE_URL } from "../api";
 
 export default function ViewVendor() {
   const { id } = useParams();
@@ -10,7 +11,7 @@ export default function ViewVendor() {
 
  useEffect(() => {
   setLoading(true);
-  fetch(`http://localhost:8000/api/vendors/get/${id}`)
+  fetch(`${API_BASE_URL}/vendors/get/${id}`)
     .then(res => res.json())
 .then(data => {
   setVendor({

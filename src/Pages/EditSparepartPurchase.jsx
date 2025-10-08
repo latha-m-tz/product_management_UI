@@ -9,6 +9,7 @@ import { useParams } from "react-router-dom";
 import { Modal } from "react-bootstrap";
 import SerialSelectionModal from "./SerialSelectionModal"; // <-- import modal
 import { useNavigate } from "react-router-dom";
+import { API_BASE_URL } from "../api";
  
 export default function EditSparepartPurchase({ purchaseId }) {
   const [loading, setLoading] = useState(true);
@@ -145,7 +146,7 @@ const fetchAvailableSerials = async (index) => {
 
   // --- else fetch from backend for existing item ---
   try {
-    const res = await axios.get("http://localhost:8000/api/available-serials", {
+    const res = await axios.get(`${API_BASE_URL}/available-serials`, {
       params: {
         purchase_id: purchaseKey,    
         sparepart_id: sp.sparepart_id,  
@@ -231,7 +232,7 @@ const handleRemoveRow = async (index, sp) => {
   if (sp?.sparepart_id) {
     try {
       await axios.delete(
-        `http://localhost:8000/api/purchase-items/${purchaseKey}/${sp.sparepart_id}`
+        `${API_BASE_URL}/purchase-items/${purchaseKey}/${sp.sparepart_id}`
       );
       toast.success("Row deleted successfully");
     } catch (err) {
@@ -260,8 +261,8 @@ const handleRemoveRow = async (index, sp) => {
   const fetchData = async () => {
     try {
       const [spareRes, purchaseRes] = await Promise.all([
-        axios.get("http://localhost:8000/api/get-spareparts"),
-        axios.get(`http://localhost:8000/api/${purchaseKey}/purchase/edit`),
+        axios.get(`${API_BASE_URL}/get-spareparts`),
+        axios.get(`${API_BASE_URL}/${purchaseKey}/purchase/edit`),
       ]);
 
       setAvailableSpareparts(spareRes.data.spareparts || []);
@@ -624,7 +625,7 @@ console.log(`payload`, payload);
 
   try {
     const res = await axios.put(
-      `http://localhost:8000/api/purchaseUpdate/${purchaseKey}`,
+      `${API_BASE_URL}/purchaseUpdate/${purchaseKey}`,
       payload
     );
     toast.success("Purchase updated successfully!");

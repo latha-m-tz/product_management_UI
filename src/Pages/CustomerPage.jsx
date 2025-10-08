@@ -12,7 +12,6 @@ import Pagination from "../components/Pagination.jsx";
 import "datatables.net-dt/css/dataTables.dataTables.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import ActionButton from "../components/ActionButton";
-
 const MySwal = withReactContent(Swal);
 
 export default function CustomerListPage() {
