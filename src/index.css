@@ -84,7 +84,7 @@ button:focus {
 
 /* All CreatableSelect components with classNamePrefix="my-select" */
 .my-select__control {
-  box-shadow: none !important;      /* remove focus outline */
+  box-shadow: none !important; /* remove focus outline */
   border-color: #ced4da !important; /* normal border color */
 }
 
@@ -93,17 +93,16 @@ button:focus {
 }
 
 .my-select__input input {
-  outline: none !important;          /* remove inner input outline */
+  outline: none !important; /* remove inner input outline */
 }
 
 .my-select__menu {
-  z-index: 1050;                     /* optional: ensure menu appears above modals */
+  z-index: 1050; /* optional: ensure menu appears above modals */
 }
-
 
 /* sidebar */
 .sidebar-link-titles {
-  color: #91A59B;
+  color: #91a59b;
   font-family: Inter, sans-serif;
   font-weight: 400;
   font-style: normal;
@@ -113,37 +112,37 @@ button:focus {
 }
 
 .sidebar-link {
-    color: #fff;
-    margin-left: 10px;
-    font-size: 15px;
-    font-weight: 500;
-    white-space: nowrap;
-    display: flex;
-    align-items: center;
-    padding: 12px;
-    border-radius: 8px;
-    text-decoration: none;
-    margin-bottom: 8px;
-    gap: 10px; 
+  color: #fff;
+  margin-left: 10px;
+  font-size: 15px;
+  font-weight: 500;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  border-radius: 8px;
+  text-decoration: none;
+  margin-bottom: 8px;
+  gap: 10px;
+  text-wrap-mode: wrap;
 }
 
 .sidebar-link.active-link {
-    color: #28a745;          /* text color when active */
-    background-color: #278C582E; /* background when active */
+  color: #28a745; /* text color when active */
+  background-color: #278c582e; /* background when active */
 }
 .sidebar-link:hover {
-    background-color: #278C582E; /* background on hover */
-    color: #28a745;          /* text color on hover */
+  background-color: #278c582e; /* background on hover */
+  color: #28a745; /* text color on hover */
 }
 .form-control:focus {
   border-color: #ced4da !important; /* default border */
-  box-shadow: none !important;      /* remove blue glow */
+  box-shadow: none !important; /* remove blue glow */
 }
 .form-select:focus {
   border-color: #ced4da !important; /* default border */
-  box-shadow: none !important;      /* remove blue glow */
+  box-shadow: none !important; /* remove blue glow */
 }
-
 
 .form-select option:hover {
   background-color: #8b7979 !important; /* Light gray */
@@ -163,63 +162,83 @@ button:focus {
   color: #000;
 }
 .custom-checkbox-color .form-check-input[type="checkbox"]:checked {
-  background-color: #2E3A59 !important;
+  background-color: #2e3a59 !important;
 
-  border-color: #2E3A59 !important;
+  border-color: #2e3a59 !important;
 
   background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='M6 10l3 3l6-6'/%3e%3c/svg%3e") !important;
 }
 
 .custom-checkbox-color .form-check-input:focus {
-    box-shadow: 0 0 0 0.25rem rgba(46, 58, 89, 0.25) !important; 
+  box-shadow: 0 0 0 0.25rem rgba(46, 58, 89, 0.25) !important;
 }
- .qr-scanner-button {
-                background-color: #1b213b;
-                color: #ffffff;
-                border-radius: 50px;
-                display: flex;
-                align-items: center;
-                padding: 5px;
-                cursor: pointer;
-                position: absolute;
-                top: 10px;
-                right: 10px;
-            }
+.qr-scanner-button {
+  background-color: #1b213b;
+  color: #ffffff;
+  border-radius: 50px;
+  display: flex;
+  align-items: center;
+  padding: 5px;
+  cursor: pointer;
+  position: absolute;
+  top: 10px;
+  right: 10px;
+}
 
-            .qr-scanner-icon-container {
-                background-color: #ffffff;
-                border-radius: 50%;
-                padding: 8px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
+.qr-scanner-icon-container {
+  background-color: #ffffff;
+  border-radius: 50%;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
-            .qr-scanner-icon-container svg {
-                color: #1b213b;
-                font-size: 24px;
-            }
+.qr-scanner-icon-container svg {
+  color: #1b213b;
+  font-size: 24px;
+}
 
-            .qr-scanner-text {
-                margin-left: 10px;
-                margin-right: 20px;
-                font-weight: bold;
-            }
-            .text-danger {
-                color: #dc3545 !important;
-                font-size: 0.875em;
-                margin-top: 0.25rem;
-            }
-            .table-sm-custom td, .table-sm-custom th {
-                padding: 0.5rem 0.5rem; /* Adjust padding for a smaller table */
-            }
-            .align-middle-custom td {
-                vertical-align: middle;
-            }
+.qr-scanner-text {
+  margin-left: 10px;
+  margin-right: 20px;
+  font-weight: bold;
+}
+.text-danger {
+  color: #dc3545 !important;
+  font-size: 0.875em;
+  margin-top: 0.25rem;
+}
+.table-sm-custom td,
+.table-sm-custom th {
+  padding: 0.5rem 0.5rem; /* Adjust padding for a smaller table */
+}
+.align-middle-custom td {
+  vertical-align: middle;
+}
 
-            .table-sm-custom td,
+.table-sm-custom td,
 .table-sm-custom th,
 .form-control,
 .form-select {
   font-size: 0.85rem !important;
+}
+.card-custom {
+  background-color: #f4f4f8 !important;
+}
+/* .table thead tr {
+  background-color: #2E3A59 !important;
+  color: white !important;
+} */
+.search-input-wrapper {
+  position: relative;
+}
+
+.search-clear-icon {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  color: #6c757d;
 }

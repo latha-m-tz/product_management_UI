@@ -1,26 +1,20 @@
 import React, { useState, useEffect } from "react";
-import { Table, Button, Form, Card, Row, Col, Container } from "react-bootstrap";
-import axios from "axios";
-import { IoArrowBack, IoTrashOutline, IoChevronBack, IoChevronForward } from "react-icons/io5";
-import { FaQrcode } from "react-icons/fa";
-import QrScannerPage from "./QrScannerPage";
 import { useNavigate } from "react-router-dom";
 import { ToastContainer, toast } from 'react-toastify';
+import axios from "axios";
+import { Table, Button, Form, Card, Row, Col, Container } from "react-bootstrap";
+import { IoArrowBack, IoTrashOutline, IoChevronBack, IoChevronForward } from "react-icons/io5";
+import { FaQrcode } from "react-icons/fa";
 import 'react-toastify/dist/ReactToastify.css';
 import "datatables.net-dt/css/dataTables.dataTables.css";
 import "bootstrap/dist/css/bootstrap.min.css";
+import '../index.css';
 import { API_BASE_URL } from "../api";
+import QrScannerPage from "./QrScannerPage";
 
-// const headerStyle = {
-//     backgroundColor: "#F8F9FA",
-//     color: "#2E3A59",
-//     fontWeight: "bold",
-//     borderTop: "1px solid #dee2e6",
-//     borderBottom: "1px solid #dee2e6",
-// };
-// Custom styles
+
 const headerStyle = {
-    headerBackground: "#f8f9fa",
+    headerBackground: "#2E3A59",
     tableBorder: "1px solid #dee2e6",
     tableHeaderRow: {
         backgroundColor: "#2E3A59", // Using ProductPage's header color for consistency
@@ -50,6 +44,7 @@ export default function AddAssemblePage() {
         testedDate: "",
     });
 
+    const [allProducts, setAllProducts] = useState([]);
 
     const [errors, setErrors] = useState({});
     const [productTypes, setProductTypes] = useState([]);
@@ -61,7 +56,74 @@ export default function AddAssemblePage() {
     const [itemsPerPage, setItemsPerPage] = useState(10);
     const totalPages = Math.ceil(products.length / itemsPerPage);
     const navigate = useNavigate();
+    const [checkedForDelete, setCheckedForDelete] = useState({});
+    const displayedProducts = form.productType
+        ? productOptions
+        : allProducts;
+    const RequiredLabel = ({ children }) => (
+        <Form.Label>
+            {children}
+            <span style={{ color: "red" }}> *</span>
+        </Form.Label>
+    );
+    const [selectedRows, setSelectedRows] = useState([]);
+    const [serialSearchType, setSerialSearchType] = useState('single'); // 'single' or 'range'
+    const [fromSerialSearch, setFromSerialSearch] = useState('');
+    const [toSerialSearch, setToSerialSearch] = useState('');
+    useEffect(() => {
+        axios.get(`${API_BASE_URL}/product`) // replace with your real API
+            .then(res => setAllProducts(res.data))
+            .catch(err => console.error("Error fetching products:", err));
+    }, []);
+    const handleDeleteRange = () => {
+        const from = parseInt(fromSerialSearch, 10);
+        const to = parseInt(toSerialSearch, 10);
 
+        if (isNaN(from) || isNaN(to)) {
+            alert("Please enter valid numeric serial numbers.");
+            return;
+        }
+
+        const min = Math.min(from, to);
+        const max = Math.max(from, to);
+
+        const updated = products.filter(p => {
+            const snNum = parseInt(p.serial_no.match(/\d+/)?.[0], 10);
+
+            // ✅ Only delete if inside range AND still checked
+            if (!isNaN(snNum) && snNum >= min && snNum <= max) {
+                return !checkedForDelete[p.serial_no];
+            }
+            return true; // keep others outside range
+        });
+
+        setProducts(updated);
+        setCheckedForDelete({});
+        setFromSerialSearch("");
+        setToSerialSearch("");
+    };
+
+    useEffect(() => {
+        if (fromSerialSearch && toSerialSearch) {
+            const from = parseInt(fromSerialSearch, 10);
+            const to = parseInt(toSerialSearch, 10);
+
+            if (!isNaN(from) && !isNaN(to)) {
+                const min = Math.min(from, to);
+                const max = Math.max(from, to);
+
+                const updatedChecks = {};
+                products.forEach(p => {
+                    const snNum = parseInt(p.serial_no.match(/\d+/)?.[0], 10);
+                    if (!isNaN(snNum) && snNum >= min && snNum <= max) {
+                        updatedChecks[p.serial_no] = true; // ✅ default checked
+                    }
+                });
+
+                setCheckedForDelete(updatedChecks);
+            }
+        }
+    }, [fromSerialSearch, toSerialSearch, products]);
 
 
     useEffect(() => {
@@ -71,27 +133,40 @@ export default function AddAssemblePage() {
     }, []);
 
 
+    // useEffect(() => {
+    //     if (form.productType) {
+    //         const selectedType = productTypes.find(pt => pt.id === parseInt(form.productType, 10));
+    //         if (selectedType && Array.isArray(selectedType.products)) {
+    //             setProductOptions(selectedType.products);
+    //         } else {
+    //             setProductOptions([]);
+    //         }
+    //     } else {
+    //         setProductOptions([]);
+    //     }
+    // }, [form.productType, productTypes]);
     useEffect(() => {
         if (form.productType) {
-            axios.get(`${API_BASE_URL}/product`)
-                .then((res) => setProductOptions(res.data))
-                .catch((err) => console.error(err));
+            const filteredProducts = allProducts.filter(product =>
+                product.product_types.some(pt => pt.id === parseInt(form.productType, 10))
+            );
+            setProductOptions(filteredProducts);
         } else {
-            setProductOptions([]);
+            setProductOptions(allProducts);
         }
-    }, [form.productType]);
+    }, [form.productType, allProducts]);
 
     const customStyles = {
         control: (provided) => ({
             ...provided,
-            height: "38px",        // Bootstrap Form.Select height
+            height: "38px", // Bootstrap Form.Select height
             minHeight: "38px",
             borderRadius: "0.25rem",
             borderColor: "#ced4da",
         }),
         option: (provided, state) => ({
             ...provided,
-            color: state.isFocused ? "#888" : "#000",      // Gray on hover
+            color: state.isFocused ? "#888" : "#000", // Gray on hover
             backgroundColor: state.isFocused ? "#f0f0f0" : "#fff",
         }),
         singleValue: (provided) => ({
@@ -105,8 +180,6 @@ export default function AddAssemblePage() {
     };
 
 
-
-
     const handleChange = (e) => {
         setErrors({ ...errors, [e.target.name]: "" });
         setForm({ ...form, [e.target.name]: e.target.value });
@@ -118,20 +191,26 @@ export default function AddAssemblePage() {
             tested_by: form.testedBy,
             tested_status: ["PASS"],
             test_remarks: "",
-            // NOTE: Added from_serial, to_serial, quantity for consistency, though they might be less relevant for a single scan
             from_serial: serialNumber,
             to_serial: serialNumber,
             quantity: 1,
         };
-        setProducts((prevProducts) => [...prevProducts, newProduct]);
-        setForm((prev) => ({
-            ...prev,
-            // Automatically update From/To Serial to reflect the whole list after a scan
-            fromSerial: prevProducts.length === 0 ? serialNumber : prev.fromSerial,
-            toSerial: serialNumber,
-            quantity: prevProducts.length + 1,
-        }));
+
+        setProducts((prevProducts) => {
+            const updatedProducts = [...prevProducts, newProduct];
+
+            // update form based on updated products
+            setForm((prev) => ({
+                ...prev,
+                fromSerial: updatedProducts[0]?.serial_no || serialNumber,
+                toSerial: updatedProducts[updatedProducts.length - 1]?.serial_no || serialNumber,
+                quantity: updatedProducts.length,
+            }));
+
+            return updatedProducts;
+        });
     };
+
 
     const validateSerialRange = (startSN, endSN) => {
         const prefixStart = startSN.match(/[^\d]+/)?.[0] || "";
@@ -148,23 +227,51 @@ export default function AddAssemblePage() {
         }
         return true;
     };
-
     const handleAddProduct = () => {
         const { fromSerial, toSerial, testedBy } = form;
         let newErrors = {};
+
         if (!form.productType) newErrors.productType = "Product Type is required.";
         if (!form.product_id) newErrors.product_id = "Product is required.";
-        if (!form.firmwareVersion) newErrors.firmwareVersion = "Firmware Version is required.";
-        if (!form.testedDate) newErrors.testedDate = "Tested Date is required.";
         if (!fromSerial) newErrors.fromSerial = "From Serial is required.";
         if (!toSerial) newErrors.toSerial = "To Serial is required.";
-        if (!testedBy) newErrors.testedBy = "Tested By is required.";
 
         if (Object.keys(newErrors).length > 0) {
             setErrors(newErrors);
             return;
         }
 
+        // If single serial
+        if (fromSerial === toSerial) {
+            const newProduct = {
+                serial_no: fromSerial,
+                tested_by: testedBy,
+                tested_status: ["PASS"],
+                test_remarks: "",
+                from_serial: fromSerial,
+                to_serial: toSerial,
+                quantity: 1,
+            };
+
+            setProducts((prevProducts) => {
+                const updatedProducts = [...prevProducts, newProduct];
+
+                // Update form values
+                setForm((prev) => ({
+                    ...prev,
+                    fromSerial: updatedProducts[0]?.serial_no || fromSerial,
+                    toSerial: updatedProducts[updatedProducts.length - 1]?.serial_no || toSerial,
+                    quantity: updatedProducts.length,
+                }));
+
+                return updatedProducts;
+            });
+
+            setErrors({});
+            return;
+        }
+
+        // Existing range logic for multiple serials
         if (!validateSerialRange(fromSerial, toSerial)) {
             setErrors({ fromSerial: "Invalid serial range", toSerial: "Invalid serial range" });
             return;
@@ -193,24 +300,36 @@ export default function AddAssemblePage() {
 
         setForm((prev) => ({
             ...prev,
-            fromSerial: updatedProducts.length > 0 ? updatedProducts[0].serial_no : "", // New first serial
-            toSerial: updatedProducts.length > 0 ? updatedProducts[updatedProducts.length - 1].serial_no : "", // New last serial
-            quantity: updatedProducts.length, // Update quantity to the total count
+            fromSerial: updatedProducts[0].serial_no,
+            toSerial: updatedProducts[updatedProducts.length - 1].serial_no,
+            quantity: updatedProducts.length,
         }));
 
         setErrors({});
     };
 
+
+
     const handleRowChange = (index, field, value) => {
         const updated = [...products];
         const globalIndex = products.findIndex(
-            (p) => p.serial_no === paginatedProducts[index].serial_no
+            (p) => paginatedProducts.length > index && p.serial_no === paginatedProducts[index].serial_no
         );
 
         if (globalIndex === -1) return; // safeguard
 
         if (field === "tested_status") {
-            updated[globalIndex][field] = [value]; // enforce single PASS/FAIL
+            const currentStatus = updated[globalIndex].tested_status;
+            let newStatus;
+
+            if (currentStatus.includes(value)) {
+                newStatus = [];
+            } else {
+                newStatus = [value];
+            }
+
+            updated[globalIndex][field] = newStatus.length > 0 ? newStatus : ["PASS"];
+
         } else {
             updated[globalIndex][field] = value;
         }
@@ -222,24 +341,23 @@ export default function AddAssemblePage() {
         const updated = products.filter((_, i) => i !== globalIndex);
         setProducts(updated);
 
-    if (updated.length > 0) {
-    const newFromSerial = updated[0].serial_no;
-    const newToSerial = updated[updated.length - 1].serial_no;
+        if (updated.length > 0) {
+            const newFromSerial = updated[0].serial_no;
+            const newToSerial = updated[updated.length - 1].serial_no;
 
-    // If deleted item was the original fromSerial → bump to next serial
-    const deletedSerial = products[globalIndex].serial_no;
-    const newStartIndex = updated.findIndex(p => p.serial_no > deletedSerial);
-    const adjustedFrom = newStartIndex !== -1 ? updated[newStartIndex].serial_no : newFromSerial;
+            const deletedSerial = products[globalIndex].serial_no;
+            const newStartIndex = updated.findIndex(p => p.serial_no > deletedSerial);
+            const adjustedFrom = newStartIndex !== -1 ? updated[newStartIndex].serial_no : newFromSerial;
 
-    setForm((prev) => ({
-        ...prev,
-        fromSerial: adjustedFrom,
-        toSerial: newToSerial,
-        quantity: updated.length,
-    }));
-} else {
-    setForm((prev) => ({ ...prev, fromSerial: "", toSerial: "", quantity: "" }));
-}
+            setForm((prev) => ({
+                ...prev,
+                fromSerial: adjustedFrom,
+                toSerial: newToSerial,
+                quantity: updated.length,
+            }));
+        } else {
+            setForm((prev) => ({ ...prev, fromSerial: "", toSerial: "", quantity: "" }));
+        }
 
 
         if (paginatedProducts.length === 1 && currentPage > 1) {
@@ -249,60 +367,123 @@ export default function AddAssemblePage() {
 
     const handleSubmit = async () => {
         try {
+            if (products.length === 0) {
+                toast.error("Add at least one product before saving.");
+                return;
+            }
+
             const payload = {
                 product_id: parseInt(form.product_id, 10),
                 product_type_id: parseInt(form.productType, 10),
                 firmware_version: form.firmwareVersion,
                 tested_date: form.testedDate,
-                items: products.map(p => ({
-                    serial_no: p.serial_no,
-                    tested_by: p.tested_by,
-                    tested_status: Array.isArray(p.tested_status) ? p.tested_status.join(",") : p.tested_status,
-                    test_remarks: p.test_remarks,
-                    from_serial: p.from_serial,
-                    to_serial: p.to_serial,
-                    quantity: p.quantity,
-                })),
+                items: products
+                    .filter((v, i, a) => a.findIndex(t => t.serial_no === v.serial_no) === i) // remove duplicates
+                    .map(p => ({
+                        serial_no: p.serial_no,
+                        tested_by: p.tested_by || null,
+                        tested_status: Array.isArray(p.tested_status) ? p.tested_status.join(",") : p.tested_status || "PASS",
+                        test_remarks: p.test_remarks || "",
+                        from_serial: p.from_serial,
+                        to_serial: p.to_serial,
+                        quantity: parseInt(p.quantity, 10),
+                        tested_date: form.testedDate
+                    })),
             };
 
-            await axios.post(`${API_BASE_URL}/inventory`, payload);
+            const response = await axios.post(`${API_BASE_URL}/inventory`, payload);
 
-            toast.success("Inventory saved successfully!");
-            navigate("/assemble");
+            // ✅ Handle duplicates if present
+            if (response.data.items && Array.isArray(response.data.items)) {
+                const existsItems = response.data.items.filter(i => i.status === "exists");
+
+                if (existsItems.length > 0) {
+                    // Show a grouped toast
+                    toast.warn(
+                        <div>
+                            <strong>{response.data.message}</strong>
+                            <ul className="mb-0 mt-1 small">
+                                {existsItems.slice(0, 5).map((item, i) => (
+                                    <li key={i}>
+                                        Serial {item.serial_no}: {item.message}
+                                    </li>
+                                ))}
+                                {existsItems.length > 5 && (
+                                    <li>...and {existsItems.length - 5} more</li>
+                                )}
+                            </ul>
+                        </div>,
+                        { autoClose: 8000 }
+                    );
+                } else {
+                    toast.success(response.data.message || "Inventory saved successfully!");
+                    navigate("/assemble");
+                }
+            } else {
+                toast.success(response.data.message || "Inventory saved successfully!");
+                navigate("/assemble");
+            }
 
         } catch (error) {
             console.error(error);
 
-            if (error.response && error.response.data && error.response.data.errors) {
-                const validationErrors = error.response.data.errors;
-
+            if (error.response?.data?.errors) {
+                const messages = [];
+                Object.entries(error.response.data.errors).forEach(([key, msgs]) => {
+                    msgs.forEach(m => messages.push(m));
+                });
                 toast.error(
                     <div>
-                        <strong>{error.response.data.message || "Error"}</strong>
-                        {Object.entries(validationErrors).map(([key, messages]) => (
-                            <div key={key}>
-                                {messages.map((msg, index) => (
-                                    <p key={index} className="mb-0 small">{msg}</p>
-                                ))}
-                            </div>
-                        ))}
-                    </div>
-                    , {
-                        autoClose: 8000
-                    }
+                        <strong>{error.response.data.message || "Validation Error"}</strong>
+                        {messages.map((m, i) => <p key={i} className="mb-0 small">{m}</p>)}
+                    </div>,
+                    { autoClose: 8000 }
                 );
+            } else if (error.response?.data?.message) {
+                toast.error(error.response.data.message);
             } else {
                 toast.error("Error saving inventory. Please try again.");
             }
         }
     };
 
-    const filteredProducts = products.filter(
-        (p) =>
-            p.serial_no.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            p.tested_by.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            p.tested_status.join(",").toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredProducts = products.filter((p) => {
+        const lowerCaseSearchTerm = searchTerm.toLowerCase();
+        const serialNo = p.serial_no.toLowerCase();
+        const testedBy = p.tested_by.toLowerCase();
+        const testedStatus = p.tested_status.join(",").toLowerCase();
+
+        // Text search match
+        const textMatch =
+            serialNo.includes(lowerCaseSearchTerm) ||
+            testedBy.includes(lowerCaseSearchTerm) ||
+            testedStatus.includes(lowerCaseSearchTerm);
+
+        // Serial range filtering
+        let serialMatch = true;
+        if (fromSerialSearch && toSerialSearch) {
+            const startNum = parseInt(fromSerialSearch.replace(/\D/g, ''), 10);
+            const endNum = parseInt(toSerialSearch.replace(/\D/g, ''), 10);
+            const productNum = parseInt(p.serial_no.replace(/\D/g, ''), 10);
+
+            if (!isNaN(startNum) && !isNaN(endNum)) {
+                serialMatch = productNum >= startNum && productNum <= endNum;
+            }
+        }
+
+        // Combine filters
+        if (searchTerm.trim() !== '' && (fromSerialSearch || toSerialSearch)) {
+            return textMatch && serialMatch;
+        } else if (searchTerm.trim() !== '') {
+            return textMatch;
+        } else if (fromSerialSearch || toSerialSearch) {
+            return serialMatch;
+        }
+
+        return true; // no filters, return all
+    });
+
+
 
     const paginatedProducts = filteredProducts.slice(
         (currentPage - 1) * itemsPerPage,
@@ -331,18 +512,18 @@ export default function AddAssemblePage() {
                     <h4>Add New Inventory</h4>
                 </Col>
                 <Col className="text-end">
-                     <Button
-        variant="outline-secondary"
-        size="sm"
-        className="me-2"
-        onClick={() => navigate("/assemble")}
-    >
-        <i className="bi bi-arrow-left"></i> Back
-    </Button>
+                    <Button
+                        variant="outline-secondary"
+                        size="sm"
+                        className="me-2"
+                        onClick={() => navigate("/assemble")}
+                    >
+                        <i className="bi bi-arrow-left"></i> Back
+                    </Button>
                 </Col>
             </Row>
 
-            <Card className="p-4 mb-3 shadow-sm rounded-3 bg-white" style={{ position: "relative" }}>
+            <Card className="p-4 mb-3 shadow-sm rounded-3 card-custom" style={{ position: "relative" }}>
                 <h5 className="mb-4">Product Details</h5>
                 <div className="qr-scanner-button" onClick={() => setShowQrScanner(true)}>
                     <div className="qr-scanner-icon-container">
@@ -353,9 +534,13 @@ export default function AddAssemblePage() {
                 <Row className="mb-3 g-3">
                     <Col md={4}>
                         <Form.Group>
-                            <Form.Label>Product Type</Form.Label>
-                            <Form.Select name="productType" value={form.productType} onChange={handleChange}
-
+                            {/* ✅ Product Type */}
+                            <RequiredLabel>Product Type</RequiredLabel>
+                            <Form.Select
+                                name="productType"
+                                value={form.productType}
+                                onChange={handleChange}
+                                isInvalid={!!errors.productType}
                             >
                                 <option value="">Select Product Type</option>
                                 {productTypes.map((pt) => (
@@ -364,19 +549,33 @@ export default function AddAssemblePage() {
                                     </option>
                                 ))}
                             </Form.Select>
+                            <Form.Control.Feedback type="invalid">
+                                {errors.productType}
+                            </Form.Control.Feedback>
                         </Form.Group>
                     </Col>
                     <Col md={4}>
                         <Form.Group>
-                            <Form.Label>Product</Form.Label>
-                            <Form.Select name="product_id" value={form.product_id} onChange={handleChange}>
+                            {/* ✅ Product */}
+                            <RequiredLabel>Product</RequiredLabel>
+                            <Form.Select
+                                name="product_id"
+                                value={form.product_id}
+                                onChange={handleChange}
+                                isInvalid={!!errors.product_id}
+                            >
                                 <option value="">Select Product</option>
-                                {productOptions.map((p) => (
+                                {displayedProducts.map((p) => (
                                     <option key={p.id} value={p.id}>
                                         {p.name}
                                     </option>
                                 ))}
                             </Form.Select>
+
+
+                            <Form.Control.Feedback type="invalid">
+                                {errors.product_id}
+                            </Form.Control.Feedback>
                         </Form.Group>
                     </Col>
                     <Col md={4}>
@@ -386,8 +585,10 @@ export default function AddAssemblePage() {
                                 name="firmwareVersion"
                                 value={form.firmwareVersion}
                                 onChange={handleChange}
+                                isInvalid={!!errors.firmwareVersion}
                                 placeholder="Enter Firmware Version"
                             />
+                            <Form.Control.Feedback type="invalid">{errors.firmwareVersion}</Form.Control.Feedback>
                         </Form.Group>
                     </Col>
                 </Row>
@@ -400,8 +601,14 @@ export default function AddAssemblePage() {
                     </Col>
                     <Col md={4}>
                         <Form.Group>
-                            <Form.Label>From Serial</Form.Label>
-                            <Form.Control name="fromSerial" value={form.fromSerial} onChange={handleChange} isInvalid={!!errors.fromSerial} />
+                            {/* ✅ From Serial */}
+                            <RequiredLabel>From Serial</RequiredLabel>
+                            <Form.Control
+                                name="fromSerial"
+                                value={form.fromSerial}
+                                onChange={handleChange}
+                                isInvalid={!!errors.fromSerial}
+                            />
                             <Form.Control.Feedback type="invalid">
                                 {errors.fromSerial}
                             </Form.Control.Feedback>
@@ -426,7 +633,11 @@ export default function AddAssemblePage() {
                                 name="testedDate"
                                 value={form.testedDate}
                                 onChange={handleChange}
+                                isInvalid={!!errors.testedDate}
                             />
+                            <Form.Control.Feedback type="invalid">
+                                {errors.testedDate}
+                            </Form.Control.Feedback>
                         </Form.Group>
                     </Col>
                     <Col md={4}>
@@ -447,27 +658,169 @@ export default function AddAssemblePage() {
             </Card>
 
             {products.length > 0 && (
-                <Card className="p-2 px-4 mt-2 bg-white border-0 shadow-sm rounded-3"> {/* Added Card classes from sample */}
-                    <div className="row mb-2 d-flex align-items-center"> {/* Use row for alignment */}
-                        <div className="col-md-6">
+                <Card className="p-2 px-4 mt-2 card-custom border-0 shadow-sm rounded-3">
+                    <div className="row mb-2 d-flex align-items-center">
+                        <div className="col-md-3">
                             <h5 className="mb-0">Product List</h5>
                         </div>
-                        <div className="col-md-6 d-flex justify-content-end"> {/* Search box aligned right */}
-                            <Form.Control
-                                placeholder="Search"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                style={{ width: '200px', fontSize: "0.85rem" }} // Sizing the search input
-                            />
-                        </div>
+                        <Row className="mb-3">
+                            <Col>
+                                <div className="search-input-wrapper">
+                                    <Form.Control
+                                        size="sm"
+                                        type="text"
+                                        placeholder="Search serials..."
+                                        value={searchTerm}
+                                        onChange={(e) => {
+                                            setSearchTerm(e.target.value);
+                                            setCurrentPage(1);
+                                        }}
+                                    />
+                                    {searchTerm && (
+                                        <i
+                                            className="bi bi-x search-clear-icon"
+                                            onClick={() => {
+                                                setSearchTerm("");
+                                                setCurrentPage(1);
+                                            }}
+                                        />
+                                    )}
+                                </div>
+                            </Col>
+
+                            <Col md={3}>
+                                <div className="search-input-wrapper">
+                                    <Form.Control
+                                        placeholder="Delete From Serial"
+                                        value={fromSerialSearch}
+                                        onChange={(e) => setFromSerialSearch(e.target.value)}
+                                    />
+                                    {fromSerialSearch && (
+                                        <i
+                                            className="bi bi-x search-clear-icon"
+                                            onClick={() => setFromSerialSearch("")}
+                                        />
+                                    )}
+                                </div>
+                            </Col>
+
+                            <Col md={3}>
+                                <div className="search-input-wrapper">
+                                    <Form.Control
+                                        placeholder="Delete To Serial"
+                                        value={toSerialSearch}
+                                        onChange={(e) => setToSerialSearch(e.target.value)}
+                                    />
+                                    {toSerialSearch && (
+                                        <i
+                                            className="bi bi-x search-clear-icon"
+                                            onClick={() => setToSerialSearch("")}
+                                        />
+                                    )}
+                                </div>
+                            </Col>
+
+                            <Col md={2}>
+                                <Button
+                                    variant="outline-danger"
+                                    size="sm"
+                                    onClick={handleDeleteRange}
+                                    disabled={!fromSerialSearch || !toSerialSearch}
+                                >
+                                    <IoTrashOutline />
+                                </Button>
+                            </Col>
+                        </Row>
+
+
+                        {/* UPDATED SEARCH SECTION */}
+                        <Col md={9} className="d-flex justify-content-end align-items-center">
+                            {/* <Form.Group className="d-flex align-items-center me-3" style={{ fontSize: "0.85rem" }}>
+                                <Form.Check
+                                    inline
+                                    label="Serial No."
+                                    name="serialSearchType"
+                                    type="radio"
+                                    id="search-type-single"
+                                    checked={serialSearchType === 'single'}
+                                    onChange={() => {
+                                        setSerialSearchType('single');
+                                        setFromSerialSearch('');
+                                        setToSerialSearch('');
+                                    }}
+                                />
+                                <Form.Check
+                                    inline
+                                    label="Serial Range"
+                                    name="serialSearchType"
+                                    type="radio"
+                                    id="search-type-range"
+                                    checked={serialSearchType === 'range'}
+                                    onChange={() => {
+                                        setSerialSearchType('range');
+                                        setSearchTerm('');
+                                    }}
+                                />
+                            </Form.Group> */}
+
+                            {serialSearchType === 'single' ? (
+                                <>
+                                    {/* <Form.Control
+                                        placeholder="Search by Serial No."
+                                        value={fromSerialSearch}
+                                        onChange={(e) => setFromSerialSearch(e.target.value)}
+                                        style={{ width: '200px', fontSize: "0.85rem" }}
+                                        className="me-3"
+                                    />
+                                    <Form.Control
+                                        placeholder="Search All/Other"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        style={{ width: '200px', fontSize: "0.85rem" }}
+                                    /> */}
+                                </>
+                            ) : (
+                                <>
+                                    {/* <Form.Control
+                                        placeholder="From Serial"
+                                        value={fromSerialSearch}
+                                        onChange={(e) => setFromSerialSearch(e.target.value)}
+                                        style={{ width: '150px', fontSize: "0.85rem" }}
+                                        className="me-2"
+                                    />
+                                    <Form.Control
+                                        placeholder="To Serial"
+                                        value={toSerialSearch}
+                                        onChange={(e) => setToSerialSearch(e.target.value)}
+                                        style={{ width: '150px', fontSize: "0.85rem" }}
+                                        className="me-2"
+                                    /> */}
+
+                                    {/* 🔹 New Delete Range button */}
+                                    <Button
+                                        variant="outline-danger"
+                                        size="sm"
+                                        onClick={handleDeleteRange}
+                                        disabled={!fromSerialSearch || !toSerialSearch}
+                                    >
+                                        <IoTrashOutline className="me-1" /> Delete Range
+                                    </Button>
+                                </>
+                            )}
+                        </Col>
+
                     </div>
 
                     <div className="table-responsive">
                         {/* Applied classes and styles from the sample table */}
                         <Table className="table-sm align-middle mb-0 table-sm-custom align-middle-custom" style={{ fontSize: "0.85rem" }}>
-                            <thead style={headerStyle}>
-                                <tr>
+                            <thead style={headerStyle.tableHeaderRow}>
+                                <tr className="table-header-custom">
                                     <th style={{ ...headerStyle, width: "60px", textAlign: "center" }}>S.No</th>
+
+                                    {/* Empty header for checkbox column */}
+                                    <th style={{ ...headerStyle, width: "40px" }}></th>
+
                                     <th style={headerStyle}>Serial No</th>
                                     <th style={headerStyle}>Tested By</th>
                                     <th style={{ ...headerStyle, width: "150px" }}>Status</th>
@@ -475,89 +828,94 @@ export default function AddAssemblePage() {
                                     <th style={{ ...headerStyle, width: "70px", textAlign: "center" }}>Actions</th>
                                 </tr>
                             </thead>
+
                             <tbody>
-                                {/* Check for empty results after filtering */}
-                                {filteredProducts.length === 0 && searchTerm !== "" ? (
+                                {filteredProducts.length === 0 &&
+                                    (searchTerm !== "" || fromSerialSearch !== "" || toSerialSearch !== "") ? (
                                     <tr>
-                                        <td colSpan="6" className="text-center py-4 text-muted">
-                                            No products found matching "{searchTerm}"
+                                        <td colSpan="7" className="text-center py-4 text-muted">
+                                            No products found matching the criteria.
                                         </td>
                                     </tr>
                                 ) : (
                                     paginatedProducts.map((row, i) => (
-                                        <tr key={i}>
+                                        <tr key={i} className="align-middle">
+                                            {/* Serial No */}
                                             <td className="text-center">{(currentPage - 1) * itemsPerPage + i + 1}</td>
-                                            <td>{row.serial_no}</td>
+
+                                            <td className="text-center custom-checkbox-color">
+                                                {(fromSerialSearch && toSerialSearch) ? (
+                                                    <Form.Check
+                                                        type="checkbox"
+                                                        checked={!!checkedForDelete[row.serial_no]}
+                                                        onChange={() => {
+                                                            setCheckedForDelete(prev => ({
+                                                                ...prev,
+                                                                [row.serial_no]: !prev[row.serial_no],
+                                                            }));
+                                                        }}
+                                                    />
+                                                ) : null}
+                                            </td>
+
+
+                                            {/* Serial Number */}
+                                            <td className="text-center">{row.serial_no}</td>
+
+                                            {/* Tested By */}
                                             <td>
                                                 <Form.Control
                                                     type="text"
-                                                    size="sm" // Added size="sm" for smaller input
+                                                    size="sm"
                                                     value={row.tested_by}
-                                                    onChange={(e) =>
-                                                        handleRowChange(
-                                                            i,
-                                                            "tested_by",
-                                                            e.target.value
-                                                        )
-                                                    }
+                                                    onChange={(e) => handleRowChange(i, "tested_by", e.target.value)}
                                                 />
                                             </td>
-                                            <td>
-                                                {/* Adjusted checkbox logic for cleaner display */}
-                                                <div className="custom-checkbox-color">
+
+                                            {/* Status Checkboxes */}
+                                            <td className="text-center">
+                                                <div className="d-flex justify-content-center gap-2">
                                                     <Form.Check
                                                         inline
                                                         label="Pass"
                                                         type="checkbox"
-                                                        name={`status-pass-${i}`} // Updated name to avoid group behavior
                                                         id={`pass-${i}`}
-                                                        value="PASS"
+                                                        className="custom-checkbox-color"
                                                         checked={row.tested_status.includes("PASS")}
                                                         onChange={(e) =>
-                                                            handleRowChange(
-                                                                i,
-                                                                "tested_status",
-                                                                e.target.value // You might need a more complex handler for multiple checkboxes
-                                                            )
+                                                            handleRowChange(i, "tested_status", e.target.checked ? "PASS" : "")
                                                         }
                                                     />
                                                     <Form.Check
                                                         inline
                                                         label="Fail"
                                                         type="checkbox"
-                                                        name={`status-fail-${i}`} // Updated name to avoid group behavior
                                                         id={`fail-${i}`}
-                                                        value="FAIL"
+                                                        className="custom-checkbox-color"
                                                         checked={row.tested_status.includes("FAIL")}
                                                         onChange={(e) =>
-                                                            handleRowChange(
-                                                                i,
-                                                                "tested_status",
-                                                                e.target.value
-                                                            )
+                                                            handleRowChange(i, "tested_status", e.target.checked ? "FAIL" : "")
                                                         }
                                                     />
                                                 </div>
                                             </td>
+
+                                            {/* Test Remarks */}
                                             <td>
                                                 <Form.Control
                                                     type="text"
-                                                    size="sm" // Added size="sm" for smaller input
+                                                    size="sm"
                                                     value={row.test_remarks}
-                                                    onChange={(e) =>
-                                                        handleRowChange(
-                                                            i,
-                                                            "test_remarks",
-                                                            e.target.value
-                                                        )
-                                                    }
+                                                    onChange={(e) => handleRowChange(i, "test_remarks", e.target.value)}
                                                 />
                                             </td>
+
+                                            {/* Delete Button */}
                                             <td className="text-center">
                                                 <Button
-                                                    variant="outline-danger" // Using a standard danger variant for consistency
+                                                    variant="outline-danger"
                                                     size="sm"
-                                                    onClick={() => handleDelete(i + (currentPage - 1) * itemsPerPage)}
+                                                    onClick={() => handleDelete(products.findIndex(p => p.serial_no === row.serial_no))}
                                                 >
                                                     <IoTrashOutline />
                                                 </Button>
@@ -566,6 +924,8 @@ export default function AddAssemblePage() {
                                     ))
                                 )}
                             </tbody>
+
+
                         </Table>
                     </div>
 
@@ -614,7 +974,15 @@ export default function AddAssemblePage() {
             {/* Save/Cancel buttons outside the card as per original file structure, but aligned right */}
             {products.length > 0 && (
                 <div className="d-flex justify-content-end mt-3 gap-2">
-                    <Button variant="outline-secondary">Cancel</Button>
+                    <Button
+                        variant="secondary"
+                        className="me-2"
+                        onClick={() => {
+
+                        }}
+                    >
+                        Cancel
+                    </Button>
                     <Button variant="success" onClick={handleSubmit}>
                         Save
                     </Button>

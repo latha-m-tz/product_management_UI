@@ -62,7 +62,7 @@ const AddServicePage = () => {
   // Fetch already added serials
   const fetchAlreadyAddedSerials = async () => {
     try {
-      const res = await axios.get(`${API_BASE_URL}/service-vci/added-serials`);
+      const res = await axios.get(`${API_BASE_URL}/get-serviceserials`);
       setAlreadySoldSerials(res.data || []);
     } catch (error) {
       setAlreadySoldSerials([]);

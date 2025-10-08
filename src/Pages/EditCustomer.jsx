@@ -53,7 +53,20 @@ const [mobileError, setMobileError] = useState("");
         const res = await fetch(`${API_BASE_URL}/customers/${id}/edit`);
         const data = await res.json();
         if (res.ok && data.status === "success") {
-          setCustomer(data.customer); 
+          // setCustomer(data.customer); 
+                 setCustomer({
+          ...data.customer,
+          customer: data.customer.customer ?? "",
+          gst_no: data.customer.gst_no ?? "",
+          email: data.customer.email ?? "",
+          pincode: data.customer.pincode ?? "",
+          city: data.customer.city ?? "",
+          state: data.customer.state ?? "",
+          district: data.customer.district ?? "",
+          address: data.customer.address ?? "",
+          mobile_no: data.customer.mobile_no ?? "",
+          status: data.customer.status ?? "active",
+        });
           if (data.customer.pincode) {
             fetchPincodeDetails(data.customer.pincode);
           }
@@ -79,13 +92,13 @@ const [mobileError, setMobileError] = useState("");
     const errs = {};
     if (!customer.customer.trim()) errs.customer = "Customer Name is required";
 
-    if (!customer.gst_no.trim()) errs.gst_no = "GST No is required";
-    else if (customer.gst_no.length !== 15)
-      errs.gst_no = "GST No must be 15 characters";
+    // if (!customer.gst_no.trim()) errs.gst_no = "GST No is required";
+    // else if (customer.gst_no.length !== 15)
+    //   errs.gst_no = "GST No must be 15 characters";
 
-    if (!customer.email.trim()) errs.email = "Email is required";
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email))
-      errs.email = "Invalid email format";
+    // if (!customer.email.trim()) errs.email = "Email is required";
+    // else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email))
+    //   errs.email = "Invalid email format";
 
  if (!customer.mobile_no) {
   errs.mobile_no = "Mobile number is required";
@@ -261,7 +274,7 @@ const [mobileError, setMobileError] = useState("");
               <Form.Control
                 type="text"
                 name="gst_no"
-                value={customer.gst_no}
+                value={customer.gst_no ?? ""}
                 onChange={handleChange}
                 placeholder="Enter GST No"
               />
@@ -364,7 +377,7 @@ const [mobileError, setMobileError] = useState("");
               <Form.Control
                 type="email"
                 name="email"
-                value={customer.email}
+                value={customer.email ?? ""}
                 onChange={handleChange}
                 placeholder="Enter Email"
               />
@@ -383,7 +396,7 @@ const [mobileError, setMobileError] = useState("");
                 international
                 defaultCountry="IN"
                 className="form-control"
-                value={customer.mobile_no}
+                value={customer.mobile_no ?? ""}
                 onChange={handleMobileChange}
               />
               {errors.mobile_no && (

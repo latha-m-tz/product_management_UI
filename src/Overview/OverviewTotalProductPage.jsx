@@ -3,7 +3,7 @@ import axios from "axios";
 import { Card } from "react-bootstrap";
 import { FaChevronUp, FaChevronDown } from "react-icons/fa";
 import "./TotalProduct.css";
-import { API_BASE_URL } from "../api"; // ✅ corrected path
+import { API_BASE_URL } from "../api";
 
 function TotalProductPage() {
   const [stockData, setStockData] = useState([]);
@@ -16,15 +16,22 @@ function TotalProductPage() {
 
   const fetchStockData = async () => {
     try {
-      const res = await axios.get(`${API_BASE_URL}/products/category/count`);
-      if (res.data && res.data.success) {
-        const mappedData = res.data.data.map((item) => ({
-          series: item.series,
-          label: "Tech_pro",
-          change: item.product_count,
-        }));
+      const res = await axios.get(`${API_BASE_URL}/inventory/count`);
+
+      if (res.data) {
+        // ✅ total VCI count
+        setTotalProducts(res.data.total_vcis || 0);
+
+        // ✅ series-wise counts
+        const mappedData = Object.entries(res.data.series_counts || {}).map(
+          ([series, count]) => ({
+            series,
+            label: "Tech_pro",
+            change: count,
+          })
+        );
+
         setStockData(mappedData);
-        setTotalProducts(res.data.total_count || 0);
       }
     } catch (err) {
       console.error("Failed to load stock data", err);
@@ -84,6 +91,7 @@ function TotalProductPage() {
       ></div>
     </div>
   );
+
   return (
     <div>
       <Card className="border-0 shadow-sm h-100">
@@ -124,7 +132,7 @@ function TotalProductPage() {
                             style={{
                               width: `${barWidth}%`,
                               transition: "width 0.6s ease",
-                              backgroundColor: isUp ? "#28a745" : undefined
+                              backgroundColor: isUp ? "#28a745" : undefined,
                             }}
                           ></div>
                         </div>
@@ -138,7 +146,7 @@ function TotalProductPage() {
                           fontWeight: 600,
                           minWidth: "60px",
                           justifyContent: "flex-end",
-                          color: isUp ? "#28a745" : undefined
+                          color: isUp ? "#28a745" : undefined,
                         }}
                       >
                         {isUp ? <FaChevronUp size={12} /> : <FaChevronDown size={12} />}
@@ -166,4 +174,5 @@ function TotalProductPage() {
     </div>
   );
 }
+
 export default TotalProductPage;

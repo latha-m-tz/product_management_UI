@@ -3,7 +3,7 @@ import React from "react";
 import { Button } from "react-bootstrap";
 import "bootstrap-icons/font/bootstrap-icons.css";
 
-export default function ActionButtons({ onPdf, onEdit, onDelete, onReturn, onTrack, onRepair, onUrgent, urgentStatus, onWarranty,onView }) {
+export default function ActionButtons({ onPdf, onEdit, onDelete, onReturn, onTrack, onRepair, onUrgent, urgentStatus, onWarranty, onView, onMissing }) {
   // Define a consistent style for all action buttons
   const buttonStyle = {
     borderColor: "#2E3A59",
@@ -100,7 +100,7 @@ export default function ActionButtons({ onPdf, onEdit, onDelete, onReturn, onTra
           <i className="bi bi-tools"></i>
         </Button>
       )}
-      
+
       {onUrgent && (
         <Button
           variant="outline-primary"
@@ -138,7 +138,7 @@ export default function ActionButtons({ onPdf, onEdit, onDelete, onReturn, onTra
       )}
 
       {onView && (
-                <Button
+        <Button
           size="sm"
           variant="outline-primary"
 
@@ -158,6 +158,23 @@ export default function ActionButtons({ onPdf, onEdit, onDelete, onReturn, onTra
           <i className="bi bi-eye"></i>
         </Button>
       )}
+      {onMissing && (
+        <Button
+          size="sm"
+          variant="outline-warning"
+          onClick={onMissing}
+          title="Find Missing Product Details"
+          className="me-1"
+          style={{
+            ...buttonStyle,
+            borderColor: "#2E3A59",
+            color: "#2E3A59",
+          }}
+        >
+          <i className="bi bi-search"></i> {/* 🔍 Classic magnifying glass */}
+        </Button>
+      )}
+
     </>
   );
 }

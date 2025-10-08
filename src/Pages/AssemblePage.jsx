@@ -6,6 +6,7 @@ import axios from "axios";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
 import "bootstrap-icons/font/bootstrap-icons.css";
+import ActionButtons from "../components/ActionButton";
 
 import BreadCrumb from "../components/BreadCrumb";
 import Pagination from "../components/Pagination";
@@ -53,7 +54,7 @@ export default function AssemblePage() {
             setLoading(false);
         }
     };
-    
+
     // REMOVED: fetchProducts is no longer needed
 
     const handleAddNewClick = () => {
@@ -64,9 +65,9 @@ export default function AssemblePage() {
         const fromSerial = item.from_serial;
         const toSerial = item.to_serial;
         // Use item.product.id and item.product_type.id directly
-        const product_id = item.product?.id; 
+        const product_id = item.product?.id;
         const productType = item.product_type?.id;
-        
+
         MySwal.fire({
             title: "Are you sure?",
             text: `You want to delete serial range ${fromSerial} - ${toSerial}. You won't be able to revert this!`,
@@ -81,7 +82,7 @@ export default function AssemblePage() {
                     const res = await axios.delete(
                         `${API_BASE_URL}/inventory/serialrange/${fromSerial}/${toSerial}`,
                         // ENSURE the backend expects these payload keys
-                        { data: { product_id, product_type_id: productType } } 
+                        { data: { product_id, product_type_id: productType } }
                     );
 
                     // Remove deleted items from frontend
@@ -204,7 +205,7 @@ export default function AssemblePage() {
                                 + Add Assemble
                             </Button>
                         </div>
-                        
+
                         <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center" }}>
                             <Search
                                 search={search}
@@ -267,7 +268,6 @@ export default function AssemblePage() {
                                 <th style={{ ...headerStyle, width: "170px", textAlign: "center" }}>Action</th>
                             </tr>
                         </thead>
-
                         <tbody>
                             {loading ? (
                                 <tr>
@@ -287,59 +287,29 @@ export default function AssemblePage() {
                                     </td>
                                 </tr>
                             ) : (
-                                paginatedData.map((item, index) => {
-                                    return (
-                                        <tr key={`${item.from_serial}-${item.to_serial}`}> {/* Use a combination key if ID isn't unique */}
-                                            <td className="text-center">
-                                                {(page - 1) * perPage + index + 1}
-                                            </td>
-                                            {/* Access the nested name property: item.product.name */}
-                                            <td>{item.product?.name || "-"}</td> 
-                                            <td>{item.product_type?.name || "-"}</td>
-                                            <td>{item.from_serial}</td>
-                                            <td>{item.to_serial}</td>
-                                            <td>{item.quantity}</td>
-                                            <td className="text-center">
-                                                <Button
-                                                    variant=""
-                                                    size="sm"
-                                                    className="me-1"
-                                                    onClick={() => navigate(`/inventory/${item.from_serial}-${item.to_serial}`)}
-                                                    style={{ borderColor: "#2E3A59", color: "#2E3A59" }}
-                                                >
-                                                    <i className="bi bi-eye"></i>
-                                                </Button>
-
-                                                <Button
-                                                    variant=""
-                                                    size="sm"
-                                                    className="me-1"
-                                                    onClick={() =>
-                                                        navigate(`/inventory/edit/${item.from_serial}/${item.to_serial}`)
-                                                    }
-                                                    style={{ borderColor: "#2E3A59", color: "#2E3A59" }}
-                                                >
-                                                    <i className="bi bi-pencil-square"></i>
-                                                </Button>
-                                                
-                                                <Button
-                                                    variant="outline-primary"
-                                                    size="sm"
-                                                    onClick={() => handleDeleteRange(item)}
-                                                    style={{
-                                                        borderColor: "#2E3A59",
-                                                        color: "#2E3A59",
-                                                        backgroundColor: "transparent",
-                                                    }}
-                                                >
-                                                    <i className="bi bi-trash"></i>
-                                                </Button>
-                                            </td>
-                                        </tr>
-                                    );
-                                })
+                                paginatedData.map((item, index) => (
+                                    <tr key={`${item.from_serial}-${item.to_serial}`}>
+                                        <td className="text-center">{(page - 1) * perPage + index + 1}</td>
+                                        <td>{item.product?.name || "-"}</td>
+                                        <td>{item.product_type?.name || "-"}</td>
+                                        <td>{item.from_serial}</td>
+                                        <td>{item.to_serial}</td>
+                                        <td>{item.quantity}</td>
+                                        <td className="text-center">
+                                            <ActionButtons
+                                                onView={() => navigate(`/inventory/${item.from_serial}-${item.to_serial}`)}
+                                                onEdit={() =>
+                                                    navigate(`/inventory/edit/${item.from_serial}/${item.to_serial}`)
+                                                }
+                                                onDelete={() => handleDeleteRange(item)}
+                                                onMissing={() => navigate(`/missing-serials/${item.from_serial}/${item.to_serial}`)}
+                                            />
+                                        </td>
+                                    </tr>
+                                ))
                             )}
                         </tbody>
+
                     </Table>
                 </div>
 

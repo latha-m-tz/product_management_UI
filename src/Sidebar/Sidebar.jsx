@@ -11,6 +11,8 @@ export default function Sidebar({ collapsed }) {
       { link: "vendor", title: "Vendor", icon: ["/VendorG.png", "/Vendor.png"] },
       { link: "spare-parts", title: "Spare Parts", icon: ["/Purchase Order.png", "/Purchase Order 1.png"] },
       { link: "spare-partsPurchase", title: "SpareParts Purchase", icon: ["/Purchase Order.png", "/Purchase Order 1.png"] },
+      { link: "spare-parts-by-series", title: "Spare Parts Requirements Calculation", icon: ["/Purchase Order.png", "/Purchase Order 1.png"] }, // <-- New link
+
       // { link: "assemble", title: "Assemble", icon: ["/AssembleG.png", "/Assemble.png"] },
     ],
     // testing: [
@@ -56,6 +58,8 @@ export default function Sidebar({ collapsed }) {
     height: "18px",
     filter: "invert(94%) sepia(0%) saturate(0%) hue-rotate(200deg) brightness(100%) contrast(100%)"
   };
+
+
 
   const subLinkStyle = {
     color: "#fff",
@@ -107,6 +111,11 @@ export default function Sidebar({ collapsed }) {
       }
       nav::-webkit-scrollbar-track {
         background: transparent;
+      }
+      .menu .submenu {
+        padding-left: 30px;  /* Indent to look like a child */
+        font-size: 14px;
+        opacity: 0.85;
       }
       nav::-webkit-scrollbar-thumb {
         background-color: #888;

@@ -50,8 +50,10 @@ export default function InventoryDetailsPage() {
     const [page, setPage] = useState(1);
     const [perPage, setPerPage] = useState(10);
     const [search, setSearch] = useState(""); // Renamed from searchTerm to search for consistency
-    const [sortField, setSortField] = useState(null);
-    const [sortDirection, setSortDirection] = useState("asc");
+
+    const [sortField, setSortField] = useState("serial_no"); // default sort field
+const [sortDirection, setSortDirection] = useState("asc");  // ascending
+
 
     // Memoized array of inventory items
     const inventoryItems = useMemo(() => {
@@ -64,21 +66,32 @@ export default function InventoryDetailsPage() {
         }
     }, [from, to]);
 
-    const fetchInventory = async () => {
-        setLoading(true);
-        try {
-            const res = await axios.get(
-                `${API_BASE_URL}/inventory/serialrange/${from}/${to}`
-            );
-            setInventory(res.data);
-        } catch (err) {
-            console.error(err);
-            toast.error("Failed to fetch inventory details!");
-            setInventory(null); // Set to null on failure
-        } finally {
-            setLoading(false);
-        }
-    };
+  const fetchInventory = async () => {
+    setLoading(true);
+    try {
+        const res = await axios.get(
+            `${API_BASE_URL}/inventory/serialrange/${from}/${to}`
+        );
+
+        let items = Array.isArray(res.data.items) ? res.data.items : [];
+
+        // Sort ascending by serial_no
+        items.sort((a, b) => {
+            if (a.serial_no < b.serial_no) return -1;
+            if (a.serial_no > b.serial_no) return 1;
+            return 0;
+        });
+
+        setInventory({ ...res.data, items }); // keep the rest of the object intact
+    } catch (err) {
+        console.error(err);
+        toast.error("Failed to fetch inventory details!");
+        setInventory(null);
+    } finally {
+        setLoading(false);
+    }
+};
+
 
     const getStatusVariant = (status) => {
         switch (status?.toLowerCase()) {

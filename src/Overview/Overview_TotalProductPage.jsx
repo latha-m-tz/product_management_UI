@@ -17,7 +17,7 @@ export default function TotalProductPage() {
 
   const fetchStockData = async () => {
     try {
-      const res = await axios.get(`${apiBase}/products`);
+      const res = await axios.get(`${apiBase}/inventory`);
       setStockData(res.data.stockData || []);
       setTotalProducts(res.data.totalProducts || 0);
     } catch (err) {

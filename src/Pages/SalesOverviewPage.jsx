@@ -7,7 +7,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 
 import { API_BASE_URL } from "../api";
-import Breadcrumb from "../components/Breadcrumb";
+import BreadCrumb from "../components/BreadCrumb"; // Added from ProductPage
 import Pagination from "../components/Pagination";
 import Search from "../components/Search";
 import DataTable from "../components/DataTable";
@@ -70,7 +70,7 @@ export default function SalesOverviewPage() {
     { header: "Shipment Date", accessor: (row) => row.shipment_date },
     { header: "Serial No", accessor: (row) => row.serial_no },
     { header: "Product", accessor: (row) => row.product },
-    { header: "Quantity", accessor: (row) => row.quantity },
+    // { header: "Quantity", accessor: (row) => row.quantity },
   ];
 
   const filteredRows = allRows.filter(
@@ -93,7 +93,7 @@ export default function SalesOverviewPage() {
 
   return (
     <div className="px-4" style={{ fontSize: "0.75rem" }}>
-      <Breadcrumb title="Sale Overview" />
+      <BreadCrumb title="Sale Overview" />
 
       <Card className="border-0 shadow-sm rounded-3 p-2 px-4 mt-2 bg-white">
         <div className="row mb-2">

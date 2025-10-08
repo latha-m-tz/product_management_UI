@@ -9,7 +9,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 
 import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../api";
-import Breadcrumb from "../components/Breadcrumb";
+import BreadCrumb from "../components/BreadCrumb"; // Added from ProductPage
 import ActionButtons from "../components/ActionButton";
 import Pagination from "../components/Pagination";
 import Search from "../components/Search";
@@ -98,7 +98,7 @@ export default function SalesListPage() {
 
   return (
     <div className="px-4" style={{ fontSize: "0.75rem" }}>
-      <Breadcrumb title="Sales List" />
+      <BreadCrumb title="Sales List" />
 
       <Card className="border-0 shadow-sm rounded-3 p-2 px-4 mt-2 bg-white">
         <div className="row mb-2">
