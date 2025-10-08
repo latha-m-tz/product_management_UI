@@ -19,8 +19,8 @@ const LastSalesList = () => {
       const sales = Array.isArray(res.data)
         ? res.data
         : Array.isArray(res.data.data)
-        ? res.data.data
-        : [];
+          ? res.data.data
+          : [];
 
       if (sales.length === 0) {
         setSalesData([]);
@@ -68,10 +68,10 @@ const LastSalesList = () => {
                   salesData.map((item, index) => (
                     <tr key={index}>
                       <td>{index + 1}</td>
-                      <td>{item.customer_name}</td>
+                      <td>{item.customer?.customer ?? "N/A"}</td>
                       <td>{new Date(item.shipment_date).toLocaleDateString()}</td>
-                      <td>{item.category_name}</td>
-                      <td>{item.quantity}</td>
+                      <td>{item.product?.product ?? "N/A"}</td>
+                      <td>{item.quantity ?? 0}</td>
                     </tr>
                   ))
                 ) : (

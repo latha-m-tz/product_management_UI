@@ -104,11 +104,15 @@ export default function ProductTypePage() {
 
     const duplicate = productTypes.some(
       (p) =>
-        p.name.toLowerCase() === typeName.trim().toLowerCase() &&
+        p.name.trim().toLowerCase() === typeName.trim().toLowerCase() &&
+        Number(p.product_id) === Number(selectedProductId) &&
         p.id !== editingTypeId
     );
+
+
+
     if (duplicate) {
-      errors.typeName = "Product type already exists!";
+      errors.typeName = "Product type already exists for this product!";
     }
 
     if (Object.keys(errors).length > 0) {
@@ -120,7 +124,7 @@ export default function ProductTypePage() {
 
     const payload = {
       name: typeName.trim(),
-      product_id: selectedProductId,
+      product_id: Number(selectedProductId),
     };
 
     try {
@@ -377,10 +381,10 @@ export default function ProductTypePage() {
           </Button>
         </Offcanvas.Header>
 
-<Offcanvas.Body 
-  className="d-flex flex-column justify-content-between" 
-  style={{ fontSize: "0.85rem" }}
->
+        <Offcanvas.Body
+          className="d-flex flex-column justify-content-between"
+          style={{ fontSize: "0.85rem" }}
+        >
           <div>
             <Form.Group className="mb-3">
               <Form.Label>Product</Form.Label>

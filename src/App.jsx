@@ -41,6 +41,9 @@ import EditAssemblePage from "./Pages/EditAssemblePage";
 import InventoryDetailsPage from "./Pages/InventoryDetailsPage";
 import TrackingPage from "./Pages/TrackingPage";
 import PurchaseViewPage from "./Pages/PurchaseViewPage";
+import MissingSerialsPage from "./Pages/MissingProductPage";
+// App.jsx
+import ComponentsRequirement from "./Pages/Componentsrequirement"; 
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem("authToken"));
@@ -120,7 +123,13 @@ export default function App() {
           <Route path="assemble" element={<AssemblePage />} />
           <Route path="/inventory/edit/:fromSerial/:toSerial" element={<EditAssemblePage />} />
           <Route path="/inventory/:range" element={<InventoryDetailsPage />} />
-<Route path="/tracking" element={<TrackingPage />} />
+          <Route path="/tracking" element={<TrackingPage />} />
+          <Route path="/missing-serials/:from_serial/:to_serial" element={<MissingSerialsPage />} />
+  <Route path="/spare-parts-by-series" element={<Navigate to="/spare-parts-by-series/7-series" />} />
+
+  {/* Actual route with series param */}
+  <Route path="/spare-parts-by-series/:series" element={<ComponentsRequirement />} />
+
         </Route>
       </Routes>
     </Router>

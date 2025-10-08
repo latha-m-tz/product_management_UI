@@ -15,19 +15,18 @@ import {
   IoChevronBack,
   IoChevronForward,
 } from "react-icons/io5";
+import { toast, ToastContainer } from "react-toastify";
 import axios from "axios";
 import { useNavigate, useParams } from "react-router-dom";
 import { FaQrcode } from "react-icons/fa";
-import QrScannerPage from "./QrScannerPage";
-import { toast, ToastContainer } from "react-toastify";
-import '../index.css';
+import "../index.css";
 import { API_BASE_URL } from "../api";
-// import { toast } from "react-toastify";
-import Swal from "sweetalert2";
-import withReactContent from "sweetalert2-react-content";
 import "datatables.net-dt/css/dataTables.dataTables.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import DatePicker from "../components/DatePicker";
+import QrScannerPage from "./QrScannerPage";
+
+
 export default function EditAssemblePage() {
   const { fromSerial: routeFromSerial, toSerial: routeToSerial } = useParams();
   const navigate = useNavigate();
@@ -48,35 +47,85 @@ export default function EditAssemblePage() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
-// Search
-const [searchTerm, setSearchTerm] = useState("");
-const totalPages = Math.ceil(products.length / itemsPerPage);
-const indexOfLast = currentPage * itemsPerPage;
-const indexOfFirst = indexOfLast - itemsPerPage;
-const currentItems = products.slice(indexOfFirst, indexOfLast);
+  const itemsPerPage = 10;
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [deleteFrom, setDeleteFrom] = useState("");
+  const [deleteTo, setDeleteTo] = useState("");
+  const filteredProducts = products.filter((p) => {
+    const serialNum = parseInt(String(p.serial_no || "").match(/\d+/)?.[0] ?? 0, 10);
+
+    const fromNum = deleteFrom ? parseInt(deleteFrom.match(/\d+/)?.[0], 10) : null;
+    const toNum = deleteTo ? parseInt(deleteTo.match(/\d+/)?.[0], 10) : null;
+
+    const matchesSerialRange =
+      (fromNum === null || serialNum >= fromNum) &&
+      (toNum === null || serialNum <= toNum);
+
+    const matchesSearchTerm = searchTerm
+      ? String(p.serial_no || "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      String(p.tested_by || "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase())
+      : true;
+
+    return matchesSerialRange && matchesSearchTerm;
+  });
+
+
+
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+  const indexOfLast = currentPage * itemsPerPage;
+  const indexOfFirst = indexOfLast - itemsPerPage;
+  const currentItems = filteredProducts.slice(indexOfFirst, indexOfLast);
+  const [selectedSerials, setSelectedSerials] = useState({});
+
+  // Delete range
+
 
   const [showQrScanner, setShowQrScanner] = useState(false);
   const [errors, setErrors] = useState({});
-const headerStyle = {
+  const headerStyle = {
     headerBackground: "#f8f9fa",
     tableBorder: "1px solid #dee2e6",
     tableHeaderRow: {
-        backgroundColor: "#2E3A59", // Using ProductPage's header color for consistency
-        color: "white",
-        fontSize: "0.82rem",
-        height: "40px",
-        verticalAlign: "middle",
+      backgroundColor: "#2E3A59",
+      color: "white",
+      fontSize: "0.82rem",
+      height: "40px",
+      verticalAlign: "middle",
     },
     actionIcon: {
-        color: "#dc3545",
-        cursor: "pointer",
-        fontSize: "1rem",
+      color: "#dc3545",
+      cursor: "pointer",
+      fontSize: "1rem",
     },
     contentArea: {
-        padding: "20px",
+      padding: "20px",
     },
-};
+  };
+  const handleDeleteBySerial = (serial_no) => {
+    const updated = products.filter((p) => p.serial_no !== serial_no);
+
+    // Recalculate range
+    if (updated.length > 0) {
+      const serials = updated.map((p) => p.serial_no).sort();
+      setForm((prev) => ({
+        ...prev,
+        fromSerial: serials[0],
+        toSerial: serials[serials.length - 1],
+        quantity: updated.length,
+      }));
+    } else {
+      setForm((prev) => ({ ...prev, fromSerial: "", toSerial: "", quantity: 0 }));
+    }
+
+    setProducts(updated);
+    toast.info(`Deleted serial ${serial_no} from list.`);
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -93,31 +142,35 @@ const headerStyle = {
 
         const data = rangeRes.data;
 
-        setForm({
-          productType: data.product_type?.id || "",
-          product_id: data.product?.id || "",
-          firmwareVersion: data.firmware_version || "",
-          // Use the tested_by from the form's initial data structure, or fallback to the first item's tested_by
-          testedBy: data.tested_by || data.items[0]?.tested_by || "",
-          quantity: data.quantity || "",
-          fromSerial: data.from_serial,
-          toSerial: data.to_serial,
-          testedDate: data.tested_date || data.items[0]?.tested_date || "",
-        });
+      const formattedDate =
+  data.tested_date
+    ? new Date(data.tested_date).toISOString().split("T")[0]
+    : data.items[0]?.tested_date
+    ? new Date(data.items[0].tested_date).toISOString().split("T")[0]
+    : "";
+
+setForm({
+  productType: data.product_type?.id || "",
+  product_id: data.product?.id || "",
+  firmwareVersion: data.firmware_version || "",
+  testedBy: data.tested_by || data.items[0]?.tested_by || "",
+  quantity: data.quantity || "",
+  fromSerial: data.from_serial,
+  toSerial: data.to_serial,
+  testedDate: formattedDate, // ✅ formatted for the date input
+});
 
         const itemsWithRange = data.items.map((item) => ({
           ...item,
           from_serial: data.from_serial,
           to_serial: data.to_serial,
           quantity: 1,
-          // Ensure tested_status is an array containing a single string status for checkbox logic
           tested_status: item.tested_status ? [item.tested_status] : ["PENDING"],
         }));
 
         setProducts(itemsWithRange);
       } catch (err) {
         console.error(err);
-        // Replace alert with toast.error
         toast.error("Failed to load inventory range!");
       } finally {
         setLoading(false);
@@ -127,6 +180,21 @@ const headerStyle = {
     fetchData();
   }, [routeFromSerial, routeToSerial]);
 
+  useEffect(() => {
+    setSelectedSerials((prev) => {
+      let changed = false;
+      const updated = { ...prev };
+      filteredProducts.forEach(p => {
+        if (updated[p.serial_no] === undefined) {
+          updated[p.serial_no] = true;   // 👈 this forces selection
+          changed = true;
+        }
+      });
+      return changed ? updated : prev;
+    });
+  }, [filteredProducts]);
+
+
   const handleChange = (e) => {
     setErrors({ ...errors, [e.target.name]: "" });
     const { name, value } = e.target;
@@ -134,37 +202,17 @@ const headerStyle = {
     setForm((prev) => ({ ...prev, [name]: value }));
 
     if (name === "testedBy") {
-      // Update all items' tested_by when the main form field changes
       const updated = products.map((p) => ({ ...p, tested_by: value }));
       setProducts(updated);
     }
   };
-
   const handleRowChange = (index, field, value) => {
     const updated = [...products];
-    if (field === "tested_status") {
-      // Toggle PASS/FAIL status, ensuring only one is selected by overriding the array with the new value
-      if (value === "PASS") {
-        updated[index][field] = ["PASS"];
-      } else if (value === "FAIL") {
-        updated[index][field] = ["FAIL"];
-      } else {
-        updated[index][field] = []; // Should not happen with current logic, but keeps it safe
-      }
-    } else {
-      updated[index][field] = value;
-    }
-    setProducts(updated);
 
-    // Update form serial range if serial_no was changed
-    if (field === "serial_no") {
-      const serials = updated.map((p) => p.serial_no).sort();
-      setForm((prev) => ({
-        ...prev,
-        fromSerial: serials[0] || "",
-        toSerial: serials[serials.length - 1] || "",
-        quantity: updated.length,
-      }));
+    if (field === "tested_status") {
+      updated[indexOfFirst + index][field] = value; // Store as string
+    } else {
+      updated[indexOfFirst + index][field] = value;
     }
   };
 
@@ -172,7 +220,6 @@ const headerStyle = {
     const updated = products.filter((_, i) => i !== index);
 
     if (updated.length > 0) {
-      // Rebuild full range from first to last serial
       const serials = updated.map((p) => p.serial_no).sort();
       const firstSerial = serials[0];
       const lastSerial = serials[serials.length - 1];
@@ -186,13 +233,12 @@ const headerStyle = {
           firstSerial.length - prefix.length,
           "0"
         )}`;
-        // Keep existing product info if it exists, otherwise create a default/placeholder item
         const existing = updated.find((p) => p.serial_no === serial);
         fullRange.push(
           existing || {
             serial_no: serial,
             tested_by: form.testedBy,
-            tested_status: ["PENDING"], // Default status for new items in range
+            tested_status: ["PENDING"],
             test_remarks: "",
             from_serial: firstSerial,
             to_serial: lastSerial,
@@ -200,6 +246,7 @@ const headerStyle = {
           }
         );
       }
+
 
       setProducts(fullRange);
 
@@ -216,6 +263,42 @@ const headerStyle = {
     toast.info("Item deleted from list and range recalculated.");
   };
 
+
+
+  const handleDeleteRange = () => {
+    if (!deleteFrom || !deleteTo) {
+      toast.error("Please provide both From and To serials for deletion.");
+      return;
+    }
+
+    const prefixStart = deleteFrom.match(/[^\d]+/)?.[0] || "";
+    const prefixEnd = deleteTo.match(/[^\d]+/)?.[0] || "";
+    const startNum = parseInt(deleteFrom.match(/\d+/)?.[0], 10);
+    const endNum = parseInt(deleteTo.match(/\d+/)?.[0], 10);
+
+    if (prefixStart !== prefixEnd || isNaN(startNum) || isNaN(endNum) || startNum > endNum) {
+      toast.error("Invalid serial range for deletion.");
+      return;
+    }
+
+    // Only consider currently filtered products
+    const filteredSerialsToDelete = filteredProducts.filter((p) => {
+      const num = parseInt(p.serial_no.match(/\d+/)?.[0], 10);
+      return p.serial_no.startsWith(prefixStart) && num >= startNum && num <= endNum;
+    }).map(p => p.serial_no);
+
+    if (filteredSerialsToDelete.length === 0) {
+      toast.info("No matching serials in the current filtered list.");
+      return;
+    }
+
+    const updated = products.filter((p) => !filteredSerialsToDelete.includes(p.serial_no));
+
+    setProducts(updated);
+    toast.success(`Deleted serial numbers from ${deleteFrom} to ${deleteTo} (filtered list).`);
+  };
+
+
   const validateSerialRange = (startSN, endSN) => {
     const prefixStart = startSN.match(/[^\d]+/)?.[0] || "";
     const prefixEnd = endSN.match(/[^\d]+/)?.[0] || "";
@@ -227,25 +310,47 @@ const headerStyle = {
 
     return true;
   };
+  const handleDeleteSelected = () => {
+    // Get all serials currently visible in the filtered table that are checked
+    const serialsToDelete = currentItems
+      .filter(p => selectedSerials[p.serial_no])
+      .map(p => p.serial_no);
+
+    if (serialsToDelete.length === 0) {
+      toast.info("No serials selected for deletion.");
+      return;
+    }
+
+    const updatedProducts = products.filter(p => !serialsToDelete.includes(p.serial_no));
+
+    setProducts(updatedProducts);
+
+    // Reset selection for only deleted items
+    const newSelected = { ...selectedSerials };
+    serialsToDelete.forEach(sn => delete newSelected[sn]);
+    setSelectedSerials(newSelected);
+
+    toast.success(`Deleted ${serialsToDelete.length} product(s).`);
+  };
+
+
+
 
   const handleAddProductRange = () => {
-    const { fromSerial, toSerial, testedBy } = form;
+    const { fromSerial, toSerial } = form; // remove testedBy
     let newErrors = {};
 
     if (!fromSerial) newErrors.fromSerial = "From Serial is required.";
     if (!toSerial) newErrors.toSerial = "To Serial is required.";
-    if (!testedBy) newErrors.testedBy = "Tested By is required.";
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
-      // Show toast for validation error
-      toast.error("Please fill in all required serial and tester fields.");
+      toast.error("Please fill in all required serial fields.");
       return;
     }
 
     if (!validateSerialRange(fromSerial, toSerial)) {
       setErrors({ fromSerial: "Invalid serial range", toSerial: "Invalid serial range" });
-      // Show toast for invalid range
       toast.error("Invalid serial range. Check prefixes and numbers.");
       return;
     }
@@ -256,13 +361,14 @@ const headerStyle = {
 
     const newProducts = [];
     for (let i = start; i <= end; i++) {
-      const serial = `${prefix}${i.toString().padStart(fromSerial.length - prefix.length, "0")}`;
-      // Only add serial numbers that are NOT already in the products list
+      const serial = `${prefix}${i
+        .toString()
+        .padStart(fromSerial.length - prefix.length, "0")}`;
       if (!products.find((p) => p.serial_no === serial)) {
         newProducts.push({
-          serial_no: serial,
-          tested_by: testedBy,
-          tested_status: ["PASS"],
+          serial_no: String(i),
+          tested_by: form.testedBy || "",        // allow empty
+          tested_status: ["PENDING"],            // default PENDING if empty
           test_remarks: "",
           from_serial: fromSerial,
           to_serial: toSerial,
@@ -271,21 +377,11 @@ const headerStyle = {
       }
     }
 
-    if (newProducts.length === 0 && products.length > 0) {
-      toast.info("All serial numbers in the range are already in the list.");
-      return;
-    } else if (newProducts.length === 0 && products.length === 0) {
-      toast.error("The serial range is invalid or empty.");
-      return;
-    }
-
-    // Combine existing products and new products, then sort
     const updatedProducts = [...products, ...newProducts].sort((a, b) =>
       a.serial_no.localeCompare(b.serial_no)
     );
     setProducts(updatedProducts);
 
-    // Update form to reflect the newly calculated full range
     setForm((prev) => ({
       ...prev,
       fromSerial: updatedProducts[0].serial_no,
@@ -296,7 +392,7 @@ const headerStyle = {
     toast.success(`${newProducts.length} new serial numbers added from range.`);
   };
 
-  // 3. HANDLE SCAN FUNCTION
+
   const handleScan = (serialNumber) => {
     setShowQrScanner(false);
     if (!serialNumber) {
@@ -310,17 +406,16 @@ const headerStyle = {
       return;
     }
 
-    const existingProductIndex = products.findIndex(p => p.serial_no === serialNumber);
+    const existingProductIndex = products.findIndex((p) => p.serial_no === serialNumber);
 
     if (existingProductIndex === -1) {
-      // If it's a new serial not in the current list, treat it as a new serial to be added to the range
       const newProduct = {
         serial_no: serialNumber,
-        tested_by: form.testedBy, // Use the current testedBy from form
-        tested_status: ["PASS"], // Default status
+        tested_by: form.testedBy,
+        tested_status: ["PASS"],
         test_remarks: "",
-        from_serial: form.fromSerial, // Will be updated globally below
-        to_serial: form.toSerial, // Will be updated globally below
+        from_serial: form.fromSerial,
+        to_serial: form.toSerial,
         quantity: 1,
       };
 
@@ -329,8 +424,7 @@ const headerStyle = {
       );
       setProducts(updatedProducts);
 
-      // Update form serial range to include the new product
-      setForm(prev => ({
+      setForm((prev) => ({
         ...prev,
         fromSerial: updatedProducts[0].serial_no,
         toSerial: updatedProducts[updatedProducts.length - 1].serial_no,
@@ -346,54 +440,53 @@ const headerStyle = {
 
   const handleSubmit = async () => {
     if (!form.productType || !form.product_id) {
-      // Replace alert with toast.error
       toast.error("Please select both Product Type and Product.");
       return;
     }
 
-    // Check if there are any products to save
     if (products.length === 0) {
       toast.error("The product list cannot be empty.");
       return;
     }
 
-    // Simple check to ensure all products have a tested_by field
-    const missingTestedBy = products.some(p => !p.tested_by);
-    if (missingTestedBy) {
-      toast.error("All serial numbers must have a 'Tested By' value.");
-      return;
-    }
-
-
     try {
       const payload = {
         product_id: parseInt(form.product_id, 10),
         product_type_id: parseInt(form.productType, 10),
-        firmware_version: form.firmwareVersion,
+        firmware_version: form.firmwareVersion || "",
         tested_date: form.testedDate || new Date().toISOString().split("T")[0],
-        tested_by: form.testedBy, // Include main testedBy in payload
+        tested_by: form.testedBy || "",
         items: products.map((p) => ({
-          serial_no: p.serial_no,
-          tested_by: p.tested_by || form.testedBy || "Unknown",
+          serial_no: String(p.serial_no || ""), // ✅ Force string
+          tested_by: p.tested_by || "",
           tested_status:
             Array.isArray(p.tested_status) && p.tested_status.length > 0
               ? p.tested_status[0]
-              : "PENDING", // string, required
-          tested_date: p.tested_date || form.testedDate || new Date().toISOString().split("T")[0],
-          from_serial: form.fromSerial,
-          to_serial: form.toSerial,
+              : "PENDING",
+          tested_date:
+            p.tested_date || form.testedDate || new Date().toISOString().split("T")[0],
+          from_serial: String(form.fromSerial || ""), // ✅ Also ensure strings
+          to_serial: String(form.toSerial || ""),
           quantity: p.quantity || 1,
           test_remarks: p.test_remarks || "",
         })),
       };
 
-      await axios.put(
+
+      const response = await axios.put(
         `${API_BASE_URL}/inventory/serialrange/${routeFromSerial}/${routeToSerial}`,
         payload
       );
 
-      toast.success("Inventory updated successfully! 🎉");
-      navigate("/assemble");
+      if (response.status === 200) {
+        toast.success("Inventory updated successfully!");
+        setTimeout(() => {
+          navigate("/assemble");
+        }, 1000);
+      } else {
+        toast.error("Failed to update inventory.");
+      }
+
     } catch (err) {
       console.error(err.response?.data || err);
       const errorMessage = err.response?.data?.message || "Error updating inventory.";
@@ -419,32 +512,37 @@ const headerStyle = {
 
   return (
     <Container className="main-container">
-      {/* 5. ADD TOASTCONTAINER */}
-      <ToastContainer position="top-right" autoClose={5000} hideProgressBar={false} newestOnTop={false} closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover />
-
-
+      <ToastContainer
+        position="top-right"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
 
       <Row className="align-items-center mb-3">
         <Col>
           <h4>Edit Inventory Range</h4>
         </Col>
         <Col className="text-end">
-                     <Button
-        variant="outline-secondary"
-        size="sm"
-        className="me-2"
-        onClick={() => navigate("/assemble")}
-    >
-        <i className="bi bi-arrow-left"></i> Back
-    </Button>
+          <Button
+            variant="outline-secondary"
+            size="sm"
+            className="me-2"
+            onClick={() => navigate("/assemble")}
+          >
+            <i className="bi bi-arrow-left"></i> Back
+          </Button>
         </Col>
       </Row>
 
-      {/* Product Details Form */}
       <Card className="p-4 mb-3" style={{ position: "relative" }}>
         <h5 className="mb-4">Product Details</h5>
 
-        {/* 6. QR SCANNER BUTTON */}
         <div className="qr-scanner-button" onClick={() => setShowQrScanner(true)}>
           <div className="qr-scanner-icon-container">
             <FaQrcode />
@@ -456,11 +554,7 @@ const headerStyle = {
           <Col md={4}>
             <Form.Group>
               <Form.Label>Product Type</Form.Label>
-              <Form.Select
-                name="productType"
-                value={form.productType}
-                onChange={handleChange}
-              >
+              <Form.Select name="productType" value={form.productType} onChange={handleChange}>
                 <option value="">Select</option>
                 {productTypes.map((pt) => (
                   <option key={pt.id} value={pt.id}>
@@ -473,11 +567,7 @@ const headerStyle = {
           <Col md={4}>
             <Form.Group>
               <Form.Label>Product</Form.Label>
-              <Form.Select
-                name="product_id"
-                value={form.product_id}
-                onChange={handleChange}
-              >
+              <Form.Select name="product_id" value={form.product_id} onChange={handleChange}>
                 <option value="">Select</option>
                 {allProducts.map((p) => (
                   <option key={p.id} value={p.id}>
@@ -490,11 +580,7 @@ const headerStyle = {
           <Col md={4}>
             <Form.Group>
               <Form.Label>Firmware Version</Form.Label>
-              <Form.Control
-                name="firmwareVersion"
-                value={form.firmwareVersion}
-                onChange={handleChange}
-              />
+              <Form.Control name="firmwareVersion" value={form.firmwareVersion} onChange={handleChange} />
             </Form.Group>
           </Col>
         </Row>
@@ -532,18 +618,7 @@ const headerStyle = {
           </Col>
         </Row>
 
-        <Row className="mb-3 g-3 align-items-end">
-          <Col md={4}>
-            <Form.Group>
-              <Form.Label>Tested Date</Form.Label>
-              <Form.Control
-                type="date"
-                name="testedDate"
-                value={form.testedDate}
-                onChange={handleChange}
-              />
-            </Form.Group>
-          </Col>
+        <Row className="mb-3 g-3">
           <Col md={4}>
             <Form.Group>
               <Form.Label>Tested By</Form.Label>
@@ -556,124 +631,257 @@ const headerStyle = {
               <Form.Control.Feedback type="invalid">{errors.testedBy}</Form.Control.Feedback>
             </Form.Group>
           </Col>
-          <Col md={2}>
+          <Col md={4}>
+            <Form.Group>
+              <Form.Label>Tested Date</Form.Label>
+              <Form.Control
+                type="date"
+                name="testedDate"
+                value={form.testedDate}
+                onChange={handleChange}
+              />
+            </Form.Group>
+          </Col>
+          <Col md={2} className="d-flex align-items-end">
             <Button variant="success" onClick={handleAddProductRange} className="w-100">
-              + Add Product
+              Add product
             </Button>
           </Col>
         </Row>
       </Card>
 
-      {/* Table */}
-      {products.length > 0 && (
-        
-        <Card className="p-4">
-          <Table responsive bordered>
-            <thead>
+      {/* Search & Delete Range Controls */}
+      <Row className="mb-3">
+        <Col md={4}>
+          <div className="search-input-wrapper">
+            <Col>
+              <div className="search-input-wrapper">
+                <Form.Control
+                  size="sm"
+                  type="text"
+                  placeholder="Search serials..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                />
+                {/* {searchTerm && (
+               <i
+                 className="bi bi-x search-clear-icon"
+                 onClick={() => {
+                   setSearchTerm("");
+                   setCurrentPage(1);
+                 }}
+               />
+             )} */}
+              </div>
+            </Col>
+            {searchTerm && (
+              <span
+                className="search-clear-icon"
+                onClick={() => setSearchTerm('')}
+              >
+                &times;
+              </span>
+            )}
+          </div>
+        </Col>
+        <Col md={3}>
+          <div className="search-input-wrapper">
+            <Form.Control
+              placeholder="Delete From Serial"
+              value={deleteFrom}
+              onChange={(e) => setDeleteFrom(e.target.value)}
+            />
+            {deleteFrom && (
+              <i
+                className="bi bi-x search-clear-icon"
+                onClick={() => setDeleteFrom("")}
+              />
+            )}
+          </div>
+        </Col>
+
+        <Col md={3}>
+          <div className="search-input-wrapper">
+            <Form.Control
+              placeholder="Delete To Serial"
+              value={deleteTo}
+              onChange={(e) => setDeleteTo(e.target.value)}
+            />
+            {deleteTo && (
+              <i
+                className="bi bi-x search-clear-icon"
+                onClick={() => setDeleteTo("")}
+              />
+            )}
+          </div>
+        </Col>
+
+        <Col md={2}>
+          <Button
+            variant="danger"
+            onClick={handleDeleteSelected}
+            className="d-flex justify-content-center align-items-center"
+          >
+            <IoTrashOutline />
+          </Button>
+
+        </Col>
+      </Row>
+
+
+      <Card>
+        <Card.Body style={headerStyle.contentArea}>
+          <h5 className="mb-3">Product List</h5>
+          <Table bordered hover responsive size="sm">
+            <thead style={headerStyle.tableHeaderRow}>
               <tr>
-                <th>S.No</th>
+                <th>Select</th>
+
                 <th>Serial No</th>
                 <th>Tested By</th>
-                <th>Status</th>
-                <th>Remarks</th>
-                <th>Actions</th>
+                <th>Test Status</th>
+                <th>Test Remarks</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
-              {currentItems.map((row, i) => (
-                <tr key={indexOfFirst + i}>
-                  <td>{indexOfFirst + i + 1}</td>
-                  <td>
-                    <Form.Control
-                      value={row.serial_no || ""}
-                      onChange={(e) =>
-                        handleRowChange(indexOfFirst + i, "serial_no", e.target.value)
-                      }
-                    />
-                  </td>
-                  <td>
-                    <Form.Control
-                      value={row.tested_by || ""}
-                      onChange={(e) =>
-                        handleRowChange(indexOfFirst + i, "tested_by", e.target.value)
-                      }
-                    />
-                  </td>
-                  <td>
-                    {/* Checkboxes for PASS/FAIL status */}
-                    <div className="d-flex gap-2 custom-checkbox-color">
-                      <Form.Check
-                        inline
-                        label="Pass"
-                        type="checkbox"
-                        checked={row.tested_status.includes("PASS")}
-                        onChange={() =>
-                          handleRowChange(indexOfFirst + i, "tested_status", "PASS")
-                        }
-                      />
-                      <Form.Check
-                        inline
-                        label="Fail"
-                        type="checkbox"
-                        checked={row.tested_status.includes("FAIL")}
-                        onChange={() =>
-                          handleRowChange(indexOfFirst + i, "tested_status", "FAIL")
-                        }
-                      />
-                    </div>
+              {currentItems.length > 0 ? (
+                currentItems.map((product, index) => (
+                  <tr key={index}>
+                    {/* Checkbox for selecting row for deletion */}
+                    <td className="text-center">
+                      {(searchTerm || deleteFrom || deleteTo) ? (
+                        <Form.Check
+                          type="checkbox"
+                          checked={!!selectedSerials[product.serial_no]}
+                          onChange={(e) => {
+                            setSelectedSerials((prev) => ({
+                              ...prev,
+                              [product.serial_no]: e.target.checked,
+                            }));
+                          }}
+                        />
 
-                  </td>
-                  <td>
-                    <Form.Control
-                      value={row.test_remarks || ""}
-                      onChange={(e) =>
-                        handleRowChange(indexOfFirst + i, "test_remarks", e.target.value)
-                      }
-                    />
-                  </td>
-                  <td>
-                    <Button variant="link" onClick={() => handleDelete(indexOfFirst + i)}>
-                      <IoTrashOutline style={{ color: "red" }} />
-                    </Button>
+                      ) : null}
+                    </td>
+
+                    {/* Serial Number */}
+                    <td>
+                      <Form.Control
+                        type="text"
+                        value={product.serial_no || ""}
+                        onChange={(e) =>
+                          handleRowChange(indexOfFirst + index, "serial_no", e.target.value)
+                        }
+                      />
+                    </td>
+
+                    {/* Tested By */}
+                    <td>
+                      <Form.Control
+                        type="text"
+                        value={product.tested_by || ""}
+                        onChange={(e) =>
+                          handleRowChange(indexOfFirst + index, "tested_by", e.target.value)
+                        }
+                      />
+                    </td>
+                    
+
+                    {/* Test Status (Pass/Fail checkboxes) */}
+                    <td>
+                      <div className="custom-checkbox-color">
+                        <Form.Check
+                          inline
+                          label="Pass"
+                          type="checkbox"
+                          name={`status-pass-${indexOfFirst + index}`}
+                          id={`pass-${indexOfFirst + index}`}
+                          value="PASS"
+                          checked={product.tested_status?.includes("PASS") || false}
+                          onChange={(e) => {
+                            const updatedStatus = e.target.checked ? "PASS" : "PENDING";
+                            handleRowChange(indexOfFirst + index, "tested_status", updatedStatus);
+                          }}
+                        />
+                        <Form.Check
+                          inline
+                          label="Fail"
+                          type="checkbox"
+                          name={`status-fail-${indexOfFirst + index}`}
+                          id={`fail-${indexOfFirst + index}`}
+                          value="FAIL"
+                          checked={product.tested_status?.includes("FAIL") || false}
+                          onChange={(e) => {
+                            const updatedStatus = e.target.checked ? "FAIL" : "PENDING";
+                            handleRowChange(indexOfFirst + index, "tested_status", updatedStatus);
+                          }}
+                        />
+                      </div>
+                    </td>
+
+                    {/* Test Remarks */}
+                    <td>
+                      <Form.Control
+                        type="text"
+                        value={product.test_remarks || ""}
+                        onChange={(e) =>
+                          handleRowChange(indexOfFirst + index, "test_remarks", e.target.value)
+                        }
+                      />
+                    </td>
+
+                    {/* Action: Delete single row */}
+                    <td className="text-center">
+                      <IoTrashOutline
+                        style={headerStyle.actionIcon}
+                        onClick={() => handleDeleteBySerial(product.serial_no)}
+                      />
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="6" className="text-center">
+                    No products added yet.
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </Table>
 
-          {/* Pagination */}
-          <div className="d-flex justify-content-between align-items-center">
-            <Button variant="light" onClick={prevPage} disabled={currentPage === 1}>
+          <div className="d-flex justify-content-between align-items-center mt-3">
+            <Button variant="outline-black" size="sm" onClick={prevPage} disabled={currentPage === 1}>
               <IoChevronBack /> Prev
             </Button>
             <span>
-              Page {currentPage} of {totalPages}
+              Page {currentPage} of {totalPages || 1}
             </span>
             <Button
-              variant="light"
+              variant="outline-black"
+              size="sm"
               onClick={nextPage}
               disabled={currentPage === totalPages}
             >
               Next <IoChevronForward />
             </Button>
           </div>
+        </Card.Body>
+      </Card>
 
-          <div className="d-flex justify-content-end mt-3 gap-2">
-            <Button variant="secondary" onClick={() => navigate(-1)}>
-              Cancel
-            </Button>
-            <Button variant="success" onClick={handleSubmit}>
-              Save
-            </Button>
-          </div>
-        </Card>
-      )}
+      <div className="text-end mt-3">
+        <Button variant="success" onClick={handleSubmit}>
+          update
+        </Button>
+      </div>
 
-      {/* 5. ADD QRSCANNERPAGE COMPONENT */}
       <QrScannerPage
-        show={showQrScanner}
-        onClose={() => setShowQrScanner(false)}
-        onScanSuccess={handleScan}
+        show={showQrScanner}                // passes the visibility state
+        onScanSuccess={handleScan}          // passes your scan handler
+        onClose={() => setShowQrScanner(false)} // closes the modal
       />
     </Container>
   );
