@@ -9,7 +9,6 @@ import { API_BASE_URL } from "../api";
 import "react-toastify/dist/ReactToastify.css";
 import { parsePhoneNumberFromString, isValidPhoneNumber } from "libphonenumber-js";
 import { useNavigate } from "react-router-dom"; // <-- import
-import { API_BASE_URL } from "../api";
 
 export default function AddCustomer() {
   const [customer, setCustomer] = useState({
