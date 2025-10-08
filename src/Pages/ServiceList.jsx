@@ -8,7 +8,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 
 import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../api";
-import Breadcrumb from "../components/Breadcrumb";
+import Breadcrumb from "../components/BreadCrumb";
 import Pagination from "../components/Pagination";
 import ActionButtons from "../components/ActionButton";
 import Search from "../components/Search";
