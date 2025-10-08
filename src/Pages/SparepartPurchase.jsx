@@ -11,6 +11,7 @@ import BreadCrumb from "../components/BreadCrumb";
 import Search from "../components/Search.jsx";
 import Pagination from "../components/Pagination.jsx";
 
+
 const MySwal = withReactContent(Swal);
 
 export default function PurchaseListPage() {

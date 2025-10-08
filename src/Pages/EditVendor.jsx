@@ -386,7 +386,7 @@ if (name === "email") {
     };
 
     try {
-      await fetch(`http://localhost:8000/api/${id}`, {
+      await fetch(`${API_BASE_URL}/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

@@ -6,6 +6,7 @@ import "bootstrap-icons/font/bootstrap-icons.css";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useNavigate } from "react-router-dom";
+import { API_BASE_URL } from "../api";
 
 
 export default function AddSparepartPurchase() {
@@ -33,7 +34,7 @@ const [existingSerials, setExistingSerials] = useState([]);
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await axios.get("http://localhost:8000/api/get-spareparts");
+        const res = await axios.get(`${API_BASE_URL}/get-spareparts`);
         setAvailableSpareparts(res.data.spareparts || []);
         setAvailableVendors(res.data.vendors || []);
         setAvailableCategories(res.data.categories || []);
@@ -302,7 +303,7 @@ const [existingSerials, setExistingSerials] = useState([]);
 
   try {
     const res = await axios.post(
-      "http://localhost:8000/api/sparepartNew-purchases",
+      `${API_BASE_URL}/sparepartNew-purchases`,
       payload
     );
     toast.success("Purchase saved successfully!");

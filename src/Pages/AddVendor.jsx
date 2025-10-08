@@ -10,7 +10,7 @@ import "react-toastify/dist/ReactToastify.css";
 import { useNavigate } from "react-router-dom";
  import ActionButton from "../components/ActionButton";
 import { parsePhoneNumberFromString, getCountryCallingCode, isValidPhoneNumber } from "libphonenumber-js";
- 
+import { API_BASE_URL } from "../api";
  
 // import { getCountryCallingCode } from "libphonenumber-js";
  
@@ -371,7 +371,7 @@ const handleVendorMobileChange = (value) => {
     };
  
     try {
-      const response = await fetch("http://localhost:8000/api/vendors/new", {
+      const response = await fetch(`${API_BASE_URL}/vendors/new`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
