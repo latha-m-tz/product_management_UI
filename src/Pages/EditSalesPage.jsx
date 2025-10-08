@@ -7,7 +7,7 @@ import withReactContent from "sweetalert2-react-content";
 import "bootstrap/dist/css/bootstrap.min.css";
 
 import { API_BASE_URL } from "../api";
-import Breadcrumb from "../components/Breadcrumb";
+import Breadcrumb from "../components/BreadCrumb";
 import { useNavigate, useParams } from "react-router-dom";
 
 export default function EditSalesPage() {
