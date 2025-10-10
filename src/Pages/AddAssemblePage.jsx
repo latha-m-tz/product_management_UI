@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ToastContainer, toast } from 'react-toastify';
+import { toast } from 'react-toastify';
 import axios from "axios";
 import { Table, Button, Form, Card, Row, Col, Container } from "react-bootstrap";
 import { IoArrowBack, IoTrashOutline, IoChevronBack, IoChevronForward } from "react-icons/io5";
 import { FaQrcode } from "react-icons/fa";
-import 'react-toastify/dist/ReactToastify.css';
 import "datatables.net-dt/css/dataTables.dataTables.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import '../index.css';
@@ -504,10 +503,9 @@ export default function AddAssemblePage() {
     return (
         <Container className="main-container">
             {/* 3. Add ToastContainer near the top of the return block */}
-            <ToastContainer position="top-right" autoClose={5000} hideProgressBar={false} newestOnTop={false} closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover />
 
 
-            <Row className="align-items-center mb-3">
+            <Row className="align-items-center mb-3 fixed-header">
                 <Col>
                     <h4>Add New Inventory</h4>
                 </Col>

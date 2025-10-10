@@ -58,7 +58,7 @@ export default function AssemblePage() {
     // REMOVED: fetchProducts is no longer needed
 
     const handleAddNewClick = () => {
-        navigate("/add-assemble");
+        navigate("/assemble/add");
     };
 
     const handleDeleteRange = async (item) => {

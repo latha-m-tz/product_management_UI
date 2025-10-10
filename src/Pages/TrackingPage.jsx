@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { Form, Button, Spinner, Alert, Container } from "react-bootstrap";
-
-const API_BASE_URL = "http://127.0.0.1:8000/api";
+import { API_BASE_URL } from "../api";
 
 const styles = {
   pageTitle: { fontWeight: 700, marginBottom: '30px', paddingLeft: '20px' },
@@ -23,14 +22,14 @@ const styles = {
   dataCardText: { marginBottom: '4px' },
   stageDate: { fontSize: '0.75rem', color: '#607D8B', borderTop: '1px dashed #cfd8dc', paddingTop: '5px', marginTop: '5px', textAlign: 'right' },
   numberBox: { position: 'absolute', top: '-50px', right: '-130px', backgroundColor: 'white', color: '#3F51B5', fontSize: '1.5rem', fontWeight: 'bold', padding: '10px 15px', borderRadius: '8px', border: '1px solid #3F51B5', boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)', zIndex: 10 },
-  stageDate: { 
-  fontSize: '0.75rem',
-  color: 'white', // changed from #607D8B
-  borderTop: '1px dashed #cfd8dc',
-  paddingTop: '5px',
-  marginTop: '5px',
-  textAlign: 'right',
-},
+  stageDate: {
+    fontSize: '0.75rem',
+    color: 'white', // changed from #607D8B
+    borderTop: '1px dashed #cfd8dc',
+    paddingTop: '5px',
+    marginTop: '5px',
+    textAlign: 'right',
+  },
 };
 
 const TrackingPage = () => {
@@ -82,7 +81,7 @@ const TrackingPage = () => {
       case "SPARE PARTS":
         return (
           <>
-            <p style={styles.dataCardText}><b>Service Request</b></p>
+            <p style={styles.dataCardText}><b>Spare Parts</b></p>
             <p className="small"><b>Challan No:</b> {item.challan_no}</p>
             <p className="small"><b>Challan Date:</b> {item.challan_date}</p>
             <p className="small"><b>Vendor:</b> {item.vendor}</p>

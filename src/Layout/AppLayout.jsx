@@ -1,8 +1,9 @@
-// src/Layout/AppLayout.jsx
 import React, { useState, useEffect } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import Sidebar from "../Sidebar/Sidebar";
-import DashboardLayout from "./DashboardLayout"; // your top navbar
+import DashboardLayout from "./DashboardLayout";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 export default function AppLayout({ onLogout }) {
   const navigate = useNavigate();
@@ -27,43 +28,48 @@ export default function AppLayout({ onLogout }) {
   const isCollapsed = autoCollapsed && !hovered;
 
   return (
-    <div
-      className="d-flex"
-      style={{ height: "100vh", width: "100vw", overflow: "hidden" }}
-    >
-      {/* Sidebar */}
+    <>
       <div
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        style={{
-          width: isCollapsed ? "80px" : "260px",
-          flexShrink: 0,
-          transition: "width 0.3s",
-          backgroundColor: "#2E3A59",
-          display: "flex",
-          flexDirection: "column",
-        }}
+        className="d-flex"
+        style={{ height: "100vh", width: "100vw", overflow: "hidden" }}
       >
-        <Sidebar collapsed={isCollapsed} />
-      </div>
-
-      {/* Main Section */}
-      <div className="d-flex flex-column flex-grow-1" style={{ minHeight: 0 }}>
-        {/* Top Navbar/Header */}
-        <DashboardLayout onLogout={handleLogout} />
-
-        {/* Page Content */}
+        {/* Sidebar */}
         <div
-          className="flex-grow-1 overflow-auto"
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
           style={{
-            backgroundColor: "#f8f9fa",
-            padding: "16px",
-            WebkitOverflowScrolling: "touch",
+            width: isCollapsed ? "80px" : "260px",
+            flexShrink: 0,
+            transition: "width 0.3s",
+            backgroundColor: "#2E3A59",
+            display: "flex",
+            flexDirection: "column",
           }}
         >
-          <Outlet />
+          <Sidebar collapsed={isCollapsed} />
+        </div>
+
+        {/* Main Section */}
+        <div className="d-flex flex-column flex-grow-1" style={{ minHeight: 0 }}>
+          {/* Top Navbar/Header */}
+          <DashboardLayout onLogout={handleLogout} />
+
+          {/* Page Content */}
+          <div
+            className="flex-grow-1 overflow-auto"
+            style={{
+              backgroundColor: "#f8f9fa",
+              padding: "16px",
+              WebkitOverflowScrolling: "touch",
+            }}
+          >
+            <Outlet />
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* ✅ Global Toast Container */}
+      <ToastContainer position="top-right" autoClose={3000} hideProgressBar />
+    </>
   );
 }

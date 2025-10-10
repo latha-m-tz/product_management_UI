@@ -129,14 +129,18 @@ export default function ProductTypePage() {
 
     try {
       if (editingTypeId) {
-        await axios.put(
+        const res = await axios.put(
           `${API_BASE_URL}/product-types/${editingTypeId}`,
           payload
         );
-        toast.success("Product type updated successfully!");
+        if (res.status === 200) {
+          toast.success("Product type updated successfully!");
+        }
       } else {
-        await axios.post(`${API_BASE_URL}/product-types`, payload);
-        toast.success("Product type added successfully!");
+        const res = await axios.post(`${API_BASE_URL}/product-types`, payload);
+        if (res.status === 201) {
+          toast.success("Product type added successfully!");
+        }
       }
       await fetchProductTypes();
       handleModalClose();

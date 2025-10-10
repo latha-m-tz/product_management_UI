@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 
@@ -32,6 +32,12 @@ export default function Sidebar({ collapsed }) {
     service: [{ link: "service-product", title: "Service Product", icon: ["/Service VCI.png", "/Service VCI.png"] }],
     tracking: [{ link: "tracking", title: "Tracking", icon: ["/track.png", "/track.png"] }],
   };
+
+  useEffect(() => {
+    console.log(location.pathname);
+
+    // console.log(location.pathname === `/${item.link}` ? "active-link" : "");
+  }, [location.pathname]);
 
   const handleLinkClick = (link) => navigate(`/${link}`);
 
@@ -126,6 +132,10 @@ export default function Sidebar({ collapsed }) {
       nav::-webkit-scrollbar-thumb:hover {
         background-color: #555;
       }
+        .active-link {
+          background-color: #1abc9c; /* green highlight */
+          border-radius: 8px;
+      }
     `}
         </style>
 
@@ -139,7 +149,8 @@ export default function Sidebar({ collapsed }) {
               e.preventDefault();
               handleLinkClick(item.link);
             }}
-            className={`sidebar-link ${location.pathname === `/${item.link}` ? "active-link" : ""}`}
+            className={`sidebar-link ${location.pathname.startsWith(`/${item.link}`) ? "active-link" : ""
+              }`}
           >
             <img src={item.icon ? item.icon[1] : ""} alt={item.title} style={iconStyle} />
             {!collapsed && <span>{item.title}</span>}
@@ -156,8 +167,11 @@ export default function Sidebar({ collapsed }) {
               e.preventDefault();
               handleLinkClick(item.link);
             }}
-            className={`sidebar-link ${location.pathname === `/${item.link}` ? "active-link" : ""}`}
-          >
+            className={`sidebar-link ${location.pathname === `/${item.link}` ||
+              location.pathname.startsWith(`/${item.link}/`)
+              ? "active-link"
+              : ""
+              }`}>
             {item.icon && <img src={item.icon[1]} alt={item.title} style={iconStyle} />}
             {!collapsed && <span >{item.title}</span>}
           </a>
@@ -173,8 +187,11 @@ export default function Sidebar({ collapsed }) {
               e.preventDefault();
               handleLinkClick(item.link);
             }}
-            className={`sidebar-link ${location.pathname === `/${item.link}` ? "active-link" : ""}`}
-          >
+            className={`sidebar-link ${location.pathname === `/${item.link}` ||
+              location.pathname.startsWith(`/${item.link}/`)
+              ? "active-link"
+              : ""
+              }`}>
             {item.icon && <img src={item.icon[1]} alt={item.title} style={iconStyle} />}
             {!collapsed && <span >{item.title}</span>}
           </a>
@@ -190,8 +207,11 @@ export default function Sidebar({ collapsed }) {
               e.preventDefault();
               handleLinkClick(item.link);
             }}
-            className={`sidebar-link ${location.pathname === `/${item.link}` ? "active-link" : ""}`}
-          >
+            className={`sidebar-link ${location.pathname === `/${item.link}` ||
+              location.pathname.startsWith(`/${item.link}/`)
+              ? "active-link"
+              : ""
+              }`}>
             {item.icon && <img src={item.icon[1]} alt={item.title} style={iconStyle} />}
             {!collapsed && <span >{item.title}</span>}
           </a>
@@ -207,8 +227,11 @@ export default function Sidebar({ collapsed }) {
               e.preventDefault();
               handleLinkClick(item.link);
             }}
-            className={`sidebar-link ${location.pathname === `/${item.link}` ? "active-link" : ""}`}
-          >
+            className={`sidebar-link ${location.pathname === `/${item.link}` ||
+              location.pathname.startsWith(`/${item.link}/`)
+              ? "active-link"
+              : ""
+              }`}>
             {item.icon && <img src={item.icon[1]} alt={item.title} style={iconStyle} />}
             {!collapsed && <span >{item.title}</span>}
           </a>
@@ -221,8 +244,11 @@ export default function Sidebar({ collapsed }) {
               e.preventDefault();
               handleLinkClick(item.link);
             }}
-            className={`sidebar-link ${location.pathname === `/${item.link}` ? "active-link" : ""}`}
-          >
+            className={`sidebar-link ${location.pathname === `/${item.link}` ||
+              location.pathname.startsWith(`/${item.link}/`)
+              ? "active-link"
+              : ""
+              }`}>
             {item.icon && <img src={item.icon[1]} alt={item.title} style={iconStyle} />}
             {!collapsed && <span>{item.title}</span>}
           </a>

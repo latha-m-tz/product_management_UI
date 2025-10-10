@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Card, Row, Col, Button, Spinner } from "react-bootstrap";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 import BreadCrumb from "../components/BreadCrumb";
 import { API_BASE_URL } from "../api";
 
@@ -163,7 +163,6 @@ const paginatedItems = purchase?.items
 
       </SectionCard>
 
-      <ToastContainer />
     </div>
   );
 }

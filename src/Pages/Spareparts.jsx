@@ -2,10 +2,9 @@ import { useEffect, useState, useRef } from "react";
 import { Button, Spinner, Form, Card, Offcanvas } from "react-bootstrap";
 import axios from "axios";
 import 'bootstrap-icons/font/bootstrap-icons.css';
-import { ToastContainer, toast } from 'react-toastify';
+import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import $ from "jquery";
 import "datatables.net-dt/css/dataTables.dataTables.css";
 import "datatables.net";
 import Swal from 'sweetalert2';
@@ -16,12 +15,9 @@ import Pagination from "../components/Pagination.jsx";
 import "datatables.net-dt/css/dataTables.dataTables.css";
 import { useLocation, useNavigate } from "react-router-dom";
 
-
 const MySwal = withReactContent(Swal);
 import { API_BASE_URL } from "../api";
 
-// const CustomDropdown = ({ name, value, onChange, options, isInvalid, error }) => {
-//   const [isOpen, setIsOpen] = useState(false);
 //   const dropdownRef = useRef(null);
 
 //   const handleToggle = () => setIsOpen(!isOpen);
@@ -84,10 +80,10 @@ export default function App() {
   const [perPage, setPerPage] = useState(10);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const [sortField, setSortField] = useState("name"); 
+  const [sortField, setSortField] = useState("name");
   const [sortDirection, setSortDirection] = useState("asc");
-  const location = useLocation(); 
-  
+  const location = useLocation();
+
 
   function initialFormState() {
     return {
@@ -96,29 +92,29 @@ export default function App() {
     };
   }
 
- const fetchSpareparts = async () => {
-  setLoading(true);
-  try {
-    const response = await axios.get(`${API_BASE_URL}/spareparts/get`);
-    const fetchedData = response.data.spareparts ?? [];
-    setSpareparts(fetchedData);
-  } catch (error) {
-    console.error("Error fetching spareparts:", error);
-    toast.error("Failed to fetch spare parts.", { toastId: "fetch-fail" });
-  } finally {
-    setLoading(false);
-  }
-};
+  const fetchSpareparts = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.get(`${API_BASE_URL}/spareparts/get`);
+      const fetchedData = response.data.spareparts ?? [];
+      setSpareparts(fetchedData);
+    } catch (error) {
+      console.error("Error fetching spareparts:", error);
+      toast.error("Failed to fetch spare parts.", { toastId: "fetch-fail" });
+    } finally {
+      setLoading(false);
+    }
+  };
 
 
 
-useEffect(() => {
-  // just fetch directly, no token check
-  fetchSpareparts();
-}, []);
+  useEffect(() => {
+    // just fetch directly, no token check
+    fetchSpareparts();
+  }, []);
 
   // useEffect(() => {
- 
+
   //   if ($.fn.DataTable.isDataTable(tableRef.current)) {
   //     $(tableRef.current).DataTable().destroy();
   //   }
@@ -136,30 +132,30 @@ useEffect(() => {
 
   // saveSparepart now posts/puts only { name, sparepart_type }
   const saveSparepart = async (payload) => {
-  try {
-    let response;
-    if (editingPart) {
-      response = await axios.put(`${API_BASE_URL}/spareparts/${editingPart.id}`, payload);
-    } else {
-      response = await axios.post(`${API_BASE_URL}/spareparts`, payload);
+    try {
+      let response;
+      if (editingPart) {
+        response = await axios.put(`${API_BASE_URL}/spareparts/${editingPart.id}`, payload);
+      } else {
+        response = await axios.post(`${API_BASE_URL}/spareparts`, payload);
+      }
+      toast.success(`Spare part ${editingPart ? "updated" : "added"} successfully!`);
+      closeForm();
+      fetchSpareparts();
+    } catch (error) {
+      console.error("Error saving sparepart:", error.response || error);
+      if (error.response?.data?.errors) {
+        setErrors(error.response.data.errors);
+        Object.values(error.response.data.errors).flat().forEach(msg => {
+          toast.error(msg);
+        });
+      } else if (error.response?.data?.message) {
+        toast.error(`Failed to save spare part: ${error.response.data.message}`);
+      } else {
+        toast.error("Failed to save spare part due to a network or server error.");
+      }
     }
-    toast.success(`Spare part ${editingPart ? "updated" : "added"} successfully!`);
-    closeForm();
-    fetchSpareparts();
-  } catch (error) {
-    console.error("Error saving sparepart:", error.response || error);
-    if (error.response?.data?.errors) {
-      setErrors(error.response.data.errors);
-      Object.values(error.response.data.errors).flat().forEach(msg => {
-        toast.error(msg);
-      });
-    } else if (error.response?.data?.message) {
-      toast.error(`Failed to save spare part: ${error.response.data.message}`);
-    } else {
-      toast.error("Failed to save spare part due to a network or server error.");
-    }
-  }
-};
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -167,12 +163,12 @@ useEffect(() => {
       const alphaRegex = /^[A-Za-z\s]*$/;
       if (!alphaRegex.test(value)) {
         setErrors((prev) => ({ ...prev, name: "Only letters are allowed." }));
-        return; 
+        return;
       }
     }
     setFormData((prev) => ({ ...prev, [name]: value }));
     if (errors[name]) {
-      setErrors((prev) => ({ ...prev, [name]: "" })); 
+      setErrors((prev) => ({ ...prev, [name]: "" }));
     }
   };
 
@@ -198,34 +194,34 @@ useEffect(() => {
     await saveSparepart(payload);
   };
 
- const handleDelete = async (id) => {
-  const result = await MySwal.fire({
-    title: "Are you sure?",
-    text: "Do you really want to delete this spare part?",
-    icon: "warning",
-    showCancelButton: true,
-    confirmButtonColor: "#d33",
-    cancelButtonColor: "#2FA64F",
-    confirmButtonText: "Yes, delete it!",
-    customClass: {
-      popup: "custom-compact"
+  const handleDelete = async (id) => {
+    const result = await MySwal.fire({
+      title: "Are you sure?",
+      text: "Do you really want to delete this spare part?",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#2FA64F",
+      confirmButtonText: "Yes, delete it!",
+      customClass: {
+        popup: "custom-compact"
+      }
+    });
+    if (!result.isConfirmed) return;
+    try {
+      await axios.delete(`${API_BASE_URL}/spareparts/${id}/del`);
+      toast.success("Spare part deleted successfully!");
+      if (editingPart?.id === id) closeForm();
+      fetchSpareparts();
+    } catch (error) {
+      console.error("Error deleting:", error);
+      if (error.response?.data?.message) {
+        toast.error(`Failed to delete spare part: ${error.response.data.message}`);
+      } else {
+        toast.error("Failed to delete spare part.");
+      }
     }
-  });
-  if (!result.isConfirmed) return;
-  try {
-    await axios.delete(`${API_BASE_URL}/spareparts/${id}/del`);
-    toast.success("Spare part deleted successfully!");
-    if (editingPart?.id === id) closeForm();
-    fetchSpareparts();
-  } catch (error) {
-    console.error("Error deleting:", error);
-    if (error.response?.data?.message) {
-      toast.error(`Failed to delete spare part: ${error.response.data.message}`);
-    } else {
-      toast.error("Failed to delete spare part.");
-    }
-  }
-};
+  };
 
   const handleSort = (field) => {
     if (field === sortField) {
@@ -238,9 +234,9 @@ useEffect(() => {
 
   const handleEdit = (part) => {
     setEditingPart(part);
-      const typeValue = ["serial_based", "warranty_based", "quantity_based"].includes(part.sparepart_type)
-    ? part.sparepart_type
-    : "";
+    const typeValue = ["serial_based", "warranty_based", "quantity_based"].includes(part.sparepart_type)
+      ? part.sparepart_type
+      : "";
     setFormData({
       name: part.name || "",
       sparepart_type: part.sparepart_type || "",
@@ -290,7 +286,6 @@ useEffect(() => {
   return (
 
     <div className="px-4 " style={{ fontSize: "0.75rem" }}>
-      
       <BreadCrumb title="Spare Parts" />
 
       <Card className="border-0 shadow-sm rounded-3 p-2 px-4 mt-2 bg-white">
@@ -359,14 +354,14 @@ useEffect(() => {
                 >
                   Spare Part Name {sortField === "name"}
                 </th>
-                   {/* <th
+                {/* <th
                   onClick={() => handleSort("sparepart_type")}
                   style={{ cursor: "pointer", textAlign: "center", backgroundColor: "#2E3A59", color: "white" }}
                 >
                   Spare Part Type {sortField === "sparepart_type" && (sortDirection === "asc" ? "▲" : "▼")}
                 </th> */}
-          
-      
+
+
                 <th style={{ width: "130px", textAlign: "center", backgroundColor: "#2E3A59", color: "white" }}>
                   Action
                 </th>
@@ -398,11 +393,11 @@ useEffect(() => {
                     <td className="text-center" style={{ wordBreak: "break-word" }}>
                       {part.name}
                     </td>
-                         {/* <td className="text-center" style={{ wordBreak: "break-word" }}>
+                    {/* <td className="text-center" style={{ wordBreak: "break-word" }}>
                       {part.sparepart_type}
                     </td> */}
-             
-             
+
+
                     <td className="text-center" style={{ width: "130px" }}>
                       <Button
                         variant=""
@@ -478,30 +473,30 @@ useEffect(() => {
                   </Form.Control.Feedback>
                 </div>
 
-               <div className="mb-2 col-12">
-  <Form.Label
-    className="mb-1"
-    style={{ fontSize: "13px", fontWeight: 500 }}
-  >
-    Sparepart Type <span style={{ color: "red" }}>*</span>
-  </Form.Label>
-  <Form.Select
-    name="sparepart_type"
-    value={formData.sparepart_type}
-    onChange={handleChange}
-    className="custom-placeholder"
-    isInvalid={!!errors.sparepart_type}
-    style={{ height: "34px", fontSize: "13px" }}
-  >
-    <option value="">-- Select Type --</option>
-    <option value="serial_based">Serial Based</option>
-    <option value="warranty_based">Warranty Based</option>
-    <option value="quantity_based">Quantity Based</option>
-  </Form.Select>
-  <Form.Control.Feedback type="invalid" style={errorStyle}>
-    {errors.sparepart_type}
-  </Form.Control.Feedback>
-</div>
+                <div className="mb-2 col-12">
+                  <Form.Label
+                    className="mb-1"
+                    style={{ fontSize: "13px", fontWeight: 500 }}
+                  >
+                    Sparepart Type <span style={{ color: "red" }}>*</span>
+                  </Form.Label>
+                  <Form.Select
+                    name="sparepart_type"
+                    value={formData.sparepart_type}
+                    onChange={handleChange}
+                    className="custom-placeholder"
+                    isInvalid={!!errors.sparepart_type}
+                    style={{ height: "34px", fontSize: "13px" }}
+                  >
+                    <option value="">-- Select Type --</option>
+                    <option value="serial_based">Serial Based</option>
+                    <option value="warranty_based">Warranty Based</option>
+                    <option value="quantity_based">Quantity Based</option>
+                  </Form.Select>
+                  <Form.Control.Feedback type="invalid" style={errorStyle}>
+                    {errors.sparepart_type}
+                  </Form.Control.Feedback>
+                </div>
 
               </div>
 
@@ -521,7 +516,7 @@ useEffect(() => {
           </Offcanvas.Body>
         </Offcanvas>
       )}
-        <style>{`
+      <style>{`
           .slide-in {
             position: fixed;
             top: 0;
@@ -690,6 +685,7 @@ useEffect(() => {
   visibility: visible;
 }
         `}</style>
+
 
     </div>
   );

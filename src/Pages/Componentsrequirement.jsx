@@ -144,7 +144,7 @@ export default function ComponentsRequirement() {
                             placeholder="e.g. 400"
                             value={vciCount}
                             onChange={(e) =>
-                                setVciCount(parseInt(e.target.value, 10) || 0)
+                                setVciCount(parseInt(e.target.value, 10) || '')
                             }
                         />
                     </Form.Group>

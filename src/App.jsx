@@ -1,8 +1,6 @@
 // src/App.jsx
 import React, { useEffect, useState } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
 
 // Layout & Auth
 import LoginPage from "./Pages/LoginPage";
@@ -43,7 +41,7 @@ import TrackingPage from "./Pages/TrackingPage";
 import PurchaseViewPage from "./Pages/PurchaseViewPage";
 import MissingSerialsPage from "./Pages/MissingProductPage";
 // App.jsx
-import ComponentsRequirement from "./Pages/Componentsrequirement"; 
+import ComponentsRequirement from "./Pages/Componentsrequirement";
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem("authToken"));
@@ -68,7 +66,6 @@ export default function App() {
 
   return (
     <Router>
-      <ToastContainer position="top-right" autoClose={3000} hideProgressBar />
       <Routes>
         {/* Login route */}
         <Route
@@ -93,9 +90,9 @@ export default function App() {
           <Route path="sales-order" element={<SalesListPage />} />
           <Route path="sales/add" element={<AddSalesPage />} />
           <Route path="sales/edit/:id" element={<EditSalesPage />} />
-        <Route path="sales-overview" element={<SalesOverviewPage />} />
-<Route path="sales-overview/:id" element={<SalesOverviewPage />} />           
-<Route path="add-product" element={<AddProductPage />} />
+          <Route path="sales-overview" element={<SalesOverviewPage />} />
+          <Route path="sales-overview/:id" element={<SalesOverviewPage />} />
+          <Route path="add-product" element={<AddProductPage />} />
           {/* <Route path="product/edit/:id" element={<AddProductPage />} /> */}
           <Route path="service-product" element={<ServiceList />} />
           <Route path="service/add" element={<AddServicePage />} />
@@ -114,21 +111,21 @@ export default function App() {
           <Route path="/spare-partsPurchase" element={<SparepartPurchase />} />
           <Route path="/spare-partsPurchase/add" element={<AddSparepartPurchase />} />
           <Route path="/spare-partsPurchase/:id" element={<EditSparepartPurchase />} />
-          <Route path="/spare-partsPurchase/view/:id" element={<PurchaseViewPage />}/>
+          <Route path="/spare-partsPurchase/view/:id" element={<PurchaseViewPage />} />
 
           <Route path="product" element={<ProductPage />} />
           <Route path="product-type" element={<ProductTypePage />} />
-          <Route path="add-assemble" element={<AddAssemblePage />} />
+          <Route path="assemble/add" element={<AddAssemblePage />} />
           <Route path="qr-scanner" element={<QrScannerPage />} />
           <Route path="assemble" element={<AssemblePage />} />
           <Route path="/inventory/edit/:fromSerial/:toSerial" element={<EditAssemblePage />} />
           <Route path="/inventory/:range" element={<InventoryDetailsPage />} />
           <Route path="/tracking" element={<TrackingPage />} />
           <Route path="/missing-serials/:from_serial/:to_serial" element={<MissingSerialsPage />} />
-  <Route path="/spare-parts-by-series" element={<Navigate to="/spare-parts-by-series/7-series" />} />
+          <Route path="/spare-parts-by-series" element={<Navigate to="/spare-parts-by-series/7-series" />} />
 
-  {/* Actual route with series param */}
-  <Route path="/spare-parts-by-series/:series" element={<ComponentsRequirement />} />
+          {/* Actual route with series param */}
+          <Route path="/spare-parts-by-series/:series" element={<ComponentsRequirement />} />
 
         </Route>
       </Routes>

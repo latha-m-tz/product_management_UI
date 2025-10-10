@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Form, Button, Modal, Spinner } from 'react-bootstrap';
-import { toast, ToastContainer } from 'react-toastify';
+import { toast } from 'react-toastify';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import 'react-toastify/dist/ReactToastify.css';

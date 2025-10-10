@@ -15,7 +15,7 @@ import {
   IoChevronBack,
   IoChevronForward,
 } from "react-icons/io5";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 import axios from "axios";
 import { useNavigate, useParams } from "react-router-dom";
 import { FaQrcode } from "react-icons/fa";
@@ -512,17 +512,7 @@ setForm({
 
   return (
     <Container className="main-container">
-      <ToastContainer
-        position="top-right"
-        autoClose={5000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-      />
+ 
 
       <Row className="align-items-center mb-3">
         <Col>
