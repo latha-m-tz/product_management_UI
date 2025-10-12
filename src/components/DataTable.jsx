@@ -26,7 +26,7 @@ export default function DataTable({
         <thead
           style={{
             backgroundColor: "#2E3A59",
-            color: "white",
+            color: "#2E3A59",
             fontSize: "0.82rem",
             height: "40px",
             verticalAlign: "middle",

@@ -141,7 +141,7 @@ export default function AddSalesPage() {
   // Handle save
   const handleSave = async () => {
     if (!validateForm()) {
-      toast.warning("Please fix the highlighted errors!");
+      // toast.warning("Please fix the highlighted errors!");
       return;
     }
 

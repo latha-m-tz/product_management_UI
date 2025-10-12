@@ -21,7 +21,7 @@ export default function PurchaseListPage() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
-  const [sortField, setSortField] = useState(null);
+  const [sortField, setSortField] = useState(null); 
   const [sortDirection, setSortDirection] = useState("asc");
 
   useEffect(() => {

@@ -67,12 +67,14 @@ button:focus-visible {
   }
 }
 
-.PhoneInputInput {
-  border: none !important;
-  outline: none !important;
-  box-shadow: none !important;
-}
 
+.PhoneInputInput {
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 14px;
+  width: 100%;
+}
 input:focus,
 select:focus,
 textarea:focus,

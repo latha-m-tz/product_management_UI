@@ -42,6 +42,7 @@ import PurchaseViewPage from "./Pages/PurchaseViewPage";
 import MissingSerialsPage from "./Pages/MissingProductPage";
 // App.jsx
 import ComponentsRequirement from "./Pages/Componentsrequirement";
+import "country-flag-icons/3x2/flags.css";
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem("authToken"));

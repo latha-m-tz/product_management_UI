@@ -175,7 +175,7 @@ export default function App() {
   const validateForm = () => {
     const newErrors = {};
     if (!formData.name || !formData.name.trim()) newErrors.name = "Spare Part Name is required.";
-    if (!formData.sparepart_type || !formData.sparepart_type.trim()) newErrors.sparepart_type = "Sparepart Type is required.";
+    if (!formData.sparepart_type || !formData.sparepart_type.trim()) newErrors.sparepart_type = "Spare part Type is required.";
     return newErrors;
   };
 
@@ -184,7 +184,7 @@ export default function App() {
     const validationErrors = validateForm();
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
-      toast.error("Please fill in all required fields correctly.");
+      // toast.error("Please fill in all required fields correctly.");
       return;
     }
     const payload = {
@@ -478,7 +478,7 @@ export default function App() {
                     className="mb-1"
                     style={{ fontSize: "13px", fontWeight: 500 }}
                   >
-                    Sparepart Type <span style={{ color: "red" }}>*</span>
+                    Spare part Type <span style={{ color: "red" }}>*</span>
                   </Form.Label>
                   <Form.Select
                     name="sparepart_type"
@@ -501,9 +501,9 @@ export default function App() {
               </div>
 
               <div className="d-flex justify-content-end gap-2 mt-3">
-                <Button className="btn-common btn-cancel" variant="light" onClick={() => setShowForm(false)}>
+                {/* <Button className="btn-common btn-cancel" variant="light" onClick={() => setShowForm(false)}>
                   Cancel
-                </Button>
+                </Button> */}
                 <Button
                   type="submit"
                   variant="success"

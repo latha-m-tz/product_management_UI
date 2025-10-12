@@ -79,7 +79,7 @@ const paginatedItems = purchase?.items
         <Button
           size="sm"
           onClick={() => navigate(-1)}
-          style={{ backgroundColor: "#2FA64F", borderColor: "#2FA64F" }}
+          style={{ backgroundColor: "grey", borderColor: "grey" }}
         >
           ← Back
         </Button>

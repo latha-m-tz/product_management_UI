@@ -21,7 +21,7 @@ const styles = {
   dataCard: { width: '240px', height: '262px', backgroundColor: '#2EA64F', color: '#FFFFFF', borderColor: '#2EA64F', border: '1px solid', borderRadius: '7px', padding: '10px', marginBottom: '15px', textAlign: 'left', fontSize: '0.85rem', lineHeight: 1.2, flexShrink: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' },
   dataCardText: { marginBottom: '4px' },
   stageDate: { fontSize: '0.75rem', color: '#607D8B', borderTop: '1px dashed #cfd8dc', paddingTop: '5px', marginTop: '5px', textAlign: 'right' },
-  numberBox: { position: 'absolute', top: '-50px', right: '-130px', backgroundColor: 'white', color: '#3F51B5', fontSize: '1.5rem', fontWeight: 'bold', padding: '10px 15px', borderRadius: '8px', border: '1px solid #3F51B5', boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)', zIndex: 10 },
+  // numberBox: { position: 'absolute', top: '50px', right: '-130px', backgroundColor: 'white', color: '#3F51B5', fontSize: '1.5rem', fontWeight: 'bold', padding: '10px 15px', borderRadius: '8px', border: '1px solid #3F51B5', boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)', zIndex: 10 },
   stageDate: {
     fontSize: '0.75rem',
     color: 'white', // changed from #607D8B
@@ -175,9 +175,9 @@ const TrackingPage = () => {
                   <div style={styles.stageVerticalLine}></div>
 
                   <div style={styles.stageContent}>
-                    {index === 1 && (
+                    {/* {index === 1 && (
                       <div style={styles.numberBox}><p className="mb-0">91 x 0</p></div>
-                    )}
+                    )} */}
 
                     {hasContent
                       ? step.items.map((item, idx) => (

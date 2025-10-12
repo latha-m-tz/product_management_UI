@@ -6,17 +6,18 @@ import { useParams, useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../api";
 import PhoneInput from "react-phone-number-input";
 import "react-phone-number-input/style.css";
-import {  toast } from "react-toastify";
+import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { parsePhoneNumberFromString, isValidPhoneNumber } from "libphonenumber-js";
 import ActionButton from "../components/ActionButton";
+import CountrySelect from "../components/CountrySelect";
 
 export default function EditVendor() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [countryCode, setCountryCode] = useState("IN");
   const [page, setPage] = useState(1);
-const [perPage, setPerPage] = useState(5);
+  const [perPage, setPerPage] = useState(5);
 
   const [vendor, setVendor] = useState({
     vendor: "",
@@ -139,13 +140,13 @@ const [perPage, setPerPage] = useState(5);
     //   else if (newValue.length > 15) newErrors.gst_no = "GST number cannot exceed 15 characters";
     //   else delete newErrors.gst_no;
     // }
-if (name === "email") {
-  if (newValue.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newValue)) {
-    newErrors.email = "Enter a valid email";
-  } else {
-    delete newErrors.email;
-  }
-}
+    if (name === "email") {
+      if (newValue.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newValue)) {
+        newErrors.email = "Enter a valid email";
+      } else {
+        delete newErrors.email;
+      }
+    }
 
     if (name === "city") newValue.trim() ? delete newErrors.city : newErrors.city = "City is required";
     if (name === "state") newValue.trim() ? delete newErrors.state : newErrors.state = "State is required";
@@ -283,7 +284,6 @@ if (name === "email") {
     },
   ];
 
-  // ------------------- FETCH PINCODE DETAILS -------------------
   const fetchPincodeDetails = async (pincode) => {
     try {
       const res = await fetch(`https://api.postalpincode.in/pincode/${pincode}`);
@@ -322,7 +322,7 @@ if (name === "email") {
   const addContactPerson = () => {
     // Validate required fields manually
     const errors = {};
-    // if (!contact.name.trim()) errors.name = "Name is required";
+    if (!contact.name.trim()) errors.name = "Name is required";
     // if (!contact.designation.trim()) errors.designation = "Designation is required";
     if (!contact.mobile_no.trim()) errors.mobile_no = "Mobile number is required";
     if (Object.keys(errors).length > 0) {
@@ -352,11 +352,7 @@ if (name === "email") {
     setContactErrors({});
   };
 
-  // const editContact = (index) => {
-  //   setContact({ ...contactPersons[index] }); // clone
-  //   setEditingIndex(index);
-  //   setShowPanel(true);
-  // };
+
 
   const editContact = (index) => {
     const c = contactPersons[index];
@@ -371,7 +367,6 @@ if (name === "email") {
     setContactPersons(updated);
   };
 
-  // ------------------- SAVE VENDOR -------------------
   const saveVendor = async () => {
     const payload = {
       ...vendor,
@@ -407,23 +402,36 @@ if (name === "email") {
   ];
 
 
-const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+  const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
 
 
   return (
-    <div className="container-fluid p-4" style={{ background: "white", minHeight: "100vh", position: "relative" }}>
-      <h5 className="mb-3">Edit Vendor Details</h5>
+    <div className="container-fluid " style={{ background: "white", minHeight: "100vh", position: "relative" }}>
+      <Row className="align-items-center mb-3 fixed-header">
+        <Col>
+          <h4>Edit Vendor Details</h4>
+        </Col>
+        <Col className="text-end">
+          <Button
+            variant="outline-secondary"
+            size="sm"
+            className="me-2"
+            onClick={() => navigate("/vendor")}
+          >
+            <i className="bi bi-arrow-left"></i> Back
+          </Button>
+        </Col>
+      </Row>
 
-      {/* --- Vendor Form UI --- */}
-      <div style={{ background: "#f1f3f5", padding: "20px", borderRadius: "6px", marginBottom: "20px" }}>
+      {/* Vendor Form */}
+      <div style={{ background: "#F4F4F8", padding: "20px", borderRadius: "6px", marginBottom: "20px" }}>
         <h6 className="mb-3">Company Details</h6>
-
         <Row>
           <Col md={4}>
             <Form.Group className="mb-3">
-            <Form.Label>
-  Vendor<span style={{ color: "red" }}> *</span>
-</Form.Label>
+              <Form.Label>
+                Vendor<span style={{ color: "red" }}> *</span>
+              </Form.Label>
 
               <Form.Control
                 type="text"
@@ -438,45 +446,45 @@ const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
 
 
 
-<Col md={4}>
-  <Form.Group className="mb-3">
-    <Form.Label>GST No</Form.Label>
-    <Form.Control
-      type="text"
-      name="gst_no"
-      value={vendor.gst_no}
-      onChange={(e) => {
-        const value = e.target.value.toUpperCase();
-        setVendor({ ...vendor, gst_no: value });
+          <Col md={4}>
+            <Form.Group className="mb-3">
+              <Form.Label>GST No</Form.Label>
+              <Form.Control
+                type="text"
+                name="gst_no"
+                value={vendor.gst_no}
+                onChange={(e) => {
+                  const value = e.target.value.toUpperCase();
+                  setVendor({ ...vendor, gst_no: value });
 
-        // Live validation
-        if (!value.trim()) {
-          setErrors((prev) => ({ ...prev, gst_no: "GST No is required" }));
-        } else if (value.length !== 15) {
-          setErrors((prev) => ({ ...prev, gst_no: "GST No must be 15 characters" }));
-        } else if (!gstRegex.test(value)) {
-          setErrors((prev) => ({ ...prev, gst_no: "Invalid GST No format" }));
-        } else {
-          setErrors((prev) => ({ ...prev, gst_no: "" })); 
-        }
-      }}
-      placeholder="Enter GST No"
-      isInvalid={!!errors.gst_no}
-    />
-    {errors.gst_no && (
-      <div style={{ color: "red", fontSize: "0.85rem", marginTop: "4px" }}>
-        {errors.gst_no}
-      </div>
-    )}
-  </Form.Group>
-</Col>
+                  // Live validation
+                  if (!value.trim()) {
+                    setErrors((prev) => ({ ...prev, gst_no: "GST No is required" }));
+                  } else if (value.length !== 15) {
+                    setErrors((prev) => ({ ...prev, gst_no: "GST No must be 15 characters" }));
+                  } else if (!gstRegex.test(value)) {
+                    setErrors((prev) => ({ ...prev, gst_no: "Invalid GST No format" }));
+                  } else {
+                    setErrors((prev) => ({ ...prev, gst_no: "" }));
+                  }
+                }}
+                placeholder="Enter GST No"
+                isInvalid={!!errors.gst_no}
+              />
+              {errors.gst_no && (
+                <div style={{ color: "red", fontSize: "0.85rem", marginTop: "4px" }}>
+                  {errors.gst_no}
+                </div>
+              )}
+            </Form.Group>
+          </Col>
 
 
           <Col md={4}>
             <Form.Group className="mb-3">
               <Form.Label>
-  Pincode<span style={{ color: "red" }}> *</span>
-</Form.Label>
+                Pincode<span style={{ color: "red" }}> *</span>
+              </Form.Label>
 
               <Form.Control
                 type="text"
@@ -494,9 +502,9 @@ const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
 
           <Col md={4}>
             <Form.Group className="mb-3">
-        <Form.Label>
-  City<span style={{ color: "red" }}> *</span>
-</Form.Label>
+              <Form.Label>
+                City<span style={{ color: "red" }}> *</span>
+              </Form.Label>
 
               <CreatableSelect
                 name="city"
@@ -505,7 +513,7 @@ const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
                 options={cityOptionsFormatted}
                 isClearable
                 placeholder="Select or type city"
-                  classNamePrefix="my-select"   // ✅ Add this
+                classNamePrefix="my-select"   // ✅ Add this
               />
 
               {errors.city && <div style={{ color: "red", fontSize: "12px" }}>{errors.city}</div>}
@@ -513,9 +521,9 @@ const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
           </Col>
           <Col md={4}>
             <Form.Group className="mb-3">
-          <Form.Label>
-  State<span style={{ color: "red" }}> *</span>
-</Form.Label>
+              <Form.Label>
+                State<span style={{ color: "red" }}> *</span>
+              </Form.Label>
 
               <Form.Control
                 type="text"
@@ -529,9 +537,9 @@ const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
           </Col>
           <Col md={4}>
             <Form.Group className="mb-3">
-             <Form.Label>
-  District<span style={{ color: "red" }}> *</span>
-</Form.Label>
+              <Form.Label>
+                District<span style={{ color: "red" }}> *</span>
+              </Form.Label>
 
               <Form.Control
                 type="text"
@@ -563,21 +571,23 @@ const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
           </Col>
           <Col md={4}>
             <Form.Group className="mb-3">
-          <Form.Label>
-  Mobile No<span style={{ color: "red" }}> *</span>
-</Form.Label>
+              <Form.Label>
+                Mobile No<span style={{ color: "red" }}> *</span>
+              </Form.Label>
 
               <PhoneInput
-                country={countryCode.toLowerCase()}
                 international
+                defaultCountry="IN"
                 className="form-control"
                 value={vendor.mobile_no}
-                onChange={handleVendorMobileChange} // Use handler
-                enableSearch
-                inputClass="form-control"
+                enableSearch={true}
+                placeholder="Enter mobile number"
+                onChange={handleVendorMobileChange}
+                countrySelectComponent={CountrySelect} // 👈 custom searchable component
+                style={{ minWidth: 0 }}
               />
               {vendorErrors.mobile_no && (
-                <div className="invalid-feedback" style={{ display: "block" }}>
+                <div style={{ color: "red", fontSize: "0.85rem", marginTop: "4px" }}>
                   {vendorErrors.mobile_no}
                 </div>
               )}
@@ -585,11 +595,11 @@ const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
           </Col>
 
 
-          <Col md={12}>
+          <Col md={4}>
             <Form.Group className="mb-3">
-           <Form.Label>
-  Address<span style={{ color: "red" }}> *</span>
-</Form.Label>
+              <Form.Label>
+                Address<span style={{ color: "red" }}> *</span>
+              </Form.Label>
 
               <Form.Control
                 as="textarea"
@@ -629,101 +639,101 @@ const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
           setShowPanel(true);
         }}
       >
-        + Add Contact Person
+        + Add  Contact Person
       </Button>
 
-  {contactPersons.length > 0 && (
-  <div className="mt-3 table-responsive">
-    <table className="table align-middle mb-0">
-      <thead>
-  <tr>
-    <th
-      style={{
-        width: "50px",
-        textAlign: "center",
-        cursor: "pointer",
-        backgroundColor: "#f1f3f5",
-            fontWeight: "normal", // normal text weight
-        color: "inherit", // keeps default text color (black)
+      {contactPersons.length > 0 && (
+        <div className="mt-3 table-responsive">
+          <table className="table align-middle mb-0">
+            <thead>
+              <tr>
+                <th
+                  style={{
+                    width: "50px",
+                    textAlign: "center",
+                    cursor: "pointer",
+                    backgroundColor: "#f1f3f5",
+                    fontWeight: "normal", // normal text weight
+                    color: "inherit", // keeps default text color (black)
 
-      }}
-    >
-      S.No
-    </th>
-    {[
-      { label: "Name", field: "name" },
-      { label: "Designation", field: "designation" },
-      { label: "Mobile", field: "mobile_no" },
-      { label: "Email", field: "email" },
-      { label: "Status", field: "status" },
-    ].map(({ label, field }) => (
-      <th
-        key={field}
-        style={{
-          cursor: "pointer",
-          backgroundColor: "#f1f3f5",
-              fontWeight: "normal", // normal text weight
-        color: "inherit", // keeps default text color (black)
-        }}
-      >
-        {label}
-      </th>
-    ))}
-    <th
-      style={{
-        textAlign: "center",
-        backgroundColor: "#f1f3f5",
-            fontWeight: "normal", // normal text weight
-        color: "inherit", // keeps default text color (black)
-      }}
-    >
-      Action
-    </th>
-  </tr>
-</thead>
+                  }}
+                >
+                  S.No
+                </th>
+                {[
+                  { label: "Name", field: "name" },
+                  { label: "Designation", field: "designation" },
+                  { label: "Mobile", field: "mobile_no" },
+                  { label: "Email", field: "email" },
+                  { label: "Status", field: "status" },
+                ].map(({ label, field }) => (
+                  <th
+                    key={field}
+                    style={{
+                      cursor: "pointer",
+                      backgroundColor: "#f1f3f5",
+                      fontWeight: "normal", // normal text weight
+                      color: "inherit", // keeps default text color (black)
+                    }}
+                  >
+                    {label}
+                  </th>
+                ))}
+                <th
+                  style={{
+                    textAlign: "center",
+                    backgroundColor: "#f1f3f5",
+                    fontWeight: "normal", // normal text weight
+                    color: "inherit", // keeps default text color (black)
+                  }}
+                >
+                  Action
+                </th>
+              </tr>
+            </thead>
 
-      <tbody>
-        {contactPersons.length === 0 ? (
-          <tr>
-            <td colSpan="7" className="text-center py-4 text-muted">
-              No contact persons found
-            </td>
-          </tr>
-        ) : (
-          contactPersons.map((c, index) => (
-            <tr key={index}>
-              <td className="text-center">{index + 1}</td>
-              <td>{c.name}{c.isMain ? " (Main)" : ""}</td>
-              <td>{c.designation}</td>
-              <td>{c.mobile_no}</td>
-              <td>{c.email}</td>
-              <td>
-                <span className={`badge ${c.status === "Active" ? "bg-success" : "bg-danger"}`}>
-                  {c.status}
-                </span>
-              </td>
-             <td className="text-center">
-  <ActionButton
-    onEdit={() => editContact(index)}
-    onDelete={() => deleteContact(index)}
-    // Optional: if you want a view action, you can add it, or omit
-    // onView={() => {}}
-  />
-</td>
+            <tbody>
+              {contactPersons.length === 0 ? (
+                <tr>
+                  <td colSpan="7" className="text-center py-4 text-muted">
+                    No contact persons found
+                  </td>
+                </tr>
+              ) : (
+                contactPersons.map((c, index) => (
+                  <tr key={index}>
+                    <td className="text-center">{index + 1}</td>
+                    <td>{c.name}{c.isMain ? " (Main)" : ""}</td>
+                    <td>{c.designation}</td>
+                    <td>{c.mobile_no}</td>
+                    <td>{c.email}</td>
+                    <td>
+                      <span className={`badge ${c.status === "Active" ? "bg-success" : "bg-danger"}`}>
+                        {c.status}
+                      </span>
+                    </td>
+                    <td className="text-center">
+                      <ActionButton
+                        onEdit={() => editContact(index)}
+                        onDelete={() => deleteContact(index)}
+                      // Optional: if you want a view action, you can add it, or omit
+                      // onView={() => {}}
+                      />
+                    </td>
 
-            </tr>
-          ))
-        )}
-      </tbody>
-    </table>
-  </div>
-)}
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
 
 
       {/* --- Save / Cancel Buttons --- */}
       <div className="d-flex justify-content-end mt-3">
         <Button variant="secondary" className="me-2" onClick={() => navigate("/vendor")}>Cancel</Button>
-        <Button variant="success" onClick={saveVendor}>Save</Button>
+        <Button variant="success" onClick={saveVendor}>Update</Button>
       </div>
       {/* Right Side Panel */}
       <div
@@ -740,32 +750,42 @@ const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
           padding: "20px",
         }}
       >
-        <h5>{editingIndex !== null ? "Edit Contact" : "Add Contact"}</h5>
+        <h5>{editingIndex !== null ? "Edit Contact" : "Edit Contact"}</h5>
         <Button
-          variant="secondary"
+          variant="outline-secondary"
           size="sm"
-          style={{ position: "absolute", top: "10px", right: "10px" }}
+          className="rounded-circle border-0 d-flex justify-content-center align-items-center"
+          style={{
+            position: "absolute",
+            top: "10px",
+            right: "10px",
+            width: "32px",
+            height: "32px",
+            padding: 0,
+          }}
           onClick={() => {
             setShowPanel(false);
             setEditingIndex(null);
           }}
         >
-          X
+          <i className="bi bi-x-lg fs-6"></i>
         </Button>
 
         <Form className="mt-4">
           {/* Row 1: Name + Designation */}
-          <Row className="mb-3 p-2" style={{ background: "#f5f5f5", borderRadius: "6px" }}>
+          <Row className="mb-3 p-2" style={{ background: "rgb(244, 244, 248)", borderRadius: "6px" }}>
             <Col md={6}>
               <Form.Group>
-                <Form.Label>Name</Form.Label>
+                <Form.Label>Name
+                  <span style={{ color: "red" }}> *</span>
+                </Form.Label>
                 <Form.Control
                   type="text"
                   name="name"
                   value={contact.name.replace(" (Main person)", "")}
                   onChange={handleContactChange}
                   isInvalid={!!contactErrors.name}
-                    placeholder="Enter Name"
+                  placeholder="Enter Name"
                 />
                 <Form.Control.Feedback type="invalid">{contactErrors.name}</Form.Control.Feedback>
 
@@ -786,20 +806,20 @@ const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
                   value={contact.designation}
                   onChange={handleContactChange}
                   isInvalid={!!contactErrors.designation}
-                    placeholder="Enter Designation"
+                  placeholder="Enter Designation"
                 />
                 <Form.Control.Feedback type="invalid">{contactErrors.designation}</Form.Control.Feedback>
               </Form.Group>
             </Col>
-          {/* </Row> */}
+            {/* </Row> */}
 
-          {/* Row 2: Mobile + Email */}
-          {/* <Row className="mb-3 p-2" style={{ background: "#f5f5f5", borderRadius: "6px" }}> */}
+            {/* Row 2: Mobile + Email */}
+            {/* <Row className="mb-3 p-2" style={{ background: "#f5f5f5", borderRadius: "6px" }}> */}
             <Col md={6}>
               <Form.Group>
-               <Form.Label>
-  Mobile No<span style={{ color: "red" }}> *</span>
-</Form.Label>
+                <Form.Label>
+                  Mobile No<span style={{ color: "red" }}> *</span>
+                </Form.Label>
 
                 <PhoneInput
                   country={countryCode.toLowerCase()}
@@ -807,7 +827,7 @@ const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
                   className="form-control"
                   defaultCountry="IN"
                   value={contact.mobile_no}
-                  onChange={handleContactMobileChange} 
+                  onChange={handleContactMobileChange}
                   enableSearch
                 />
                 {contactErrors.mobile_no && (
@@ -827,16 +847,16 @@ const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
                   name="email"
                   value={contact.email}
                   onChange={handleContactChange}
-                    placeholder="Enter Email"
+                  placeholder="Enter Email"
                   isInvalid={!!contactErrors.email}
                 />
                 <Form.Control.Feedback type="invalid">{contactErrors.email}</Form.Control.Feedback>
               </Form.Group>
             </Col>
-          {/* </Row> */}
+            {/* </Row> */}
 
-          {/* Row 3: Status */}
-          {/* <Row className="mb-3 p-2" style={{ background: "#f5f5f5", borderRadius: "6px" }}> */}
+            {/* Row 3: Status */}
+            {/* <Row className="mb-3 p-2" style={{ background: "#f5f5f5", borderRadius: "6px" }}> */}
             <Col md={6}>
               <Form.Group>
                 <Form.Label>Status</Form.Label>
@@ -856,7 +876,7 @@ const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
 
           {/* Action buttons */}
           <div className="d-flex justify-content-end mt-3">
-            <Button
+            {/* <Button
               variant="secondary"
               className="me-2"
               onClick={() => {
@@ -865,7 +885,7 @@ const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
               }}
             >
               Cancel
-            </Button>
+            </Button> */}
             <Button variant="success" onClick={addContactPerson}>
               {editingIndex !== null ? "Update" : "Save"}
             </Button>

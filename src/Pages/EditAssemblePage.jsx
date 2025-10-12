@@ -142,31 +142,32 @@ export default function EditAssemblePage() {
 
         const data = rangeRes.data;
 
-      const formattedDate =
-  data.tested_date
-    ? new Date(data.tested_date).toISOString().split("T")[0]
-    : data.items[0]?.tested_date
-    ? new Date(data.items[0].tested_date).toISOString().split("T")[0]
-    : "";
+        const formattedDate =
+          data.tested_date
+            ? new Date(data.tested_date).toISOString().split("T")[0]
+            : data.items[0]?.tested_date
+              ? new Date(data.items[0].tested_date).toISOString().split("T")[0]
+              : "";
 
-setForm({
-  productType: data.product_type?.id || "",
-  product_id: data.product?.id || "",
-  firmwareVersion: data.firmware_version || "",
-  testedBy: data.tested_by || data.items[0]?.tested_by || "",
-  quantity: data.quantity || "",
-  fromSerial: data.from_serial,
-  toSerial: data.to_serial,
-  testedDate: formattedDate, // ✅ formatted for the date input
-});
+        setForm({
+          productType: data.product_type?.id || "",
+          product_id: data.product?.id || "",
+          firmwareVersion: data.firmware_version || "",
+          testedBy: data.tested_by || data.items[0]?.tested_by || "",
+          quantity: data.quantity || "",
+          fromSerial: data.from_serial,
+          toSerial: data.to_serial,
+          testedDate: formattedDate, // ✅ formatted for the date input
+        });
 
-        const itemsWithRange = data.items.map((item) => ({
-          ...item,
-          from_serial: data.from_serial,
-          to_serial: data.to_serial,
-          quantity: 1,
-          tested_status: item.tested_status ? [item.tested_status] : ["PENDING"],
-        }));
+ const itemsWithRange = data.items.map((item) => ({
+  ...item,
+  from_serial: data.from_serial,
+  to_serial: data.to_serial,
+  quantity: 1,
+  tested_status: item.tested_status || "PENDING",
+}));
+
 
         setProducts(itemsWithRange);
       } catch (err) {
@@ -206,15 +207,14 @@ setForm({
       setProducts(updated);
     }
   };
-  const handleRowChange = (index, field, value) => {
-    const updated = [...products];
-
-    if (field === "tested_status") {
-      updated[indexOfFirst + index][field] = value; // Store as string
-    } else {
-      updated[indexOfFirst + index][field] = value;
-    }
+  const handleRowChange = (serial_no, field, value) => {
+    setProducts((prev) =>
+      prev.map((p) =>
+        p.serial_no === serial_no ? { ...p, [field]: value } : p
+      )
+    );
   };
+
 
   const handleDelete = (index) => {
     const updated = products.filter((_, i) => i !== index);
@@ -459,10 +459,8 @@ setForm({
         items: products.map((p) => ({
           serial_no: String(p.serial_no || ""), // ✅ Force string
           tested_by: p.tested_by || "",
-          tested_status:
-            Array.isArray(p.tested_status) && p.tested_status.length > 0
-              ? p.tested_status[0]
-              : "PENDING",
+          tested_status: p.tested_status || "PENDING",
+
           tested_date:
             p.tested_date || form.testedDate || new Date().toISOString().split("T")[0],
           from_serial: String(form.fromSerial || ""), // ✅ Also ensure strings
@@ -512,11 +510,11 @@ setForm({
 
   return (
     <Container className="main-container">
- 
+
 
       <Row className="align-items-center mb-3">
         <Col>
-          <h4>Edit Inventory Range</h4>
+          <h4>Edit Assemble</h4>
         </Col>
         <Col className="text-end">
           <Button
@@ -739,22 +737,21 @@ setForm({
             </thead>
             <tbody>
               {currentItems.length > 0 ? (
-                currentItems.map((product, index) => (
-                  <tr key={index}>
-                    {/* Checkbox for selecting row for deletion */}
+                currentItems.map((product) => (
+                  <tr key={product.serial_no}>
+                    {/* Checkbox for selecting row */}
                     <td className="text-center">
                       {(searchTerm || deleteFrom || deleteTo) ? (
                         <Form.Check
                           type="checkbox"
                           checked={!!selectedSerials[product.serial_no]}
-                          onChange={(e) => {
+                          onChange={(e) =>
                             setSelectedSerials((prev) => ({
                               ...prev,
                               [product.serial_no]: e.target.checked,
-                            }));
-                          }}
+                            }))
+                          }
                         />
-
                       ) : null}
                     </td>
 
@@ -763,9 +760,7 @@ setForm({
                       <Form.Control
                         type="text"
                         value={product.serial_no || ""}
-                        onChange={(e) =>
-                          handleRowChange(indexOfFirst + index, "serial_no", e.target.value)
-                        }
+                        readOnly
                       />
                     </td>
 
@@ -773,42 +768,36 @@ setForm({
                     <td>
                       <Form.Control
                         type="text"
-                        value={product.tested_by || ""}
+                        value={product.tested_by ?? ""}
+                        placeholder="Enter name"
                         onChange={(e) =>
-                          handleRowChange(indexOfFirst + index, "tested_by", e.target.value)
+                          handleRowChange(product.serial_no, "tested_by", e.target.value)
                         }
                       />
                     </td>
-                    
 
-                    {/* Test Status (Pass/Fail checkboxes) */}
+                    {/* Test Status */}
                     <td>
-                      <div className="custom-checkbox-color">
+                      <div className="d-flex align-items-center gap-2">
                         <Form.Check
                           inline
-                          label="Pass"
-                          type="checkbox"
-                          name={`status-pass-${indexOfFirst + index}`}
-                          id={`pass-${indexOfFirst + index}`}
-                          value="PASS"
-                          checked={product.tested_status?.includes("PASS") || false}
-                          onChange={(e) => {
-                            const updatedStatus = e.target.checked ? "PASS" : "PENDING";
-                            handleRowChange(indexOfFirst + index, "tested_status", updatedStatus);
-                          }}
+                          label="PASS"
+                          type="radio"
+                          name={`status-${product.serial_no}`}
+                          checked={product.tested_status === "PASS"}
+                          onChange={() =>
+                            handleRowChange(product.serial_no, "tested_status", "PASS")
+                          }
                         />
                         <Form.Check
                           inline
-                          label="Fail"
-                          type="checkbox"
-                          name={`status-fail-${indexOfFirst + index}`}
-                          id={`fail-${indexOfFirst + index}`}
-                          value="FAIL"
-                          checked={product.tested_status?.includes("FAIL") || false}
-                          onChange={(e) => {
-                            const updatedStatus = e.target.checked ? "FAIL" : "PENDING";
-                            handleRowChange(indexOfFirst + index, "tested_status", updatedStatus);
-                          }}
+                          label="FAIL"
+                          type="radio"
+                          name={`status-${product.serial_no}`}
+                          checked={product.tested_status === "FAIL"}
+                          onChange={() =>
+                            handleRowChange(product.serial_no, "tested_status", "FAIL")
+                          }
                         />
                       </div>
                     </td>
@@ -817,9 +806,10 @@ setForm({
                     <td>
                       <Form.Control
                         type="text"
-                        value={product.test_remarks || ""}
+                        value={product.test_remarks ?? ""}
+                        placeholder="Add remarks"
                         onChange={(e) =>
-                          handleRowChange(indexOfFirst + index, "test_remarks", e.target.value)
+                          handleRowChange(product.serial_no, "test_remarks", e.target.value)
                         }
                       />
                     </td>
@@ -841,6 +831,7 @@ setForm({
                 </tr>
               )}
             </tbody>
+
           </Table>
 
           <div className="d-flex justify-content-between align-items-center mt-3">
