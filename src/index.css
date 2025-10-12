@@ -242,3 +242,13 @@ button:focus {
   cursor: pointer;
   color: #6c757d;
 }
+
+.fixed-header {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  background-color: #f4f4f8;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #dee2e6; /* Optional: adds a subtle border */
+}

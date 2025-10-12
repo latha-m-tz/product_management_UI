@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Button, Form, Row, Col, Card, Spinner } from "react-bootstrap";
 import axios from "axios";
-import { ToastContainer, toast } from "react-toastify";
+import {  toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
@@ -670,7 +670,6 @@ console.log(`payload`, payload);
  
   return (
     <div className="container-fluid p-4" style={{ background: "white", minHeight: "100vh" }}>
-      <ToastContainer />
       <h5 className="mb-3">Edit Spareparts Purchase</h5>
  
       {/* Purchase Details */}

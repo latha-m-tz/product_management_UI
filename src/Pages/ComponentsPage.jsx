@@ -1,8 +1,6 @@
-// src/pages/ComponentsPage.jsx
 import React, { useState } from "react";
 import { Button } from "react-bootstrap";
 
-// Import reusable components
 import ActionButton from "../components/ActionButton";
 import BreadCrumb from "../components/BreadCrumb";
 import Card from "../components/Card";
@@ -13,7 +11,7 @@ import PageWrapper from "../components/PageWrapper";
 import Pagination from "../components/Pagination";
 import Search from "../components/Search";
 import SweetAlert from "../components/SweetAlert";
-import Toaster from "../components/Toaster";
+// import Toaster from "../components/Toaster";
 
 export default function ComponentsPage() {
   const [showLoader, setShowLoader] = useState(false);

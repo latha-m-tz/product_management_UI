@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Button, Spinner, Card, Form } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
 //import ActionButtons from "./components/ActionButtons";
@@ -270,7 +270,6 @@ export default function VendorPage() {
           totalEntries={sortedData.length}
         />
       </Card>
-      <ToastContainer />
     </div>
   );
 }
