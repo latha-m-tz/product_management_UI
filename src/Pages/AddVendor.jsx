@@ -479,7 +479,7 @@ export default function AddVendor() {
                 Pincode<span style={{ color: "red" }}> *</span>
               </Form.Label>
 
-              <Form.Control type="text" name="pincode" value={vendor.pincode} onChange={handleVendorChange}
+              <Form.Control type="number" name="pincode" value={vendor.pincode} onChange={handleVendorChange}
                 placeholder=" Enter pincode"
               />
               {vendorErrors.pincode && <div style={feedbackStyle}>{vendorErrors.pincode}</div>}
