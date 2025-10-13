@@ -8,7 +8,8 @@ import { toast } from "react-toastify";
 import { API_BASE_URL } from "../api";
 import "react-toastify/dist/ReactToastify.css";
 import { parsePhoneNumberFromString, isValidPhoneNumber } from "libphonenumber-js";
-import { useNavigate } from "react-router-dom"; // <-- import
+import { useNavigate } from "react-router-dom"; 
+import CountrySelect from "../components/CountrySelect";
 
 export default function AddCustomer() {
   const [customer, setCustomer] = useState({
@@ -45,8 +46,6 @@ export default function AddCustomer() {
 
     // Required fields
     if (!customer.customer.trim()) errs.customer = "Customer Name is required";
-    // if (!customer.gst_no.trim()) errs.gst_no = "GST No is required";
-    // else if (customer.gst_no.length !== 15) errs.gst_no = "GST No must be 15 characters";
 
 if (customer.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email)) {
   errs.email = "Invalid email format";
@@ -198,9 +197,23 @@ const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
 
   return (
     <div className="container-fluid p-4" style={{ background: "white", minHeight: "100vh" }}>
-      <h5 className="mb-3">Add Customer</h5>
+     <Row className="align-items-center mb-3 fixed-header">
+        <Col>
+          <h4>Add  customer</h4>
+        </Col>
+        <Col className="text-end">
+          <Button
+            variant="outline-secondary"
+            size="sm"
+            className="me-2"
+            onClick={() => navigate("/customer")}
+          >
+            <i className="bi bi-arrow-left"></i> Back
+          </Button>
+        </Col>
+      </Row>
 
-      <div style={{ background: "#f1f3f5", padding: "20px", borderRadius: "6px", marginBottom: "20px" }}>
+      <div style={{ background: "#f4f4f8", padding: "20px", borderRadius: "6px", marginBottom: "20px" }}>
         <Row>
           <Col md={4}>
             <Form.Group className="mb-3">
@@ -336,15 +349,27 @@ const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
             </Form.Group>
           </Col>
                <Col md={4}>
-            <Form.Group className="mb-3">
-             <Form.Label>
-  Mobile No<span style={{ color: "red" }}> *</span>
-</Form.Label>
+         <Form.Group className="mb-3">
+              <Form.Label>
+                Mobile No<span style={{ color: "red" }}> *</span>
+              </Form.Label>
 
-              <PhoneInput international 
-                  defaultCountry="IN" 
-              className="form-control" value={customer.mobile_no} onChange={handleMobileChange} />
-              {errors.mobile_no && <div style={feedbackStyle}>{errors.mobile_no}</div>}
+              <PhoneInput
+                international
+                defaultCountry={countryCode || undefined}
+                value={customer.mobile_no}
+                onChange={handleMobileChange}
+                className="form-control"
+                placeholder="Enter mobile number"
+                countrySelectComponent={CountrySelect}
+              />
+
+
+              {errors.mobile_no && (
+                <div style={{ color: "red", fontSize: "0.85rem", marginTop: "4px" }}>
+                  {errors.mobile_no}
+                </div>
+              )}
             </Form.Group>
           </Col>
           <Col md={4}>

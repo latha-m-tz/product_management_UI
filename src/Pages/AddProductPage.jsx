@@ -1,10 +1,11 @@
-// src/pages/AddProductPage.jsx
 import React, { useState, useEffect } from "react";
 import { Button, Spinner, Form, Card, Table, Row, Col } from "react-bootstrap";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../api";
 import Pagination from "../components/Pagination";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css"; // make sure you import this
 
 export default function AddProductPage({ onProductsSelected }) {
   const navigate = useNavigate();
@@ -51,6 +52,7 @@ export default function AddProductPage({ onProductsSelected }) {
     } catch (err) {
       console.error("Error fetching products:", err);
       setProducts([]);
+      toast.error("Failed to fetch products");
     }
   };
 
@@ -64,82 +66,64 @@ export default function AddProductPage({ onProductsSelected }) {
       setAlreadySoldSerials(soldSerials);
     } catch (err) {
       setAlreadySoldSerials([]);
+      toast.error("Failed to fetch sold serials");
     }
   };
 
-  // ✅ Fetch serials for a specific product
-  const fetchSerials = async (productId) => {
+  // Fetch testing data (filtered)
+  const fetchTestingData = async () => {
     try {
-      const res = await axios.get(`${API_BASE_URL}/product/${productId}/serials`);
-      if (Array.isArray(res.data) && res.data.length > 0) {
-        setSerials(res.data);
+      setLoading(true);
+      let records = [];
+
+      if (selectedProductId) {
+        const res = await axios.get(`${API_BASE_URL}/products/${selectedProductId}/serials`);
+        records = Array.isArray(res.data) ? res.data : [];
       } else {
-        setSerials([]); // empty if no serials found
+        const params = {};
+        if (serialFrom) params.serial_from = serialFrom;
+        if (serialTo) params.serial_to = serialTo;
+        const res = await axios.get(`${API_BASE_URL}/inventory/serial-numbers`, { params });
+        records = Array.isArray(res.data) ? res.data : res.data?.data ?? [];
       }
+
+      // Normalize product_id
+      records = records.map((r) => ({
+        ...r,
+        product_id: r.product_id ?? r.productId ?? r.productID ?? selectedProductId ?? null,
+      }));
+
+      // Exclude already sold serials
+      records = records.filter(
+        (r) => r.serial_no && !alreadySoldSerials.includes(String(r.serial_no).trim())
+      );
+
+      // Apply serial range
+      const from = serialFrom ? Number(serialFrom) : null;
+      const to = serialTo ? Number(serialTo) : null;
+      if (from !== null)
+        records = records.filter((r) => !isNaN(r.serial_no) && Number(r.serial_no) >= from);
+      if (to !== null)
+        records = records.filter((r) => !isNaN(r.serial_no) && Number(r.serial_no) <= to);
+
+      // Apply test filter
+      if (testFilter) {
+        records = records.filter(
+          (r) => String(r.tested_status).toUpperCase() === testFilter.toUpperCase()
+        );
+      }
+
+      setTestingData(records);
+      setSelectedSerials((prev) => prev.filter((s) => records.some((r) => r.id === s)));
+      setCurrentPage(1);
     } catch (err) {
-      console.error("Error fetching serials:", err);
-      setSerials([]);
+      console.error("Error fetching testing data:", err);
+      setTestingData([]);
+      toast.error("Failed to fetch product serials");
+    } finally {
+      setLoading(false);
     }
   };
-
-  // Fetch testing data (filtered by product, serial range, test status)
-const fetchTestingData = async () => {
-  try {
-    setLoading(true);
-    let records = [];
-
-    if (selectedProductId) {
-      // ✅ directly fetch serials here instead of using setSerials()
-      const res = await axios.get(`${API_BASE_URL}/products/${selectedProductId}/serials`);
-      records = Array.isArray(res.data) ? res.data : [];
-    } else {
-      // Otherwise fetch all inventory
-      const params = {};
-      if (serialFrom) params.serial_from = serialFrom;
-      if (serialTo) params.serial_to = serialTo;
-      const res = await axios.get(`${API_BASE_URL}/inventory/serial-numbers`, { params });
-      records = Array.isArray(res.data) ? res.data : res.data?.data ?? [];
-    }
-
-    // Normalize product_id
-    records = records.map((r) => ({
-      ...r,
-      product_id: r.product_id ?? r.productId ?? r.productID ?? selectedProductId ?? null,
-    }));
-
-    // Exclude already sold serials
-    records = records.filter(
-      (r) => r.serial_no && !alreadySoldSerials.includes(String(r.serial_no).trim())
-    );
-
-    // Apply serial range
-    const from = serialFrom ? Number(serialFrom) : null;
-    const to = serialTo ? Number(serialTo) : null;
-    if (from !== null)
-      records = records.filter((r) => !isNaN(r.serial_no) && Number(r.serial_no) >= from);
-    if (to !== null)
-      records = records.filter((r) => !isNaN(r.serial_no) && Number(r.serial_no) <= to);
-
-    // Apply test filter
-    if (testFilter) {
-      records = records.filter(
-        (r) => String(r.tested_status).toUpperCase() === testFilter.toUpperCase()
-      );
-    }
-
-    setTestingData(records);
-
-    // Keep only valid selections
-    setSelectedSerials((prev) => prev.filter((s) => records.some((r) => r.id === s)));
-    setCurrentPage(1);
-  } catch (err) {
-    console.error("Error fetching testing data:", err);
-    setTestingData([]);
-  } finally {
-    setLoading(false);
-  }
-};
-
 
   // Checkbox handlers
   const handleCheckboxChange = (id) =>
@@ -148,7 +132,6 @@ const fetchTestingData = async () => {
   const handleUnselectAll = () => setSelectedSerials([]);
   const handleSelectAll = () => setSelectedSerials(testingData.map((item) => item.id));
 
-  // Unselect range
   const handleUnselectRange = () => {
     if (!unselectFrom || !unselectTo) return;
     const from = Number(unselectFrom);
@@ -161,6 +144,7 @@ const fetchTestingData = async () => {
         return !(num >= from && num <= to);
       })
     );
+    toast.info(`Unselected serials from ${from} to ${to}`);
     setUnselectFrom("");
     setUnselectTo("");
   };
@@ -168,12 +152,13 @@ const fetchTestingData = async () => {
   // Submit
   const handleSubmit = () => {
     if (!selectedSerials.length) {
-      alert("Please select at least one product!");
+      toast.warning("Please select at least one product!");
       return;
     }
     const selectedProducts = testingData.filter((item) => selectedSerials.includes(item.id));
     localStorage.setItem("selectedProducts", JSON.stringify(selectedProducts));
     if (onProductsSelected) onProductsSelected(selectedProducts);
+    toast.success(`${selectedProducts.length} product(s) added successfully!`);
     navigate(-1);
   };
 
@@ -190,13 +175,13 @@ const fetchTestingData = async () => {
     return "N/A";
   };
 
-  // Reset filters
   const handleReset = () => {
     setSerialFrom("");
     setSerialTo("");
     setTestFilter("");
     setSelectedProductId("");
     setSerials([]);
+    toast.info("Filters reset");
   };
 
   // Effects
@@ -284,13 +269,7 @@ const fetchTestingData = async () => {
                 </tbody>
               </Table>
 
-              {/* Pagination */}
-              <Pagination
-                page={currentPage}
-                setPage={setCurrentPage}
-                perPage={perPage}
-                totalEntries={testingData.length}
-              />
+              <Pagination page={currentPage} setPage={setCurrentPage} perPage={perPage} totalEntries={testingData.length} />
             </>
           )}
 

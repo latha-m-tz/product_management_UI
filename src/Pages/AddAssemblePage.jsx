@@ -69,6 +69,8 @@ export default function AddAssemblePage() {
     const [serialSearchType, setSerialSearchType] = useState('single'); // 'single' or 'range'
     const [fromSerialSearch, setFromSerialSearch] = useState('');
     const [toSerialSearch, setToSerialSearch] = useState('');
+    const [isAddDisabled, setIsAddDisabled] = useState(false);
+
     useEffect(() => {
         axios.get(`${API_BASE_URL}/product`) // replace with your real API
             .then(res => setAllProducts(res.data))
@@ -86,16 +88,14 @@ export default function AddAssemblePage() {
         const min = Math.min(from, to);
         const max = Math.max(from, to);
 
-        const updated = products.filter(p => {
-            const snNum = parseInt(p.serial_no.match(/\d+/)?.[0], 10);
-
-            // ✅ Only delete if inside range AND still checked
-            if (!isNaN(snNum) && snNum >= min && snNum <= max) {
-                return !checkedForDelete[p.serial_no];
-            }
-            return true; // keep others outside range
-        });
-
+const updated = products.filter(p => {
+  if (!p || !p.serial_no) return true; // ✅ keep safe
+  const snNum = parseInt(p.serial_no.match(/\d+/)?.[0], 10);
+  if (!isNaN(snNum) && snNum >= min && snNum <= max) {
+    return !checkedForDelete[p.serial_no];
+  }
+  return true;
+});
         setProducts(updated);
         setCheckedForDelete({});
         setFromSerialSearch("");
@@ -112,13 +112,13 @@ export default function AddAssemblePage() {
                 const max = Math.max(from, to);
 
                 const updatedChecks = {};
-                products.forEach(p => {
-                    const snNum = parseInt(p.serial_no.match(/\d+/)?.[0], 10);
-                    if (!isNaN(snNum) && snNum >= min && snNum <= max) {
-                        updatedChecks[p.serial_no] = true; // ✅ default checked
-                    }
-                });
-
+             products.forEach(p => {
+  if (!p || !p.serial_no) return; // ✅ skip invalid entries
+  const snNum = parseInt(p.serial_no.match(/\d+/)?.[0], 10);
+  if (!isNaN(snNum) && snNum >= min && snNum <= max) {
+    updatedChecks[p.serial_no] = true;
+  }
+});
                 setCheckedForDelete(updatedChecks);
             }
         }
@@ -132,28 +132,24 @@ export default function AddAssemblePage() {
     }, []);
 
 
-    // useEffect(() => {
-    //     if (form.productType) {
-    //         const selectedType = productTypes.find(pt => pt.id === parseInt(form.productType, 10));
-    //         if (selectedType && Array.isArray(selectedType.products)) {
-    //             setProductOptions(selectedType.products);
-    //         } else {
-    //             setProductOptions([]);
-    //         }
-    //     } else {
-    //         setProductOptions([]);
-    //     }
-    // }, [form.productType, productTypes]);
+
     useEffect(() => {
         if (form.productType) {
-            const filteredProducts = allProducts.filter(product =>
-                product.product_types.some(pt => pt.id === parseInt(form.productType, 10))
+            // Find the product for the selected product type
+            const selectedType = productTypes.find(
+                (pt) => pt.id === parseInt(form.productType, 10)
             );
-            setProductOptions(filteredProducts);
+
+            if (selectedType && selectedType.product) {
+                setProductOptions([selectedType.product]);
+            } else {
+                setProductOptions([]);
+            }
         } else {
+            // If no type selected, show all products
             setProductOptions(allProducts);
         }
-    }, [form.productType, allProducts]);
+    }, [form.productType, productTypes, allProducts]);
 
     const customStyles = {
         control: (provided) => ({
@@ -178,22 +174,39 @@ export default function AddAssemblePage() {
         }),
     };
 
+const handleChange = (e) => {
+    const { name, value } = e.target;
 
-    const handleChange = (e) => {
-        setErrors({ ...errors, [e.target.name]: "" });
-        setForm({ ...form, [e.target.name]: e.target.value });
-    };
+    if (name === "product_id") {
+        const [productId, productTypeId] = value.split("|");
+        setForm((prev) => ({
+            ...prev,
+            product_id: productId || "",
+            productType: productTypeId || "",
+        }));
+    } else {
+        setForm((prev) => ({
+            ...prev,
+            [name]: value,
+        }));
+    }
+
+    // ✅ Enable Add Product button whenever input changes
+    setIsAddDisabled(false);
+};
+
+
 
     const handleScan = (serialNumber) => {
-        const newProduct = {
-            serial_no: serialNumber,
-            tested_by: form.testedBy,
-            tested_status: ["PASS"],
-            test_remarks: "",
-            from_serial: serialNumber,
-            to_serial: serialNumber,
-            quantity: 1,
-        };
+       const newProduct = {
+  serial_no: serialNumber || "", // ensure always string
+  tested_by: form.testedBy || "",
+  tested_status: ["PASS"],
+  test_remarks: "",
+  from_serial: serialNumber || "",
+  to_serial: serialNumber || "",
+  quantity: 1,
+};
 
         setProducts((prevProducts) => {
             const updatedProducts = [...prevProducts, newProduct];
@@ -226,86 +239,88 @@ export default function AddAssemblePage() {
         }
         return true;
     };
-    const handleAddProduct = () => {
-        const { fromSerial, toSerial, testedBy } = form;
-        let newErrors = {};
+const handleAddProduct = () => {
+  const { fromSerial, toSerial, testedBy } = form;
+  let newErrors = {};
 
-        if (!form.productType) newErrors.productType = "Product Type is required.";
-        if (!form.product_id) newErrors.product_id = "Product is required.";
-        if (!fromSerial) newErrors.fromSerial = "From Serial is required.";
-        if (!toSerial) newErrors.toSerial = "To Serial is required.";
+  if (!form.productType) newErrors.productType = "Product Type is required.";
+  if (!form.product_id) newErrors.product_id = "Product is required.";
+  if (!fromSerial) newErrors.fromSerial = "From Serial is required.";
+  if (!toSerial) newErrors.toSerial = "To Serial is required.";
 
-        if (Object.keys(newErrors).length > 0) {
-            setErrors(newErrors);
-            return;
+  if (Object.keys(newErrors).length > 0) {
+    setErrors(newErrors);
+    return;
+  }
+
+  // Extract numeric parts
+  const prefix = fromSerial.match(/[^\d]+/)?.[0] || "";
+  const start = parseInt(fromSerial.match(/\d+/)?.[0], 10);
+  const end = parseInt(toSerial.match(/\d+/)?.[0], 10);
+
+  // ✅ Validate range direction
+  if (isNaN(start) || isNaN(end) || start > end) {
+    toast.error("Invalid serial range! 'From Serial' must be less than or equal to 'To Serial'.");
+    return;
+  }
+
+  // Check duplicates
+  const existingSerials = products.map(p => p.serial_no);
+  for (let i = start; i <= end; i++) {
+    const serial = `${prefix}${i.toString().padStart(fromSerial.length - prefix.length, "0")}`;
+    if (existingSerials.includes(serial)) {
+      toast.warn(`Serial ${serial} already added`);
+      return;
+    }
+  }
+
+  // Create new products
+  const newProducts = [];
+  for (let i = start; i <= end; i++) {
+    const serial = `${prefix}${i.toString().padStart(fromSerial.length - prefix.length, "0")}`;
+    newProducts.push({
+      serial_no: serial,
+      tested_by: testedBy,
+      tested_status: ["PASS"],
+      test_remarks: "",
+      from_serial: fromSerial,
+      to_serial: toSerial,
+      quantity: 1,
+    });
+  }
+
+  const updatedProducts = [...products, ...newProducts];
+  setProducts(updatedProducts);
+
+  // ✅ Safe update of form fields
+  setForm(prev => ({
+    ...prev,
+    fromSerial: updatedProducts[0]?.serial_no || fromSerial,
+    toSerial: updatedProducts[updatedProducts.length - 1]?.serial_no || toSerial,
+    quantity: updatedProducts.length,
+  }));
+
+  setErrors({});
+  setIsAddDisabled(true);
+};
+
+const disableAdd = (() => {
+    if (!form.fromSerial || !form.toSerial) return true;
+
+    const prefix = form.fromSerial.match(/[^\d]+/)?.[0] || "";
+    const start = parseInt(form.fromSerial.match(/\d+/)?.[0], 10);
+    const end = parseInt(form.toSerial.match(/\d+/)?.[0], 10);
+
+    for (let i = start; i <= end; i++) {
+        const serial = `${prefix}${i.toString().padStart(form.fromSerial.length - prefix.length, "0")}`;
+        if (products.some(p => p.serial_no === serial)) {
+            return true; // Disable if already added
         }
+    }
 
-        // If single serial
-        if (fromSerial === toSerial) {
-            const newProduct = {
-                serial_no: fromSerial,
-                tested_by: testedBy,
-                tested_status: ["PASS"],
-                test_remarks: "",
-                from_serial: fromSerial,
-                to_serial: toSerial,
-                quantity: 1,
-            };
+    return false;
+})();
 
-            setProducts((prevProducts) => {
-                const updatedProducts = [...prevProducts, newProduct];
-
-                // Update form values
-                setForm((prev) => ({
-                    ...prev,
-                    fromSerial: updatedProducts[0]?.serial_no || fromSerial,
-                    toSerial: updatedProducts[updatedProducts.length - 1]?.serial_no || toSerial,
-                    quantity: updatedProducts.length,
-                }));
-
-                return updatedProducts;
-            });
-
-            setErrors({});
-            return;
-        }
-
-        // Existing range logic for multiple serials
-        if (!validateSerialRange(fromSerial, toSerial)) {
-            setErrors({ fromSerial: "Invalid serial range", toSerial: "Invalid serial range" });
-            return;
-        }
-
-        const prefix = fromSerial.match(/[^\d]+/)?.[0] || "";
-        const start = parseInt(fromSerial.match(/\d+/)?.[0], 10);
-        const end = parseInt(toSerial.match(/\d+/)?.[0], 10);
-
-        const newProducts = [];
-        for (let i = start; i <= end; i++) {
-            const serial = `${prefix}${i.toString().padStart(fromSerial.length - prefix.length, "0")}`;
-            newProducts.push({
-                serial_no: serial,
-                tested_by: testedBy,
-                tested_status: ["PASS"],
-                test_remarks: "",
-                from_serial: fromSerial,
-                to_serial: toSerial,
-                quantity: 1,
-            });
-        }
-
-        const updatedProducts = [...products, ...newProducts];
-        setProducts(updatedProducts);
-
-        setForm((prev) => ({
-            ...prev,
-            fromSerial: updatedProducts[0].serial_no,
-            toSerial: updatedProducts[updatedProducts.length - 1].serial_no,
-            quantity: updatedProducts.length,
-        }));
-
-        setErrors({});
-    };
 
 
 
@@ -531,51 +546,31 @@ export default function AddAssemblePage() {
                 </div>
                 <Row className="mb-3 g-3">
                     <Col md={4}>
-                        <Form.Group>
-                            {/* ✅ Product Type */}
-                            <RequiredLabel>Product Type</RequiredLabel>
-                            <Form.Select
-                                name="productType"
-                                value={form.productType}
-                                onChange={handleChange}
-                                isInvalid={!!errors.productType}
-                            >
-                                <option value="">Select Product Type</option>
-                                {productTypes.map((pt) => (
-                                    <option key={pt.id} value={pt.id}>
-                                        {pt.name}
-                                    </option>
-                                ))}
-                            </Form.Select>
-                            <Form.Control.Feedback type="invalid">
-                                {errors.productType}
-                            </Form.Control.Feedback>
-                        </Form.Group>
+<Form.Group>
+  <Form.Label>Select Product</Form.Label>
+  <Form.Select
+    name="product_id"
+    value={
+      form.product_id && form.productType
+        ? `${form.product_id}|${form.productType}`
+        : ""
+    }
+    onChange={handleChange}
+  >
+    <option value="">Select Product</option>
+    {productTypes.map((pt) => (
+      <option
+        key={pt.product.id}
+        value={`${pt.product.id}|${pt.id}`} // 👈 include both ids
+      >
+        {pt.name} ({pt.product.name})
+      </option>
+    ))}
+  </Form.Select>
+</Form.Group>
                     </Col>
-                    <Col md={4}>
-                        <Form.Group>
-                            {/* ✅ Product */}
-                            <RequiredLabel>Product</RequiredLabel>
-                            <Form.Select
-                                name="product_id"
-                                value={form.product_id}
-                                onChange={handleChange}
-                                isInvalid={!!errors.product_id}
-                            >
-                                <option value="">Select Product</option>
-                                {displayedProducts.map((p) => (
-                                    <option key={p.id} value={p.id}>
-                                        {p.name}
-                                    </option>
-                                ))}
-                            </Form.Select>
 
 
-                            <Form.Control.Feedback type="invalid">
-                                {errors.product_id}
-                            </Form.Control.Feedback>
-                        </Form.Group>
-                    </Col>
                     <Col md={4}>
                         <Form.Group>
                             <Form.Label>Firmware Version</Form.Label>
@@ -586,10 +581,13 @@ export default function AddAssemblePage() {
                                 isInvalid={!!errors.firmwareVersion}
                                 placeholder="Enter Firmware Version"
                             />
-                            <Form.Control.Feedback type="invalid">{errors.firmwareVersion}</Form.Control.Feedback>
+                            <Form.Control.Feedback type="invalid">
+                                {errors.firmwareVersion}
+                            </Form.Control.Feedback>
                         </Form.Group>
                     </Col>
                 </Row>
+
                 <Row className="mb-3 g-3">
                     <Col md={4}>
                         <Form.Group>
@@ -648,9 +646,16 @@ export default function AddAssemblePage() {
                         </Form.Group>
                     </Col>
                     <Col md={2}>
-                        <Button variant="success" onClick={handleAddProduct} className="w-100">
-                            + Add Product
-                        </Button>
+<Button
+  variant="success"
+  size="sm"
+  onClick={handleAddProduct}
+  className="w-10"
+  disabled={isAddDisabled}
+>
+  + Add Product
+</Button>
+
                     </Col>
                 </Row>
             </Card>

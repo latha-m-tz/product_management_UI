@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { Button, Form, Card, Table, Spinner } from "react-bootstrap";
+import { Button, Form, Card, Table, Spinner, Row, Col } from "react-bootstrap";
 import { toast } from "react-toastify";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
@@ -9,6 +9,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import { API_BASE_URL } from "../api";
 import Breadcrumb from "../components/BreadCrumb";
 import { useNavigate, useParams } from "react-router-dom";
+import { IoTrashOutline } from "react-icons/io5";
 
 export default function EditSalesPage() {
   const navigate = useNavigate();
@@ -23,6 +24,13 @@ export default function EditSalesPage() {
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState([]);
   const [formErrors, setFormErrors] = useState({});
+
+  // ✅ Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedItems = items.slice(startIndex, endIndex);
 
   const MySwal = withReactContent(Swal);
 
@@ -94,19 +102,23 @@ export default function EditSalesPage() {
   // Form validation
   const validateForm = () => {
     const errors = {};
-    if (!customerId || parseInt(customerId) <= 0) errors.customerId = "Customer is required";
+    if (!customerId || parseInt(customerId) <= 0)
+      errors.customerId = "Customer is required";
     if (!challanNo.trim()) errors.challanNo = "Challan No is required";
     if (!challanDate) errors.challanDate = "Challan Date is required";
     if (!shipmentDate) errors.shipmentDate = "Shipment Date is required";
     else if (new Date(shipmentDate) < new Date(challanDate))
       errors.shipmentDate = "Shipment Date cannot be before Challan Date";
-    if (!shipmentName.trim()) errors.shipmentName = "Shipment Name is required";
+    if (!shipmentName.trim())
+      errors.shipmentName = "Shipment Name is required";
     if (items.length === 0) errors.items = "Please add at least one product";
     else {
       const serials = new Set();
       items.forEach((item, index) => {
-        if (!item.serialNo.trim()) errors[`serialNo_${index}`] = "Serial No is required";
-        if (serials.has(item.serialNo)) errors[`serialNo_${index}`] = `Duplicate Serial No: ${item.serialNo}`;
+        if (!item.serialNo.trim())
+          errors[`serialNo_${index}`] = "Serial No is required";
+        if (serials.has(item.serialNo))
+          errors[`serialNo_${index}`] = `Duplicate Serial No: ${item.serialNo}`;
         serials.add(item.serialNo);
         if (!item.quantity || parseInt(item.quantity) <= 0)
           errors[`quantity_${index}`] = "Quantity must be greater than 0";
@@ -146,7 +158,7 @@ export default function EditSalesPage() {
     }
   };
 
-  // Update field and clear error dynamically
+  // Update field
   const handleChange = (field, value) => {
     switch (field) {
       case "customerId":
@@ -177,13 +189,12 @@ export default function EditSalesPage() {
     }
   };
 
-  // Update item and clear its error dynamically
+  // Update item
   const handleItemChange = (index, field, value) => {
     const newItems = [...items];
     newItems[index][field] = value;
     setItems(newItems);
 
-    // Clear field error
     setFormErrors((prev) => {
       const updated = { ...prev };
       if (field === "serialNo") delete updated[`serialNo_${index}`];
@@ -194,8 +205,6 @@ export default function EditSalesPage() {
 
   const removeItem = (index) => {
     setItems(items.filter((_, i) => i !== index));
-
-    // Remove errors for deleted item
     setFormErrors((prev) => {
       const updated = { ...prev };
       delete updated[`serialNo_${index}`];
@@ -206,12 +215,27 @@ export default function EditSalesPage() {
 
   return (
     <div className="container-fluid px-4 py-4 bg-light min-vh-100">
-      <Breadcrumb title="Edit Sale" />
-      <Card className="border-0 shadow-sm rounded-3 bg-white">
+      <Row className="align-items-center mb-3 fixed-header">
+        <Col>
+          <h4>Edit Sale</h4>
+        </Col>
+        <Col className="text-end">
+          <Button
+            variant="outline-secondary"
+            size="sm"
+            className="me-2"
+            onClick={() => navigate("/sales-order")}
+          >
+            <i className="bi bi-arrow-left"></i> Back
+          </Button>
+        </Col>
+      </Row>
+
+      <Card className="border-0 shadow-sm rounded-3" style={{ backgroundColor: "#f4f4f8" }}>
         <Card.Body>
           <Form>
+            {/* Customer / Challan / Shipment Details */}
             <div className="row g-3">
-              {/* Customer */}
               <div className="col-md-6">
                 <Form.Group className="mb-3">
                   <Form.Label>Customer</Form.Label>
@@ -237,7 +261,6 @@ export default function EditSalesPage() {
                 </Form.Group>
               </div>
 
-              {/* Challan No */}
               <div className="col-md-6">
                 <Form.Group>
                   <Form.Label>Challan No</Form.Label>
@@ -254,7 +277,6 @@ export default function EditSalesPage() {
                 </Form.Group>
               </div>
 
-              {/* Dates */}
               <div className="col-md-6">
                 <Form.Group>
                   <Form.Label>Challan Date</Form.Label>
@@ -269,6 +291,7 @@ export default function EditSalesPage() {
                   </Form.Control.Feedback>
                 </Form.Group>
               </div>
+
               <div className="col-md-6">
                 <Form.Group>
                   <Form.Label>Shipment Date</Form.Label>
@@ -284,7 +307,6 @@ export default function EditSalesPage() {
                 </Form.Group>
               </div>
 
-              {/* Shipment Name */}
               <div className="col-md-6">
                 <Form.Group>
                   <Form.Label>Shipment Name</Form.Label>
@@ -301,7 +323,6 @@ export default function EditSalesPage() {
                 </Form.Group>
               </div>
 
-              {/* Notes */}
               <div className="col-12">
                 <Form.Group>
                   <Form.Label>Notes</Form.Label>
@@ -315,7 +336,7 @@ export default function EditSalesPage() {
               </div>
             </div>
 
-            {/* Products */}
+            {/* Products Table */}
             <div className="mt-4">
               <Form.Label>Products</Form.Label>
               <Button
@@ -338,50 +359,87 @@ export default function EditSalesPage() {
               >
                 + Add Product
               </Button>
+
               {formErrors.items && <div className="text-danger mb-2">{formErrors.items}</div>}
+
               {items.length > 0 && (
-                <Table striped bordered hover size="sm">
-                  <thead>
-                    <tr>
-                      <th>Serial No</th>
-                      <th>Quantity</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {items.map((item, index) => (
-                      <tr key={index}>
-                        <td>
-                          <Form.Control
-                            type="text"
-                            value={item.serialNo}
-                            isInvalid={!!formErrors[`serialNo_${index}`]}
-                            onChange={(e) => handleItemChange(index, "serialNo", e.target.value)}
-                          />
-                          <Form.Control.Feedback type="invalid">
-                            {formErrors[`serialNo_${index}`]}
-                          </Form.Control.Feedback>
-                        </td>
-                        <td>
-                          <Form.Control
-                            type="number"
-                            value={item.quantity}
-                            isInvalid={!!formErrors[`quantity_${index}`]}
-                            onChange={(e) => handleItemChange(index, "quantity", e.target.value)}
-                          />
-                          <Form.Control.Feedback type="invalid">
-                            {formErrors[`quantity_${index}`]}
-                          </Form.Control.Feedback>
-                        </td>
-                        <td>
-                          <Button variant="danger" size="sm" onClick={() => removeItem(index)}>
-                            Remove
-                          </Button>
-                        </td>
+                <>
+                  <Table striped bordered hover size="sm">
+                    <thead>
+                      <tr>
+                        <th>Serial No</th>
+                        {/* <th>Quantity</th> */}
+                        <th>Action</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </Table>
+                    </thead>
+                    <tbody>
+                      {paginatedItems.map((item, index) => (
+                        <tr key={startIndex + index}>
+                          <td>
+                            <Form.Control
+                              type="text"
+                              value={item.serialNo}
+                              isInvalid={!!formErrors[`serialNo_${startIndex + index}`]}
+                              onChange={(e) =>
+                                handleItemChange(startIndex + index, "serialNo", e.target.value)
+                              }
+                            />
+                            <Form.Control.Feedback type="invalid">
+                              {formErrors[`serialNo_${startIndex + index}`]}
+                            </Form.Control.Feedback>
+                          </td>
+                          {/* <td>
+                            <Form.Control
+                              type="number"
+                              value={item.quantity}
+                              isInvalid={!!formErrors[`quantity_${startIndex + index}`]}
+                              onChange={(e) =>
+                                handleItemChange(startIndex + index, "quantity", e.target.value)
+                              }
+                            />
+                            <Form.Control.Feedback type="invalid">
+                              {formErrors[`quantity_${startIndex + index}`]}
+                            </Form.Control.Feedback>
+                          </td> */}
+                          <td>
+                            <Button
+                              variant="outline-danger"
+                              size="sm"
+                              onClick={() => removeItem(startIndex + index)}
+                            >
+                              <IoTrashOutline />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+
+                  {/* ✅ Pagination Controls */}
+                  <div className="d-flex justify-content-between align-items-center">
+                    <Button
+                      variant="outline-secondary"
+                      size="sm"
+                      disabled={currentPage === 1}
+                      onClick={() => setCurrentPage((prev) => prev - 1)}
+                    >
+                      &laquo; Previous
+                    </Button>
+
+                    <span>
+                      Page {currentPage} of {Math.ceil(items.length / itemsPerPage)}
+                    </span>
+
+                    <Button
+                      variant="outline-secondary"
+                      size="sm"
+                      disabled={currentPage === Math.ceil(items.length / itemsPerPage)}
+                      onClick={() => setCurrentPage((prev) => prev + 1)}
+                    >
+                      Next &raquo;
+                    </Button>
+                  </div>
+                </>
               )}
             </div>
 

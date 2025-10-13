@@ -160,14 +160,13 @@ export default function EditAssemblePage() {
           testedDate: formattedDate, // ✅ formatted for the date input
         });
 
- const itemsWithRange = data.items.map((item) => ({
-  ...item,
-  from_serial: data.from_serial,
-  to_serial: data.to_serial,
-  quantity: 1,
-  tested_status: item.tested_status || "PENDING",
-}));
-
+        const itemsWithRange = data.items.map((item) => ({
+          ...item,
+          from_serial: data.from_serial,
+          to_serial: data.to_serial,
+          quantity: 1,
+          tested_status: item.tested_status ? [item.tested_status] : ["PENDING"],
+        }));
 
         setProducts(itemsWithRange);
       } catch (err) {
@@ -207,12 +206,10 @@ export default function EditAssemblePage() {
       setProducts(updated);
     }
   };
-  const handleRowChange = (serial_no, field, value) => {
-    setProducts((prev) =>
-      prev.map((p) =>
-        p.serial_no === serial_no ? { ...p, [field]: value } : p
-      )
-    );
+  const handleRowChange = (index, field, value) => {
+    const updated = [...products];
+    updated[index][field] = value;
+    setProducts(updated);
   };
 
 
@@ -459,8 +456,10 @@ export default function EditAssemblePage() {
         items: products.map((p) => ({
           serial_no: String(p.serial_no || ""), // ✅ Force string
           tested_by: p.tested_by || "",
-          tested_status: p.tested_status || "PENDING",
-
+          tested_status:
+            Array.isArray(p.tested_status) && p.tested_status.length > 0
+              ? p.tested_status[0]
+              : "PENDING",
           tested_date:
             p.tested_date || form.testedDate || new Date().toISOString().split("T")[0],
           from_serial: String(form.fromSerial || ""), // ✅ Also ensure strings
@@ -512,23 +511,23 @@ export default function EditAssemblePage() {
     <Container className="main-container">
 
 
-      <Row className="align-items-center mb-3">
-        <Col>
-          <h4>Edit Assemble</h4>
-        </Col>
-        <Col className="text-end">
-          <Button
-            variant="outline-secondary"
-            size="sm"
-            className="me-2"
-            onClick={() => navigate("/assemble")}
-          >
-            <i className="bi bi-arrow-left"></i> Back
-          </Button>
-        </Col>
-      </Row>
+     <Row className="align-items-center mb-3 fixed-header">
+                  <Col>
+                      <h4>Edit New Inventory</h4>
+                  </Col>
+                  <Col className="text-end">
+                      <Button
+                          variant="outline-secondary"
+                          size="sm"
+                          className="me-2"
+                          onClick={() => navigate("/assemble")}
+                      >
+                          <i className="bi bi-arrow-left"></i> Back
+                      </Button>
+                  </Col>
+              </Row>
 
-      <Card className="p-4 mb-3" style={{ position: "relative" }}>
+      <Card className="p-4 mb-3" style={{ position: "relative", backgroundColor: "rgb(244, 244, 248)" }}>
         <h5 className="mb-4">Product Details</h5>
 
         <div className="qr-scanner-button" onClick={() => setShowQrScanner(true)}>
@@ -586,6 +585,7 @@ export default function EditAssemblePage() {
               <Form.Control
                 name="fromSerial"
                 value={form.fromSerial}
+                readOnly
                 onChange={handleChange}
                 isInvalid={!!errors.fromSerial}
               />
@@ -598,6 +598,7 @@ export default function EditAssemblePage() {
               <Form.Control
                 name="toSerial"
                 value={form.toSerial}
+                readOnly
                 onChange={handleChange}
                 isInvalid={!!errors.toSerial}
               />
@@ -631,9 +632,9 @@ export default function EditAssemblePage() {
             </Form.Group>
           </Col>
           <Col md={2} className="d-flex align-items-end">
-            <Button variant="success" onClick={handleAddProductRange} className="w-100">
+            {/* <Button variant="success" onClick={handleAddProductRange} className="w-100">
               Add product
-            </Button>
+            </Button> */}
           </Col>
         </Row>
       </Card>
@@ -737,14 +738,16 @@ export default function EditAssemblePage() {
             </thead>
             <tbody>
               {currentItems.length > 0 ? (
-                currentItems.map((product) => (
-                  <tr key={product.serial_no}>
-                    {/* Checkbox for selecting row */}
-                    <td className="text-center">
-                      {(searchTerm || deleteFrom || deleteTo) ? (
+                currentItems.map((product, idx) => {
+                  const absoluteIndex = indexOfFirst + idx; // absolute index in products
+                  return (
+                    <tr key={product.serial_no}>
+                      <td className="text-center">
                         <Form.Check
                           type="checkbox"
                           checked={!!selectedSerials[product.serial_no]}
+                          className="custom-checkbox-color"
+
                           onChange={(e) =>
                             setSelectedSerials((prev) => ({
                               ...prev,
@@ -752,77 +755,81 @@ export default function EditAssemblePage() {
                             }))
                           }
                         />
-                      ) : null}
-                    </td>
+                      </td>
 
-                    {/* Serial Number */}
-                    <td>
-                      <Form.Control
-                        type="text"
-                        value={product.serial_no || ""}
-                        readOnly
-                      />
-                    </td>
+                      <td>
+                        <Form.Control
+                          type="text"
+                          value={product.serial_no || ""}
+                          className="custom-checkbox-color"
 
-                    {/* Tested By */}
-                    <td>
-                      <Form.Control
-                        type="text"
-                        value={product.tested_by ?? ""}
-                        placeholder="Enter name"
-                        onChange={(e) =>
-                          handleRowChange(product.serial_no, "tested_by", e.target.value)
-                        }
-                      />
-                    </td>
+                          onChange={(e) =>
+                            handleRowChange(absoluteIndex, "serial_no", e.target.value)
+                          }
+                        />
+                      </td>
 
-                    {/* Test Status */}
-                    <td>
-                      <div className="d-flex align-items-center gap-2">
+                      <td>
+                        <Form.Control
+                          type="text"
+                          value={product.tested_by || ""}
+                          onChange={(e) =>
+                            handleRowChange(absoluteIndex, "tested_by", e.target.value)
+                          }
+                        />
+                      </td>
+
+                      <td>
                         <Form.Check
                           inline
-                          label="PASS"
-                          type="radio"
-                          name={`status-${product.serial_no}`}
-                          checked={product.tested_status === "PASS"}
-                          onChange={() =>
-                            handleRowChange(product.serial_no, "tested_status", "PASS")
-                          }
+                          label="Pass"
+                          type="checkbox"
+                          checked={product.tested_status?.includes("PASS")}
+                          className="custom-checkbox-color"
+                          onChange={(e) => {
+                            handleRowChange(
+                              absoluteIndex,
+                              "tested_status",
+                              e.target.checked ? ["PASS"] : ["PENDING"]
+                            );
+                          }}
                         />
                         <Form.Check
                           inline
-                          label="FAIL"
-                          type="radio"
-                          name={`status-${product.serial_no}`}
-                          checked={product.tested_status === "FAIL"}
-                          onChange={() =>
-                            handleRowChange(product.serial_no, "tested_status", "FAIL")
+                          label="Fail"
+                          type="checkbox"
+                          checked={product.tested_status?.includes("FAIL")}
+                          className="custom-checkbox-color"
+
+                          onChange={(e) => {
+                            handleRowChange(
+                              absoluteIndex,
+                              "tested_status",
+                              e.target.checked ? ["FAIL"] : ["PENDING"]
+                            );
+                          }}
+                        />
+                      </td>
+
+                      <td>
+                        <Form.Control
+                          type="text"
+                          value={product.test_remarks || ""}
+                          onChange={(e) =>
+                            handleRowChange(absoluteIndex, "test_remarks", e.target.value)
                           }
                         />
-                      </div>
-                    </td>
+                      </td>
 
-                    {/* Test Remarks */}
-                    <td>
-                      <Form.Control
-                        type="text"
-                        value={product.test_remarks ?? ""}
-                        placeholder="Add remarks"
-                        onChange={(e) =>
-                          handleRowChange(product.serial_no, "test_remarks", e.target.value)
-                        }
-                      />
-                    </td>
-
-                    {/* Action: Delete single row */}
-                    <td className="text-center">
-                      <IoTrashOutline
-                        style={headerStyle.actionIcon}
-                        onClick={() => handleDeleteBySerial(product.serial_no)}
-                      />
-                    </td>
-                  </tr>
-                ))
+                      <td className="text-center">
+                        <IoTrashOutline
+                          style={headerStyle.actionIcon}
+                          onClick={() => handleDeleteBySerial(product.serial_no)}
+                        />
+                      </td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
                   <td colSpan="6" className="text-center">
@@ -831,7 +838,6 @@ export default function EditAssemblePage() {
                 </tr>
               )}
             </tbody>
-
           </Table>
 
           <div className="d-flex justify-content-between align-items-center mt-3">

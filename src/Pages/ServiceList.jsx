@@ -224,10 +224,20 @@ export default function ServiceList() {
                       >
                         <i className="bi bi-trash"></i>
                       </Button>
-                      <ActionButtons
-                      onView={() => navigate(`/service/${service.id}/view`)}
-                      />
-                    </td>
+                    <Button
+  variant=""
+  size="sm"
+  onClick={() => navigate(`/service/${service.id}/view`)}
+  style={{
+    borderColor: "#2E3A59",
+    color: "#2E3A59",
+    backgroundColor: "transparent",
+    marginLeft: "4px",
+  }}
+>
+  <i className="bi bi-eye"></i>
+</Button>
+                    </td> 
                   </tr>
                 ))
               )}
@@ -246,3 +256,4 @@ export default function ServiceList() {
     </div>
   );
 }
+//`/service/${service.id}/view`

@@ -5,6 +5,7 @@ import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useNavigate, useParams } from "react-router-dom";
 import { API_BASE_URL } from "../api";
+import { IoTrashOutline } from "react-icons/io5";
 
 const EditService = () => {
   const navigate = useNavigate();
@@ -36,66 +37,61 @@ const EditService = () => {
     ],
   });
 
-  // Fetch all products for dropdown
+  // Fetch products and service sequentially
   useEffect(() => {
-    const fetchProducts = async () => {
+    const fetchData = async () => {
       try {
-        const res = await axios.get(`${API_BASE_URL}/product`);
-        setProducts(res.data);
-      } catch (error) {
-        toast.error("Failed to fetch products!");
-      }
-    };
-    fetchProducts();
-  }, []);
+        // Fetch products
+        const productRes = await axios.get(`${API_BASE_URL}/product`);
+        const productList = productRes.data?.data || productRes.data || [];
+        setProducts(productList);
 
-  // Fetch service data and populate form
-  useEffect(() => {
-    const fetchService = async () => {
-      try {
-        const res = await axios.get(`${API_BASE_URL}/service-vci/${id}`);
-        if (res.data) {
-          const data = {
-            challan_no: res.data.challan_no || "",
-            challan_date: res.data.challan_date || "",
-            courier_name: res.data.courier_name || "",
-            from_place: res.data.from_place || "",
-            to_place: res.data.to_place || "",
-            tester_name: res.data.tester_name || "",
-            quantity: res.data.quantity || "",
-            sent_date: res.data.sent_date || "",
-            received_date: res.data.received_date || "",
-            remarks: res.data.remarks || "",
-            items: res.data.items?.map(item => ({
-              product: item.product || "",
-              vci_serial_no: item.vci_serial_no || "",
-              warranty_status: item.warranty_status || "",
-              testing_assigned_to: item.testing_assigned_to || "",
-              tested_date: item.tested_date || "",
-              testing_status: item.testing_status || "",
-              issue_found: item.issue_found || "",
-            })) || [],
-          };
-          setFormData(data);
+        // Fetch service
+        const serviceRes = await axios.get(`${API_BASE_URL}/service-vci/${id}`);
+        if (serviceRes.data) {
+          const serviceData = serviceRes.data;
+          const items = serviceData.items?.map(item => ({
+            product: item.product || "",
+            vci_serial_no: item.vci_serial_no || "",
+            warranty_status: item.warranty_status || "",
+            testing_assigned_to: item.testing_assigned_to || "",
+            tested_date: item.tested_date || "",
+            testing_status: item.testing_status || "",
+            issue_found: item.issue_found || "",
+          })) || [];
 
-          // Fetch serials for each existing item
-          res.data.items?.forEach(async item => {
+          setFormData({
+            challan_no: serviceData.challan_no || "",
+            challan_date: serviceData.challan_date || "",
+            courier_name: serviceData.courier_name || "",
+            from_place: serviceData.from_place || "",
+            to_place: serviceData.to_place || "",
+            tester_name: serviceData.tester_name || "",
+            quantity: serviceData.quantity || "",
+            sent_date: serviceData.sent_date || "",
+            received_date: serviceData.received_date || "",
+            remarks: serviceData.remarks || "",
+            items,
+          });
+
+          // Fetch serials for each item
+          for (const item of items) {
             if (item.product) {
-              const serialRes = await axios.get(
-                `${API_BASE_URL}/sales/serials/${item.product}`
-              );
+              const serialRes = await axios.get(`${API_BASE_URL}/sales/serials/${item.product}`);
+              const serials = serialRes.data?.data || serialRes.data || [];
               setSerialNumbersByProduct(prev => ({
                 ...prev,
-                [item.product]: serialRes.data,
+                [item.product]: serials,
               }));
             }
-          });
+          }
         }
       } catch (error) {
-        toast.error("Failed to fetch service data!");
+        console.error(error);
+        toast.error("Failed to fetch data!");
       }
     };
-    fetchService();
+    fetchData();
   }, [id]);
 
   // Handle form field changes
@@ -114,9 +110,10 @@ const EditService = () => {
     if (name === "product" && value) {
       try {
         const res = await axios.get(`${API_BASE_URL}/sales/serials/${value}`);
+        const serials = res.data?.data || res.data || [];
         setSerialNumbersByProduct(prev => ({
           ...prev,
-          [value]: res.data,
+          [value]: serials,
         }));
         items[index].vci_serial_no = "";
         setFormData(prev => ({ ...prev, items }));
@@ -160,13 +157,29 @@ const EditService = () => {
       toast.success("Service updated successfully!");
       navigate("/service-product");
     } catch (error) {
+      console.error(error);
       toast.error("Failed to update service!");
     }
   };
 
   return (
     <Container fluid>
-      <h3 className="mb-3">Edit Service</h3>
+      <Row className="align-items-center mb-3 fixed-header">
+        <Col>
+          <h4>Edit Service</h4>
+        </Col>
+        <Col className="text-end">
+          <Button
+            variant="outline-secondary"
+            size="sm"
+            className="me-2"
+            onClick={() => navigate("/service-product")}
+          >
+            <i className="bi bi-arrow-left"></i> Back
+          </Button>
+        </Col>
+      </Row>
+
       <Form onSubmit={handleSubmit}>
         {/* Row 1 */}
         <Row className="mb-3">
@@ -393,8 +406,12 @@ const EditService = () => {
                   />
                 </td>
                 <td>
-                  <Button variant="danger" size="sm" onClick={() => removeRow(index)}>
-                    Remove
+                  <Button
+                    variant="outline-danger"
+                    size="sm"
+                    onClick={() => removeRow(index)}
+                  >
+                    <IoTrashOutline />
                   </Button>
                 </td>
               </tr>
@@ -410,7 +427,7 @@ const EditService = () => {
           <Button variant="secondary" className="me-2" onClick={() => navigate("/service-product")}>
             Cancel
           </Button>
-          <Button type="submit" variant="primary">
+          <Button type="submit" variant="success">
             Update
           </Button>
         </div>

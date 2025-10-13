@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate,useLocation  } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
+
 
 export default function Sidebar({ collapsed }) {
   const navigate = useNavigate();
+  const location = useLocation(); // <-- get current path
 
   const menu = {
     home: [{ link: "overview", title: "Overview", icon: ["/Overviiew_G.png", "/squares.png"] }],
@@ -29,6 +31,11 @@ export default function Sidebar({ collapsed }) {
   };
 
   const handleLinkClick = (link) => navigate(`/${link}`);
+  
+  const isActive = (link) => {
+    // Highlight if the current path includes the base link
+    return location.pathname === `/${link}` || location.pathname.startsWith(`/${link}/`);
+  };
   const linkStyle = {
     backgroundColor: "transparent",
     borderRadius: "8px",
@@ -215,7 +222,7 @@ export default function Sidebar({ collapsed }) {
               e.preventDefault();
               handleLinkClick(item.link);
             }}
-            className={`sidebar-link ${location.pathname === `/${item.link}` ||
+           className={`sidebar-link ${location.pathname === `/${item.link}` ||
               location.pathname.startsWith(`/${item.link}/`)
               ? "active-link"
               : ""

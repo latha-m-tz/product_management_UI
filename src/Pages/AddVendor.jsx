@@ -60,35 +60,23 @@ export default function AddVendor() {
   //     });
   // }, []);
   const handleVendorMobileChange = (value) => {
+    setVendor((prev) => ({ ...prev, mobile_no: value }));
+
     if (!value) {
-      setVendor(prev => ({ ...prev, mobile_no: "" }));
-      setVendorErrors(prev => ({ ...prev, mobile_no: "Mobile number is required" }));
+      setVendorErrors((prev) => ({ ...prev, mobile_no: "Mobile number is required" }));
       return;
     }
 
-    // Allow only digits + "+" sign
-    let newValue = value.replace(/[^\d+]/g, "");
-
-    // Get max allowed digits for this country
-    let maxDigits = 15; // fallback
     try {
-      const phoneNumber = parsePhoneNumberFromString(newValue);
-      if (phoneNumber) {
-        maxDigits = phoneNumber.nationalNumber.length;
+      // Use parsePhoneNumberFromString with country if needed
+      const phoneNumber = parsePhoneNumberFromString(value);
+      if (!phoneNumber || !phoneNumber.isValid()) {
+        setVendorErrors((prev) => ({ ...prev, mobile_no: "Invalid number for selected country" }));
+      } else {
+        setVendorErrors((prev) => ({ ...prev, mobile_no: "" }));
       }
-    } catch { }
-
-    // Prevent typing beyond allowed digits
-    const digitsOnly = newValue.replace(/\D/g, "");
-    if (digitsOnly.length > maxDigits) return;
-
-    setVendor(prev => ({ ...prev, mobile_no: newValue }));
-
-    // Validation
-    if (!isValidPhoneNumber(newValue)) {
-      setVendorErrors(prev => ({ ...prev, mobile_no: "Invalid number for selected country" }));
-    } else {
-      setVendorErrors(prev => ({ ...prev, mobile_no: "" }));
+    } catch (err) {
+      setVendorErrors((prev) => ({ ...prev, mobile_no: "Invalid number for selected country" }));
     }
   };
 
@@ -813,25 +801,35 @@ export default function AddVendor() {
 
             {/* Row 2: Mobile + Email */}
             <Row className="p-2">
-              <Col md={6}>
-                <Form.Group>
+              <Col md={12}>
+                <Form.Group className="mb-3">
                   <Form.Label>
                     Mobile No<span style={{ color: "red" }}> *</span>
                   </Form.Label>
 
                   <PhoneInput
                     international
-                    defaultCountry="IN"
+                    defaultCountry={countryCode || undefined}
                     value={contact.mobile_no}
                     onChange={handleContacMobileChange}
                     className="form-control"
+                    placeholder="Enter mobile number"
+                    countrySelectComponent={CountrySelect}
                   />
-                  {contactErrors.mobile_no && <div style={feedbackStyle}>{contactErrors.mobile_no}</div>}
 
 
+                  {contactErrors.mobile_no && (
+                    <div style={{ color: "red", fontSize: "0.85rem", marginTop: "4px" }}>
+                      {contactErrors.mobile_no}
+                    </div>
+                  )}
                 </Form.Group>
 
+
               </Col>
+              </Row>
+            <Row className=" p-2">
+
               <Col md={6}>
                 <Form.Group>
                   <Form.Label>Email</Form.Label>
@@ -845,10 +843,9 @@ export default function AddVendor() {
                   {contactErrors.email && <div style={feedbackStyle}>{contactErrors.email}</div>}
                 </Form.Group>
               </Col>
-            </Row>
+            
 
-            {/* Row 3: Status */}
-            <Row className=" p-2">
+              {/* Row 3: Status */}
               <Col md={6}>
                 <Form.Group>
                   <Form.Label>Status</Form.Label>

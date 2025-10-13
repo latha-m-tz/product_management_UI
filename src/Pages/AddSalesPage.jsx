@@ -5,7 +5,9 @@ import {
   Form,
   Card,
   Table,
-  Spinner
+  Spinner,
+  Row,
+  Col,
 } from "react-bootstrap";
 import { toast } from "react-toastify";
 import Swal from "sweetalert2";
@@ -15,6 +17,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import { API_BASE_URL } from "../api";
 import BreadCrumb from "../components/BreadCrumb";
 import { useNavigate, useParams } from "react-router-dom";
+import { IoTrashOutline } from "react-icons/io5";
 
 export default function AddSalesPage() {
   const navigate = useNavigate();
@@ -29,10 +32,16 @@ export default function AddSalesPage() {
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState([]);
   const [formErrors, setFormErrors] = useState({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedItems = items.slice(startIndex, endIndex);
 
   const MySwal = withReactContent(Swal);
 
-  // Load customers
+  /** ✅ Load customers list */
   useEffect(() => {
     axios
       .get(`${API_BASE_URL}/customers/get`)
@@ -41,9 +50,10 @@ export default function AddSalesPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Load sale for edit or draft
+  /** ✅ Load draft or existing sale */
   useEffect(() => {
     const draft = localStorage.getItem("draftSale");
+
     if (draft && !saleId) {
       const data = JSON.parse(draft);
       setCustomerId(data.customer_id || "");
@@ -77,7 +87,7 @@ export default function AddSalesPage() {
     }
   }, [saleId]);
 
-  // Load selected products from AddProductPage
+  /** ✅ Load selected products from AddProductPage */
   useEffect(() => {
     const stored = localStorage.getItem("selectedProducts");
     if (stored) {
@@ -97,53 +107,36 @@ export default function AddSalesPage() {
     }
   }, [navigate]);
 
-  // Form validation
+  /** ✅ Validation logic */
   const validateForm = () => {
     const errors = {};
-    if (!customerId || parseInt(customerId) <= 0) {
-      errors.customerId = "Customer is required";
-    }
-    if (!challanNo.trim()) {
-      errors.challanNo = "Challan No is required";
-    }
-    if (!challanDate) {
-      errors.challanDate = "Challan Date is required";
-    }
-    if (!shipmentDate) {
-      errors.shipmentDate = "Shipment Date is required";
-    } else if (new Date(shipmentDate) < new Date(challanDate)) {
+    if (!customerId || parseInt(customerId) <= 0) errors.customerId = "Customer is required";
+    if (!challanNo.trim()) errors.challanNo = "Challan No is required";
+    if (!challanDate) errors.challanDate = "Challan Date is required";
+    if (!shipmentDate) errors.shipmentDate = "Shipment Date is required";
+    else if (new Date(shipmentDate) < new Date(challanDate))
       errors.shipmentDate = "Shipment Date cannot be before Challan Date";
-    }
-    if (!shipmentName.trim()) {
-      errors.shipmentName = "Shipment Name is required";
-    }
+    if (!shipmentName.trim()) errors.shipmentName = "Shipment Name is required";
+
     if (items.length === 0) {
       errors.items = "Please add at least one product";
     } else {
       const serials = new Set();
       items.forEach((item, index) => {
-        if (!item.serialNo.trim()) {
-          errors[`serialNo_${index}`] = "Serial No is required";
-        }
-        if (serials.has(item.serialNo)) {
+        if (!item.serialNo.trim()) errors[`serialNo_${index}`] = "Serial No is required";
+        if (serials.has(item.serialNo))
           errors[`serialNo_${index}`] = `Duplicate Serial No: ${item.serialNo}`;
-        }
         serials.add(item.serialNo);
-        if (!item.quantity || parseInt(item.quantity) <= 0) {
-          errors[`quantity_${index}`] = "Quantity must be greater than 0";
-        }
       });
     }
+
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
-  // Handle save
+  /** ✅ Save handler */
   const handleSave = async () => {
-    if (!validateForm()) {
-      // toast.warning("Please fix the highlighted errors!");
-      return;
-    }
+    if (!validateForm()) return;
 
     const payload = {
       customer_id: parseInt(customerId),
@@ -154,7 +147,7 @@ export default function AddSalesPage() {
       notes: notes.trim(),
       items: items.map((item) => ({
         id: item.id,
-        quantity: parseInt(item.quantity),
+        quantity: parseInt(item.quantity || 1),
         serial_no: item.serialNo.trim(),
       })),
     };
@@ -173,56 +166,34 @@ export default function AddSalesPage() {
     }
   };
 
-  // Update field and clear error dynamically
+  /** ✅ Field change handlers */
   const handleChange = (field, value) => {
-    switch (field) {
-      case "customerId":
-        setCustomerId(value);
-        setFormErrors((prev) => ({ ...prev, customerId: undefined }));
-        break;
-      case "challanNo":
-        setChallanNo(value);
-        setFormErrors((prev) => ({ ...prev, challanNo: undefined }));
-        break;
-      case "challanDate":
-        setChallanDate(value);
-        setFormErrors((prev) => ({ ...prev, challanDate: undefined }));
-        break;
-      case "shipmentDate":
-        setShipmentDate(value);
-        setFormErrors((prev) => ({ ...prev, shipmentDate: undefined }));
-        break;
-      case "shipmentName":
-        setShipmentName(value);
-        setFormErrors((prev) => ({ ...prev, shipmentName: undefined }));
-        break;
-      case "notes":
-        setNotes(value);
-        break;
-      default:
-        break;
-    }
+    const setters = {
+      customerId: setCustomerId,
+      challanNo: setChallanNo,
+      challanDate: setChallanDate,
+      shipmentDate: setShipmentDate,
+      shipmentName: setShipmentName,
+      notes: setNotes,
+    };
+    setters[field]?.(value);
+    setFormErrors((prev) => ({ ...prev, [field]: undefined }));
   };
 
-  // Update item and clear its error dynamically
   const handleItemChange = (index, field, value) => {
     const newItems = [...items];
     newItems[index][field] = value;
     setItems(newItems);
-
-    // Clear field error
     setFormErrors((prev) => {
       const updated = { ...prev };
-      if (field === "serialNo") delete updated[`serialNo_${index}`];
-      if (field === "quantity") delete updated[`quantity_${index}`];
+      delete updated[`serialNo_${index}`];
+      delete updated[`quantity_${index}`];
       return updated;
     });
   };
 
   const removeItem = (index) => {
     setItems(items.filter((_, i) => i !== index));
-
-    // Remove errors for deleted item
     setFormErrors((prev) => {
       const updated = { ...prev };
       delete updated[`serialNo_${index}`];
@@ -232,16 +203,37 @@ export default function AddSalesPage() {
   };
 
   const RequiredLabel = ({ children }) => (
-  <Form.Label>
-    {children}<span style={{ color: "red" }}> *</span>
-  </Form.Label>
-);
+    <Form.Label>
+      {children}
+      <span style={{ color: "red" }}> *</span>
+    </Form.Label>
+  );
 
+  /** ✅ Render */
   return (
     <div className="container-fluid px-4 py-4 bg-light min-vh-100">
+    
+
       <BreadCrumb title={saleId ? "Edit Sale" : "Add Sale"} />
-      <Card className="border-0 shadow-sm rounded-3 bg-white">
-        <Card.Body>
+ <Row className="align-items-center mb-3 fixed-header">
+             <Col>
+               <h4>Add Sale</h4>
+             </Col>
+             <Col className="text-end">
+               <Button
+                 variant="outline-secondary"
+                 size="sm"
+                 className="me-2"
+                 onClick={() => navigate("/sales-order")}
+               >
+                 <i className="bi bi-arrow-left"></i> Back
+               </Button>
+             </Col>
+           </Row>
+<Card
+  className="border-0 shadow-sm rounded-3"
+  style={{ backgroundColor: "#f4f4f8" }}
+>        <Card.Body>
           <Form>
             <div className="row g-3">
               {/* Customer */}
@@ -269,6 +261,7 @@ export default function AddSalesPage() {
                   </Form.Control.Feedback>
                 </Form.Group>
               </div>
+              
 
               {/* Challan No */}
               <div className="col-md-6">
@@ -302,6 +295,7 @@ export default function AddSalesPage() {
                   </Form.Control.Feedback>
                 </Form.Group>
               </div>
+
               <div className="col-md-6">
                 <Form.Group>
                   <RequiredLabel>Shipment Date</RequiredLabel>
@@ -320,7 +314,7 @@ export default function AddSalesPage() {
               {/* Shipment Name */}
               <div className="col-md-6">
                 <Form.Group>
-                  <Form.Label>Shipment Name</Form.Label>
+                  <RequiredLabel>Shipment Name</RequiredLabel>
                   <Form.Control
                     type="text"
                     value={shipmentName}
@@ -362,8 +356,8 @@ export default function AddSalesPage() {
                     challan_date: challanDate,
                     shipment_date: shipmentDate,
                     shipment_name: shipmentName,
-                    notes: notes,
-                    items: items,
+                    notes,
+                    items,
                   };
                   localStorage.setItem("draftSale", JSON.stringify(draftSale));
                   navigate("/add-product");
@@ -371,60 +365,77 @@ export default function AddSalesPage() {
               >
                 + Add Product
               </Button>
+
               {formErrors.items && (
                 <div className="text-danger mb-2">{formErrors.items}</div>
               )}
+
               {items.length > 0 && (
-                <Table striped bordered hover size="sm">
-                  <thead>
-                    <tr>
-                      <th>Serial No</th>
-                      <th>Quantity</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {items.map((item, index) => (
-                      <tr key={index}>
-                        <td>
-                          <Form.Control
-                            type="text"
-                            value={item.serialNo}
-                            isInvalid={!!formErrors[`serialNo_${index}`]}
-                            onChange={(e) =>
-                              handleItemChange(index, "serialNo", e.target.value)
-                            }
-                          />
-                          <Form.Control.Feedback type="invalid">
-                            {formErrors[`serialNo_${index}`]}
-                          </Form.Control.Feedback>
-                        </td>
-                        <td>
-                          <Form.Control
-                            type="number"
-                            value={item.quantity}
-                            isInvalid={!!formErrors[`quantity_${index}`]}
-                            onChange={(e) =>
-                              handleItemChange(index, "quantity", e.target.value)
-                            }
-                          />
-                          <Form.Control.Feedback type="invalid">
-                            {formErrors[`quantity_${index}`]}
-                          </Form.Control.Feedback>
-                        </td>
-                        <td>
-                          <Button
-                            variant="danger"
-                            size="sm"
-                            onClick={() => removeItem(index)}
-                          >
-                            Remove
-                          </Button>
-                        </td>
+                <>
+                  <Table bordered hover size="sm">
+                    <thead>
+                      <tr>
+                        <th>Serial No</th>
+                        <th>Action</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </Table>
+                    </thead>
+                    <tbody>
+                      {paginatedItems.map((item, index) => (
+                        <tr key={startIndex + index}>
+                          <td>
+                            <Form.Control
+                              type="text"
+                              value={item.serialNo}
+                              isInvalid={!!formErrors[`serialNo_${startIndex + index}`]}
+                              onChange={(e) =>
+                                handleItemChange(startIndex + index, "serialNo", e.target.value)
+                              }
+                            />
+                            <Form.Control.Feedback type="invalid">
+                              {formErrors[`serialNo_${startIndex + index}`]}
+                            </Form.Control.Feedback>
+                          </td>
+                          <td className="text-center">
+                            <Button
+                              variant="outline-danger"
+                              size="sm"
+                              onClick={() => removeItem(startIndex + index)}
+                            >
+                              <IoTrashOutline />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+
+                  {/* Pagination */}
+                  <div className="d-flex justify-content-between align-items-center">
+                    <Button
+                      variant="outline-secondary"
+                      size="sm"
+                      disabled={currentPage === 1}
+                      onClick={() => setCurrentPage((prev) => prev - 1)}
+                    >
+                      &laquo; Previous
+                    </Button>
+
+                    <span>
+                      Page {currentPage} of {Math.ceil(items.length / itemsPerPage)}
+                    </span>
+
+                    <Button
+                      variant="outline-secondary"
+                      size="sm"
+                      disabled={
+                        currentPage === Math.ceil(items.length / itemsPerPage)
+                      }
+                      onClick={() => setCurrentPage((prev) => prev + 1)}
+                    >
+                      Next &raquo;
+                    </Button>
+                  </div>
+                </>
               )}
             </div>
 

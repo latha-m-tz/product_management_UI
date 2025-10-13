@@ -337,7 +337,7 @@ export default function AddSparepartPurchase() {
     <div className="container-fluid " style={{ background: "F4F4F8", minHeight: "100vh", position: "relative" }}>
       <Row className="align-items-center mb-3 fixed-header">
         <Col>
-          <h4>Add Vendor Details</h4>
+          <h4>Add  spare parts purchase Details</h4>
         </Col>
         <Col className="text-end">
           <Button
@@ -364,23 +364,19 @@ export default function AddSparepartPurchase() {
                 <Form.Label>
                   Vendor<span style={{ color: "red" }}> *</span>
                 </Form.Label>
-
                 <Form.Select
                   value={vendorId}
-                  // onChange={(e) => setVendorId(e.target.value)}
                   onChange={(e) => {
                     setVendorId(e.target.value);
-                    clearError("vendor_id");   // clear vendor error live
+                    clearError("vendor_id"); // clear vendor error live
                   }}
-
                 >
                   <option value="">Select Vendor</option>
                   {availableVendors.map((v) =>
                     v.contact_persons?.length > 0 ? (
-                      v.contact_persons.map((c, idx) => (
+                      v.contact_persons.map((c) => (
                         <option key={`${v.id}-${c.id}`} value={v.id}>
-                          {v.vendor} – {c.name}
-                          {idx === 0 ? " (Main person)" : ""}
+                          {v.vendor} – {c.name} {c.is_main ? "(Main person)" : ""}
                         </option>
                       ))
                     ) : (
@@ -390,6 +386,7 @@ export default function AddSparepartPurchase() {
                     )
                   )}
                 </Form.Select>
+
                 {errors.vendor_id && <div style={feedbackStyle}>{errors.vendor_id}</div>}
               </Form.Group>
             </Col>

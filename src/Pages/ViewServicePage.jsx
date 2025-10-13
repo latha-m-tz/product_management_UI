@@ -94,8 +94,21 @@ const ViewServicePage = () => {
 
   return (
     <Container fluid>
-      <h3 className="mb-3">View Service</h3>
-
+   <Row className="align-items-center mb-3 fixed-header">
+        <Col>
+          <h4>view service</h4>
+        </Col>
+        <Col className="text-end">
+          <Button
+            variant="outline-secondary"
+            size="sm"
+            className="me-2"
+            onClick={() => navigate("/service-product")}
+          >
+            <i className="bi bi-arrow-left"></i> Back
+          </Button>
+        </Col>
+      </Row>
       {/* Row 1 */}
       <Row className="mb-3">
         <Col md={4}>
@@ -184,9 +197,9 @@ const ViewServicePage = () => {
       />
 
       <div className="mt-4 d-flex justify-content-end">
-        <Button variant="secondary" onClick={() => navigate("/service-product")}>
+        {/* <Button variant="secondary" onClick={() => navigate("/service-product")}>
           Back
-        </Button>
+        </Button> */}
       </div>
     </Container>
   );

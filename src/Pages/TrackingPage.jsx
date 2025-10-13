@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { Form, Button, Spinner, Alert, Container } from "react-bootstrap";
 import { API_BASE_URL } from "../api";
@@ -20,15 +21,19 @@ const styles = {
   stageContent: { display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '10px', width: '100%' },
   dataCard: { width: '240px', height: '262px', backgroundColor: '#2EA64F', color: '#FFFFFF', borderColor: '#2EA64F', border: '1px solid', borderRadius: '7px', padding: '10px', marginBottom: '15px', textAlign: 'left', fontSize: '0.85rem', lineHeight: 1.2, flexShrink: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' },
   dataCardText: { marginBottom: '4px' },
-  stageDate: { fontSize: '0.75rem', color: '#607D8B', borderTop: '1px dashed #cfd8dc', paddingTop: '5px', marginTop: '5px', textAlign: 'right' },
-  // numberBox: { position: 'absolute', top: '50px', right: '-130px', backgroundColor: 'white', color: '#3F51B5', fontSize: '1.5rem', fontWeight: 'bold', padding: '10px 15px', borderRadius: '8px', border: '1px solid #3F51B5', boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)', zIndex: 10 },
   stageDate: {
     fontSize: '0.75rem',
-    color: 'white', // changed from #607D8B
+    color: 'white',
     borderTop: '1px dashed #cfd8dc',
     paddingTop: '5px',
     marginTop: '5px',
     textAlign: 'right',
+  },
+  moreButton: {
+    backgroundColor: '#2E3A59',
+    color: 'white',
+    border: 'none',
+    marginTop: '5px',
   },
 };
 
@@ -37,6 +42,7 @@ const TrackingPage = () => {
   const [timeline, setTimeline] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const navigate = useNavigate();
 
   const defaultTimelineStructure = [
     { stage: "SPARE PARTS", items: [] },
@@ -55,16 +61,32 @@ const TrackingPage = () => {
       const data = response.data;
 
       const saleItems = data.sale
-        ? data.sale.flatMap((sale) => sale.items.map((item) => ({ ...item, challan_no: sale.challan_no || "N/A", challan_date: sale.challan_date || "N/A", customer: sale.customer?.customer || "N/A", created_at: sale.created_at || "N/A" })))
+        ? data.sale.flatMap((sale) => sale.items.map((item) => ({
+          ...item,
+          challan_no: sale.challan_no || "N/A",
+          challan_date: sale.challan_date || "N/A",
+          customer: sale.customer?.customer || "N/A",
+          created_at: sale.created_at || "N/A",
+          serial_number: serialNumber,
+        })))
         : [];
 
       const serviceItems = data.service_vci
-        ? data.service_vci.map((item) => ({ ...item, challan_no: item.challan_no || "N/A", challan_date: item.challan_date || "N/A", vendor: item.vendor_name || "N/A", product: item.product_name || "N/A", service_type: item.service_type || "N/A", created_at: item.created_at || "N/A" }))
+        ? data.service_vci.map((item) => ({
+          ...item,
+          challan_no: item.challan_no || "N/A",
+          challan_date: item.challan_date || "N/A",
+          vendor: item.vendor_name || "N/A",
+          product: item.product_name || "N/A",
+          service_type: item.service_type || "N/A",
+          created_at: item.created_at || "N/A",
+          serial_number: serialNumber,
+        }))
         : [];
 
       setTimeline([
-        { stage: "SPARE PARTS", items: data.spare_parts || [] },
-        { stage: "INVENTORY", items: data.inventory || [] },
+        { stage: "SPARE PARTS", items: data.spare_parts?.map(i => ({ ...i, serial_number: serialNumber })) || [] },
+        { stage: "INVENTORY", items: data.inventory?.map(i => ({ ...i, serial_number: serialNumber })) || [] },
         { stage: "SALE", items: saleItems },
         { stage: "SERVICE", items: serviceItems },
       ]);
@@ -75,57 +97,79 @@ const TrackingPage = () => {
     } finally { setLoading(false); }
   };
 
-  const renderCardContent = (stage, item) => {
-    const defaultDate = item.created_at || "N/A";
+  const handleMoreDetails = (stage, item) => {
     switch (stage) {
       case "SPARE PARTS":
-        return (
+        navigate(`/spare-partsPurchase`);
+        break;
+      case "INVENTORY":
+        navigate(`/assemble`);
+        break;
+      case "SALE":
+        navigate(`/sales-order`);
+        break;
+      case "SERVICE":
+        navigate(`/service-product`);
+        break;
+      default:
+        navigate(`/details/${item.serial_number}`);
+    }
+  };
+
+  const renderCardContent = (stage, item) => {
+    const defaultDate = item.created_at || "N/A";
+
+    return (
+      <>
+        {stage === "SPARE PARTS" && (
           <>
             <p style={styles.dataCardText}><b>Spare Parts</b></p>
             <p className="small"><b>Challan No:</b> {item.challan_no}</p>
             <p className="small"><b>Challan Date:</b> {item.challan_date}</p>
-            <p className="small"><b>Vendor:</b> {item.vendor}</p>
-            <p className="small"><b>Service Type:</b> {item.service_type}</p>
-            <p className="small"><b>Product:</b> {item.product}</p>
-            <p style={styles.stageDate}>{defaultDate}</p>
+            <p className="small"><b>Vendor:</b> {item.vendor_name}</p>
+            <p className="small"><b>Product:</b> {item.product_name}</p>
           </>
-        );
-      case "INVENTORY":
-        return (
+        )}
+
+        {stage === "INVENTORY" && (
           <>
             <p style={styles.dataCardText}><b>Assembly</b></p>
             <p className="small"><b>Product Type:</b> {item.product_type || "N/A"}</p>
             <p className="small"><b>Product:</b> {item.product_name || "N/A"}</p>
             <p className="small"><b>Firmware Version:</b> {item.firmware_version || "N/A"}</p>
-            <p style={styles.stageDate}>{defaultDate}</p>
           </>
-        );
-      case "SALE":
-        return (
+        )}
+
+        {stage === "SALE" && (
           <>
             <p style={styles.dataCardText}><b>Sale Record</b></p>
             <p className="small"><b>Challan No:</b> {item.challan_no || "N/A"}</p>
             <p className="small"><b>Challan Date:</b> {item.challan_date || "N/A"}</p>
             <p className="small"><b>Customer:</b> {item.customer || "N/A"}</p>
             <p className="small"><b>Product:</b> {item.product || "N/A"}</p>
-            <p style={styles.stageDate}>{item.created_at || "N/A"}</p>
           </>
-        );
-      case "SERVICE":
-        return (
+        )}
+
+        {stage === "SERVICE" && (
           <>
             <p style={styles.dataCardText}><b>Service Request</b></p>
             <p className="small"><b>Challan No:</b> {item.challan_no}</p>
             <p className="small"><b>Challan Date:</b> {item.challan_date || "N/A"}</p>
-            <p className="small"><b>Vendor:</b> {item.vendor || "N/A"}</p>
-            <p className="small"><b>Service Type:</b> {item.service_type || "N/A"}</p>
-            <p className="small"><b>Product:</b> {item.product || "N/A"}</p>
-            <p style={styles.stageDate}>{item.created_at || "N/A"}</p>
+            <p className="small"><b>From:</b> {item.from_place || "N/A"}</p>
+            <p className="small"><b>To:</b> {item.to_place || "N/A"}</p>
+            <p className="small"><b>Courier:</b> {item.courier_name || "N/A"}</p>
           </>
-        );
-      default:
-        return <p className="small text-muted">No data available for this stage.</p>;
-    }
+        )}
+
+        <p style={styles.stageDate}>{defaultDate}</p>
+        <Button
+          size="sm"
+          style={{ backgroundColor: '#2E3A59', color: 'white', border: 'none' }}
+          onClick={() => handleMoreDetails(stage, item)}
+        >
+          More Details
+        </Button>      </>
+    );
   };
 
   return (
@@ -175,10 +219,6 @@ const TrackingPage = () => {
                   <div style={styles.stageVerticalLine}></div>
 
                   <div style={styles.stageContent}>
-                    {/* {index === 1 && (
-                      <div style={styles.numberBox}><p className="mb-0">91 x 0</p></div>
-                    )} */}
-
                     {hasContent
                       ? step.items.map((item, idx) => (
                         <div key={idx} className="shadow-sm" style={{ ...styles.dataCard, borderColor: stageColor }}>

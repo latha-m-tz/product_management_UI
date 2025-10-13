@@ -11,6 +11,7 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { IoTrashOutline } from "react-icons/io5";
 
 import { API_BASE_URL } from "../api";
 const AddServicePage = () => {
@@ -184,10 +185,24 @@ const AddServicePage = () => {
 
   return (
     <Container fluid>
-      <h3 className="mb-3">Add Service</h3>
-      <Form onSubmit={handleSubmit}>
+ <Row className="align-items-center mb-3 fixed-header">
+             <Col>
+               <h4>Add Service</h4>
+             </Col>
+             <Col className="text-end">
+               <Button
+                 variant="outline-secondary"
+                 size="sm"
+                 className="me-2"
+                 onClick={() => navigate("/service-product")}
+               >
+                 <i className="bi bi-arrow-left"></i> Back
+               </Button>
+             </Col>
+           </Row>      
+           <Form onSubmit={handleSubmit}>
         {/* Row 1 */}
-        <Row className="mb-3">
+        <Row className="mb-3 ">
           <Col md={4}>
             <Form.Group>
               <RequiredLabel>Challan No</RequiredLabel>
@@ -456,13 +471,13 @@ const AddServicePage = () => {
                   />
                 </td>
                 <td>
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    onClick={() => removeRow(index)}
-                  >
-                    Remove
-                  </Button>
+              <Button
+                                           variant="outline-danger"
+                                           size="sm"
+                                           onClick={() => removeItem(startIndex + index)}
+                                         >
+                                           <IoTrashOutline />
+                                         </Button>
                 </td>
               </tr>
             ))}
@@ -481,7 +496,7 @@ const AddServicePage = () => {
           >
             Cancel
           </Button>
-          <Button type="submit" variant="primary">
+          <Button type="submit" variant="success">
             Save
           </Button>
         </div>
