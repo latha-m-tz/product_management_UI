@@ -12,17 +12,20 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { IoTrashOutline } from "react-icons/io5";
-
+import Swal from "sweetalert2";
+import withReactContent from "sweetalert2-react-content";
+import { format, parse } from "date-fns";
 import { API_BASE_URL } from "../api";
 const AddServicePage = () => {
-  const navigate = useNavigate();
-  const [errors, setErrors] = useState({});
+const navigate = useNavigate();
+const [errors, setErrors] = useState({});
 
   const [products, setProducts] = useState([]);
   const [serialNumbersByProduct, setSerialNumbersByProduct] = useState({});
-  const [alreadySoldSerials, setAlreadySoldSerials] = useState([]);
+const [alreadySoldSerials, setAlreadySoldSerials] = useState([]);
+const MySwal = withReactContent(Swal);
+const [serviceDate, setServiceDate] = useState(null);
 
-  // const [serialNumbers, setSerialNumbers] = useState([]);
   const [formData, setFormData] = useState({
     challan_no: "",
     challan_date: "",
@@ -43,8 +46,8 @@ const AddServicePage = () => {
         tested_date: "",
         testing_status: "",
         issue_found: "",
-        action_taken: "", // Add this field
-        urgent: false,     // Add this field
+        action_taken: "",
+        urgent: false,
       },
     ],
   });
@@ -81,7 +84,6 @@ const AddServicePage = () => {
       }
     };
 
-    // Fetch already added serials
     const fetchAlreadyAddedSerials = async () => {
       try {
         const res = await axios.get(`${API_BASE_URL}/get-serviceserials`);
@@ -158,11 +160,29 @@ const AddServicePage = () => {
   };
 
   // remove row
-  const removeRow = (index) => {
-    const items = [...formData.items];
-    items.splice(index, 1);
-    setFormData((prev) => ({ ...prev, items }));
+  const removeRow = async (index) => {
+    MySwal.fire({
+      title: "Are you sure?",
+      text: "You won't be able to revert this!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#2FA64F",
+      confirmButtonText: "Yes, delete it!",
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          const items = [...formData.items];
+          items.splice(index, 1);
+          setFormData((prev) => ({ ...prev, items }));
+          toast.success("Row deleted successfully!");
+        } catch {
+          toast.error("Failed to delete row!");
+        }
+      }
+    });
   };
+
 
   // submit form
   const handleSubmit = async (e) => {
@@ -185,22 +205,22 @@ const AddServicePage = () => {
 
   return (
     <Container fluid>
- <Row className="align-items-center mb-3 fixed-header">
-             <Col>
-               <h4>Add Service</h4>
-             </Col>
-             <Col className="text-end">
-               <Button
-                 variant="outline-secondary"
-                 size="sm"
-                 className="me-2"
-                 onClick={() => navigate("/service-product")}
-               >
-                 <i className="bi bi-arrow-left"></i> Back
-               </Button>
-             </Col>
-           </Row>      
-           <Form onSubmit={handleSubmit}>
+      <Row className="align-items-center mb-3 fixed-header">
+        <Col>
+          <h4>Add Service</h4>
+        </Col>
+        <Col className="text-end">
+          <Button
+            variant="outline-secondary"
+            size="sm"
+            className="me-2"
+            onClick={() => navigate("/service-product")}
+          >
+            <i className="bi bi-arrow-left"></i> Back
+          </Button>
+        </Col>
+      </Row>
+      <Form onSubmit={handleSubmit}>
         {/* Row 1 */}
         <Row className="mb-3 ">
           <Col md={4}>
@@ -368,7 +388,7 @@ const AddServicePage = () => {
                     name="product"
                     value={item.product}
                     onChange={(e) => handleItemChange(index, e)}
-                    isInvalid={!!errors[`product_${index}`]} 
+                    isInvalid={!!errors[`product_${index}`]}
                   >
                     <option value="">Select Product</option>
                     {products.map((p) => (
@@ -413,7 +433,7 @@ const AddServicePage = () => {
                     <option value="active">Active</option>
                     <option value="in_active">In Active</option>
                   </Form.Control>
-                  <Form.Control.Feedback type="invalid">  
+                  <Form.Control.Feedback type="invalid">
                     {errors[`warranty_status_${index}`]} {/* show error message */}
                   </Form.Control.Feedback>
                 </td>
@@ -426,12 +446,45 @@ const AddServicePage = () => {
                   />
                 </td>
                 <td>
-                  <Form.Control
-                    type="date"
-                    name="tested_date"
-                    value={item.tested_date}
-                    onChange={(e) => handleItemChange(index, e)}
-                  />
+                  {/* <DatePicker
+                    selected={
+                      item.tested_date
+                        ? parse(item.tested_date, "dd-MM-yyyy", new Date())
+                        : null
+                    }
+                    onChange={(date) => {
+                      const formattedDate = date ? format(date, "dd-MM-yyyy") : "";
+                      handleItemChange(index, {
+                        target: { name: "tested_date", value: formattedDate },
+                      });
+                    }}
+                    dateFormat="dd-MM-yyyy"
+                    placeholderText="DD-MM-YYYY"
+                    className="form-control"
+                    onChangeRaw={(e) => {
+                      let value = e.target.value;
+
+                      // Remove non-numeric/dash characters
+                      value = value.replace(/[^0-9-]/g, "");
+
+                      // Auto-insert dash after day and month
+                      if (value.length === 2 && !value.includes("-")) value = value + "-";
+                      if (value.length === 5 && value.split("-").length < 3) value = value + "-";
+
+                      // Split into parts
+                      const parts = value.split("-");
+                      // Limit year to 4 digits
+                      if (parts[2] && parts[2].length > 4) parts[2] = parts[2].slice(0, 4);
+
+                      // Recombine and limit total length
+                      value = parts.filter(Boolean).join("-");
+                      if (value.length > 10) value = value.slice(0, 10);
+
+                      // Update state
+                      handleItemChange(index, { target: { name: "tested_date", value } });
+                    }}
+                  /> */}
+
                 </td>
                 <td>
                   <Form.Control
@@ -471,13 +524,14 @@ const AddServicePage = () => {
                   />
                 </td>
                 <td>
-              <Button
-                                           variant="outline-danger"
-                                           size="sm"
-                                           onClick={() => removeItem(startIndex + index)}
-                                         >
-                                           <IoTrashOutline />
-                                         </Button>
+                  <Button
+                    variant="outline-danger"
+                    size="sm"
+                    onClick={() => removeRow(index)}
+                  >
+                    <IoTrashOutline />
+                  </Button>
+
                 </td>
               </tr>
             ))}

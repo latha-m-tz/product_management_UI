@@ -10,6 +10,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../api";
 import { parsePhoneNumberFromString, isValidPhoneNumber } from "libphonenumber-js";
 import CountrySelect from "../components/CountrySelect";
+import CountryPhoneInput from "../components/CountryPhoneInput";
 
 export default function EditCustomer() {
   const { id } = useParams();
@@ -265,7 +266,7 @@ export default function EditCustomer() {
       >
         <Row>
           <Col md={4}>
-            <Form.Group className="mb-3">
+            <Form.Group className="mb-3 form-field">
               <Form.Label>
                 Customer Name<span style={{ color: "red" }}> *</span>
               </Form.Label>
@@ -283,22 +284,41 @@ export default function EditCustomer() {
             </Form.Group>
           </Col>
           <Col md={4}>
-            <Form.Group className="mb-3">
+            <Form.Group className="mb-3 form-field">
               <Form.Label>GST No</Form.Label>
               <Form.Control
                 type="text"
                 name="gst_no"
                 value={customer.gst_no ?? ""}
-                onChange={handleChange}
+                onChange={(e) => {
+                  let value = e.target.value.toUpperCase();
+
+                  // Block typing beyond 15 characters
+                  if (value.length > 15) value = value.slice(0, 15);
+
+                  setCustomer((prev) => ({ ...prev, gst_no: value }));
+
+                  // Validation
+                  const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+                  if (!value.trim()) {
+                    setErrors((prev) => ({ ...prev, gst_no: "GST No is required" }));
+                  } else if (!gstRegex.test(value)) {
+                    setErrors((prev) => ({ ...prev, gst_no: "Invalid GST No format" }));
+                  } else {
+                    setErrors((prev) => ({ ...prev, gst_no: "" }));
+                  }
+                }}
                 placeholder="Enter GST No"
+                maxLength={15} // Block typing beyond 15 characters
               />
+
               {errors.gst_no && (
                 <div style={feedbackStyle}>{errors.gst_no}</div>
               )}
             </Form.Group>
           </Col>
           <Col md={4}>
-            <Form.Group className="mb-3">
+            <Form.Group className="mb-3 form-field">
               <Form.Label>
                 Pincode<span style={{ color: "red" }}> *</span>
               </Form.Label>
@@ -307,9 +327,30 @@ export default function EditCustomer() {
                 type="text"
                 name="pincode"
                 value={customer.pincode}
-                onChange={handleChange}
+                onChange={(e) => {
+                  let value = e.target.value;
+
+                  // Allow only digits
+                  value = value.replace(/\D/g, "");
+
+                  // Block typing beyond 6 digits
+                  if (value.length > 6) value = value.slice(0, 6);
+
+                  setCustomer((prev) => ({ ...prev, pincode: value }));
+
+                  // Fetch details if 6 digits
+                  if (value.length === 6) {
+                    fetchPincodeDetails(value);
+                  }
+
+                  if (errors.pincode) {
+                    setErrors((prev) => ({ ...prev, pincode: "" }));
+                  }
+                }}
                 placeholder="Enter Pincode"
+                maxLength={6} 
               />
+
               {errors.pincode && (
                 <div style={feedbackStyle}>{errors.pincode}</div>
               )}
@@ -319,7 +360,7 @@ export default function EditCustomer() {
 
         <Row>
           <Col md={4}>
-            <Form.Group className="mb-3">
+            <Form.Group className="mb-3 form-field">
               <Form.Label>
                 City<span style={{ color: "red" }}> *</span>
               </Form.Label>
@@ -347,7 +388,7 @@ export default function EditCustomer() {
             </Form.Group>
           </Col>
           <Col md={4}>
-            <Form.Group className="mb-3">
+            <Form.Group className="mb-3 form-field">
               <Form.Label>
                 District<span style={{ color: "red" }}> *</span>
               </Form.Label>
@@ -365,7 +406,7 @@ export default function EditCustomer() {
             </Form.Group>
           </Col>
           <Col md={4}>
-            <Form.Group className="mb-3">
+            <Form.Group className="mb-3 form-field">
               <Form.Label>
                 State<span style={{ color: "red" }}> *</span>
               </Form.Label>
@@ -386,7 +427,7 @@ export default function EditCustomer() {
 
         <Row>
           <Col md={4}>
-            <Form.Group className="mb-3">
+            <Form.Group className="mb-3 form-field">
               <Form.Label>Email</Form.Label>
               <Form.Control
                 type="email"
@@ -401,21 +442,48 @@ export default function EditCustomer() {
             </Form.Group>
           </Col>
           <Col md={4}>
-            <Form.Group className="mb-3">
+            <Form.Group className="mb-3 form-field">
               <Form.Label>
                 Mobile No<span style={{ color: "red" }}> *</span>
               </Form.Label>
 
-              <PhoneInput
+              <CountryPhoneInput
                 international
-                defaultCountry={countryCode || undefined}
+                defaultCountry={countryCode ? countryCode.replace("+", "") : undefined}
                 value={customer.mobile_no}
-                onChange={handleMobileChange}
+                onChange={(inputNumber) => {
+                  let formattedNumber = inputNumber || "";
+
+                  // Auto-add +91 for 10-digit numbers without country code
+                  if (
+                    formattedNumber &&
+                    !formattedNumber.startsWith("+") &&
+                    /^[6-9]\d{9}$/.test(formattedNumber)
+                  ) {
+                    formattedNumber = "+91" + formattedNumber;
+                  }
+
+                  setCustomer((prev) => ({ ...prev, mobile_no: formattedNumber }));
+
+                  // Live validation
+                  if (!formattedNumber) {
+                    setErrors((prev) => ({ ...prev, mobile_no: "Mobile number is required" }));
+                  } else {
+                    try {
+                      if (!isValidPhoneNumber(formattedNumber)) {
+                        setErrors((prev) => ({ ...prev, mobile_no: "Invalid mobile number" }));
+                      } else {
+                        setErrors((prev) => ({ ...prev, mobile_no: "" }));
+                      }
+                    } catch {
+                      setErrors((prev) => ({ ...prev, mobile_no: "Invalid mobile number" }));
+                    }
+                  }
+                }}
                 className="form-control"
                 placeholder="Enter mobile number"
                 countrySelectComponent={CountrySelect}
               />
-
 
               {errors.mobile_no && (
                 <div style={{ color: "red", fontSize: "0.85rem", marginTop: "4px" }}>
@@ -424,8 +492,9 @@ export default function EditCustomer() {
               )}
             </Form.Group>
           </Col>
+
           <Col md={4}>
-            <Form.Group className="mb-3">
+            <Form.Group className="mb-3 form-field">
               <Form.Label>Status</Form.Label>
               <Form.Select
                 name="status"
@@ -440,8 +509,8 @@ export default function EditCustomer() {
         </Row>
 
         <Row>
-          <Col md={12}>
-            <Form.Group className="mb-3">
+          <Col md={6}>
+            <Form.Group className="mb-3 form-field">
               <Form.Label>
                 Address<span style={{ color: "red" }}> *</span>
               </Form.Label>

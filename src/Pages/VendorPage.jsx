@@ -230,10 +230,10 @@ export default function VendorPage() {
                 paginatedData.map((vendor, index) => (
                   <tr key={vendor.id}>
                     <td className="text-center">{(page - 1) * perPage + index + 1}</td>
-                    <td>{vendor.vendor}</td>
-                    <td>{vendor.gst_no}</td>
-                    <td>{vendor.email}</td>
-                    <td>{vendor.mobile_no}</td>
+                    <td>{vendor.vendor || "N/A"}</td>
+                    <td>{vendor.gst_no || "N/A"}</td>
+                    <td>{vendor.email || "N/A"}</td>
+                    <td>{vendor.mobile_no || "N/A"}</td>
                     
                     {/* <td>{vendor.status}</td> */}
                            <td>

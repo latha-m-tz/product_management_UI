@@ -51,13 +51,13 @@ const EditService = () => {
         if (serviceRes.data) {
           const serviceData = serviceRes.data;
           const items = serviceData.items?.map(item => ({
-            product: item.product || "",
+            id: item.id,
             vci_serial_no: item.vci_serial_no || "",
-            warranty_status: item.warranty_status || "",
             testing_assigned_to: item.testing_assigned_to || "",
             tested_date: item.tested_date || "",
             testing_status: item.testing_status || "",
             issue_found: item.issue_found || "",
+            warranty_status: "",
           })) || [];
 
           setFormData({
@@ -100,7 +100,6 @@ const EditService = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  // Handle item row changes
   const handleItemChange = async (index, e) => {
     const { name, value } = e.target;
     const items = [...formData.items];
@@ -334,28 +333,25 @@ const EditService = () => {
                   <Form.Control
                     as="select"
                     name="product"
-                    value={item.product}
+                    value={item.product?.toString() || ""}
                     onChange={(e) => handleItemChange(index, e)}
                   >
                     <option value="">Select Product</option>
                     {products.map(p => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
+                      <option key={p.id} value={p.id.toString()}>{p.name}</option>
                     ))}
                   </Form.Control>
+
                 </td>
                 <td>
                   <Form.Control
-                    as="select"
+                    type="text"
                     name="vci_serial_no"
                     value={item.vci_serial_no || ""}
-                    onChange={(e) => handleItemChange(index, e)}
-                  >
-                    <option value="">Select Serial No</option>
-                    {(serialNumbersByProduct[item.product] || []).map(s => (
-                      <option key={s.id} value={s.serial_no}>{s.serial_no}</option>
-                    ))}
-                  </Form.Control>
+                    readOnly
+                  />
                 </td>
+
                 <td>
                   <Form.Control
                     as="select"

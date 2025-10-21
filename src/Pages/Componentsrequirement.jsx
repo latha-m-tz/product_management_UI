@@ -189,28 +189,19 @@ export default function ComponentsRequirement() {
     return map;
   }, [combinedData, search]);
 
-  useEffect(() => {
-    if (commonTableRef.current && filteredCommonParts.length > 0) {
-      if ($.fn.DataTable.isDataTable(commonTableRef.current))
-        $(commonTableRef.current).DataTable().destroy();
-      $(commonTableRef.current).DataTable({
-        paging: true,
-        searching: false,
-        info: false,
-        ordering: true,
-        autoWidth: false,
-        pageLength: 10,
-        order: [],
-      });
-    }
-
-    Object.keys(filteredSeriesPartsMap).forEach((seriesName) => {
-      if (!seriesTableRefs.current[seriesName]) return;
+useEffect(() => {
+  const initTables = () => {
+    Object.keys(filteredSeriesPartsMap).forEach(seriesName => {
       const ref = seriesTableRefs.current[seriesName];
-      const parts = filteredSeriesPartsMap[seriesName];
-      if (!ref.current || !parts || parts.length === 0) return;
-      if ($.fn.DataTable.isDataTable(ref.current)) $(ref.current).DataTable().destroy();
-      $(ref.current).DataTable({
+      if (!ref?.current) return;
+
+      const table = $(ref.current);
+
+      if ($.fn.DataTable.isDataTable(ref.current)) {
+        table.DataTable().clear().destroy();
+      }
+
+      table.DataTable({
         paging: true,
         searching: false,
         info: false,
@@ -218,9 +209,16 @@ export default function ComponentsRequirement() {
         autoWidth: false,
         pageLength: 10,
         order: [],
+        destroy: true,
       });
     });
-  }, [filteredCommonParts, filteredSeriesPartsMap]);
+  };
+
+  setTimeout(initTables, 0);
+}, [filteredSeriesPartsMap]);
+
+
+
 
   const handleCheckboxChange = (value) => {
     if (selectedProducts.includes(value)) {
@@ -229,14 +227,33 @@ export default function ComponentsRequirement() {
       setSelectedProducts([...selectedProducts, value]);
     }
   };
-
   Object.keys(filteredSeriesPartsMap).forEach((seriesName) => {
     if (!seriesTableRefs.current[seriesName]) {
       seriesTableRefs.current[seriesName] = React.createRef();
     }
   });
+  useEffect(() => {
+    Object.keys(filteredSeriesPartsMap).forEach(seriesName => {
+      const ref = seriesTableRefs.current[seriesName];
+      if (ref?.current) {
+        const table = $(ref.current);
+        if ($.fn.DataTable.isDataTable(ref.current)) {
+          table.DataTable().clear().destroy(); // destroy previous instance
+        }
+        table.DataTable({
+          paging: true,
+          searching: false,
+          info: false,
+          ordering: true,
+          autoWidth: false,
+          pageLength: 10,
+          order: [],
+          destroy: true,
+        });
+      }
+    });
+  }, [filteredSeriesPartsMap]);
 
-  // Fix: Only show "No spare parts available" if none of the selected products have any spare parts
   const noPartsAvailable =
     selectedProducts.length > 0 &&
     (!combinedData ||

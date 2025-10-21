@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate,useLocation  } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 
 
@@ -19,6 +19,8 @@ export default function Sidebar({ collapsed }) {
     inventory: [
       { link: "product", title: "Product", icon: ["/Product.png", "/Product.png"] },
       { link: "product-type", title: "Product Type", icon: ["/Product.png", "/Product.png"] },
+      { link: "technician", title: "Technician", icon: ["/Product.png", "/Product.png"] },
+
       { link: "assemble", title: "Assemble", icon: ["/Product.png", "/Product.png"] },
     ],
 
@@ -31,7 +33,7 @@ export default function Sidebar({ collapsed }) {
   };
 
   const handleLinkClick = (link) => navigate(`/${link}`);
-  
+
   const isActive = (link) => {
     // Highlight if the current path includes the base link
     return location.pathname === `/${link}` || location.pathname.startsWith(`/${link}/`);
@@ -222,7 +224,7 @@ export default function Sidebar({ collapsed }) {
               e.preventDefault();
               handleLinkClick(item.link);
             }}
-           className={`sidebar-link ${location.pathname === `/${item.link}` ||
+            className={`sidebar-link ${location.pathname === `/${item.link}` ||
               location.pathname.startsWith(`/${item.link}/`)
               ? "active-link"
               : ""

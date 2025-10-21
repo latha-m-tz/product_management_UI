@@ -25,6 +25,8 @@ import "datatables.net-dt/css/dataTables.dataTables.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import DatePicker from "../components/DatePicker";
 import QrScannerPage from "./QrScannerPage";
+import Swal from "sweetalert2";
+import withReactContent from "sweetalert2-react-content";
 
 
 export default function EditAssemblePage() {
@@ -48,6 +50,7 @@ export default function EditAssemblePage() {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+const MySwal = withReactContent(Swal);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [deleteFrom, setDeleteFrom] = useState("");
@@ -106,25 +109,38 @@ export default function EditAssemblePage() {
       padding: "20px",
     },
   };
-  const handleDeleteBySerial = (serial_no) => {
-    const updated = products.filter((p) => p.serial_no !== serial_no);
+const handleDeleteBySerial = (serial_no) => {
+  MySwal.fire({
+    title: "Are you sure?",
+    text: "You won't be able to revert this!",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonColor: "#d33",
+    cancelButtonColor: "#2FA64F",
+    confirmButtonText: "Yes, delete it!",
+  }).then((result) => {
+    if (result.isConfirmed) {
+      const updated = products.filter((p) => p.serial_no !== serial_no);
 
-    // Recalculate range
-    if (updated.length > 0) {
-      const serials = updated.map((p) => p.serial_no).sort();
-      setForm((prev) => ({
-        ...prev,
-        fromSerial: serials[0],
-        toSerial: serials[serials.length - 1],
-        quantity: updated.length,
-      }));
-    } else {
-      setForm((prev) => ({ ...prev, fromSerial: "", toSerial: "", quantity: 0 }));
+      // Recalculate range
+      if (updated.length > 0) {
+        const serials = updated.map((p) => p.serial_no).sort();
+        setForm((prev) => ({
+          ...prev,
+          fromSerial: serials[0],
+          toSerial: serials[serials.length - 1],
+          quantity: updated.length,
+        }));
+      } else {
+        setForm((prev) => ({ ...prev, fromSerial: "", toSerial: "", quantity: 0 }));
+      }
+
+      setProducts(updated);
+      toast.success(`Serial ${serial_no} deleted successfully!`);
     }
+  });
+};
 
-    setProducts(updated);
-    toast.info(`Deleted serial ${serial_no} from list.`);
-  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -307,29 +323,37 @@ export default function EditAssemblePage() {
 
     return true;
   };
-  const handleDeleteSelected = () => {
-    // Get all serials currently visible in the filtered table that are checked
-    const serialsToDelete = currentItems
-      .filter(p => selectedSerials[p.serial_no])
-      .map(p => p.serial_no);
+const handleDeleteSelected = () => {
+  const serialsToDelete = currentItems
+    .filter(p => selectedSerials[p.serial_no])
+    .map(p => p.serial_no);
 
-    if (serialsToDelete.length === 0) {
-      toast.info("No serials selected for deletion.");
-      return;
+  if (serialsToDelete.length === 0) {
+    toast.info("No serials selected for deletion.");
+    return;
+  }
+
+  MySwal.fire({
+    title: "Are you sure?",
+    text: `You are about to delete ${serialsToDelete.length} serial(s)!`,
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonColor: "#d33",
+    cancelButtonColor: "#2FA64F",
+    confirmButtonText: "Yes, delete them!",
+  }).then((result) => {
+    if (result.isConfirmed) {
+      const updatedProducts = products.filter(p => !serialsToDelete.includes(p.serial_no));
+      setProducts(updatedProducts);
+
+      const newSelected = { ...selectedSerials };
+      serialsToDelete.forEach(sn => delete newSelected[sn]);
+      setSelectedSerials(newSelected);
+
+      toast.success(`${serialsToDelete.length} product(s) deleted successfully!`);
     }
-
-    const updatedProducts = products.filter(p => !serialsToDelete.includes(p.serial_no));
-
-    setProducts(updatedProducts);
-
-    // Reset selection for only deleted items
-    const newSelected = { ...selectedSerials };
-    serialsToDelete.forEach(sn => delete newSelected[sn]);
-    setSelectedSerials(newSelected);
-
-    toast.success(`Deleted ${serialsToDelete.length} product(s).`);
-  };
-
+  });
+};
 
 
 
