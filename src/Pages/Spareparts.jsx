@@ -248,7 +248,7 @@ export default function App() {
       <BreadCrumb title="Spare Parts" />
 
       <Card className="border-0 shadow-sm rounded-3 p-2 px-4 mt-2 bg-white">
-        <div className="row mb-2">
+        <div className="row mb-2 form-field">
           <div className="col-md-6 d-flex align-items-center mb-2 mb-md-0">
             <label className="me-2 fw-semibold mb-0">Records Per Page:</label>
             <Form.Select
@@ -269,7 +269,7 @@ export default function App() {
           </div>
 
           <div className="col-md-6 text-md-end" style={{ fontSize: '0.8rem' }}>
-            <div className="mt-2 d-inline-block mb-2" style={{ fontSize: '0.8rem' }}>
+            <div className="mt-2 d-inline-block mb-2 form-field" style={{ fontSize: '0.8rem' }}>
               <Button variant="outline-secondary" size="sm" className="me-2" onClick={fetchSpareparts}>
                 <i className="bi bi-arrow-clockwise"></i>
               </Button>
@@ -300,7 +300,7 @@ export default function App() {
           </div>
         </div>
         <div className="table-responsive">
-          <table className="table align-middle mb-0" ref={tableRef}>
+          <table className="table align-middle mb-0 form-field" ref={tableRef}>
             <thead style={{
               backgroundColor: "#2E3A59", color: "white", fontSize: "0.82rem", height: "40px",
               verticalAlign: "middle",
@@ -405,7 +405,7 @@ export default function App() {
           className="custom-offcanvas"
         >
           <Offcanvas.Header className="border-bottom px-3 py-2 d-flex align-items-center">
-            <h6 className="fw-bold mb-0">
+            <h6 className="fw-bold mb-0b form-field">
               {editingPart ? "Edit Spare Part" : "Add New Spare Part"}
             </h6>
 
@@ -423,7 +423,7 @@ export default function App() {
             <form onSubmit={handleFormSubmit}>
               <div className="row g-2">
 
-                <div className="mb-2 col-12">
+                <div className="mb-2 col-12 form-field">
                   <Form.Label className="mb-1" style={{ fontSize: "13px", fontWeight: 500 }}>
                     Spare Part Name <span style={{ color: "red" }}>*</span>
                   </Form.Label>
@@ -441,7 +441,7 @@ export default function App() {
                     {errors.name}
                   </Form.Control.Feedback>
                 </div>
-                <div className="mb-2 col-12">
+                <div className="mb-2 col-12 form-field">
                   <Form.Label className="mb-1" style={{ fontSize: "13px", fontWeight: 500 }}>
                     Spare Part Code <span style={{ color: "red" }}>*</span>
                   </Form.Label>
@@ -460,7 +460,7 @@ export default function App() {
                   </Form.Control.Feedback>
                 </div>
 
-                <div className="mb-2 col-12">
+                <div className="mb-2 col-12 form-field">
                   <Form.Label
                     className="mb-1"
                     style={{ fontSize: "13px", fontWeight: 500 }}

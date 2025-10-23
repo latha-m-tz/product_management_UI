@@ -34,6 +34,14 @@ export default function EditSparepartPurchase({ purchaseId }) {
   const [deletedSparepartIds, setDeletedSparepartIds] = useState([]);
   const [deletedItems, setDeletedItems] = useState([]);
   const [deletedItemIds, setDeletedItemIds] = useState([]);
+  const [receivedDate, setReceivedDate] = useState("");
+  const [documentRecipient, setDocumentRecipient] = useState("");
+  const [documentChallan1, setDocumentChallan1] = useState("");
+  const [documentChallan2, setDocumentChallan2] = useState("");
+  const [documentRecipientFile, setDocumentRecipientFile] = useState(null);
+  const [documentChallan1File, setDocumentChallan1File] = useState(null);
+  const [documentChallan2File, setDocumentChallan2File] = useState(null);
+
   const MySwal = withReactContent(Swal);
 
   const navigate = useNavigate();
@@ -278,7 +286,6 @@ export default function EditSparepartPurchase({ purchaseId }) {
   };
 
 
-  // ---------- fetch & group ----------
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -291,13 +298,17 @@ export default function EditSparepartPurchase({ purchaseId }) {
         setAvailableVendors(spareRes.data.vendors || []);
         setAvailableCategories(spareRes.data.categories || []);
 
-        const p = purchaseRes.data.purchase || {};
+        const p = purchaseRes.data || {}; // or purchaseRes.data.purchase if wrapped
         setVendorId(p.vendor_id || "");
         setChallanNo(p.challan_no || "");
         setChallanDate(p.challan_date || "");
+        setReceivedDate(p.received_date || "");
+        setDocumentRecipient(p.document_recipient || "");
+        setDocumentChallan1(p.document_challan_1 || "");
+        setDocumentChallan2(p.document_challan_2 || "");
         setInitialItems(p.items || []);
 
-        // Group backend items by sparepart_id + product_id + warranty_status
+
         const groups = {};
         (p.items || []).forEach((item) => {
           const key = `${item.sparepart_id}__${item.product_id || ""}__${item.warranty_status || "Active"}`;
@@ -531,7 +542,6 @@ export default function EditSparepartPurchase({ purchaseId }) {
       return;
     }
 
-    // 🧩 For all other fields
     sp[field] = value;
     updated[index] = sp;
     setSpareparts(updated);
@@ -589,25 +599,25 @@ export default function EditSparepartPurchase({ purchaseId }) {
   };
 
 
-  const canDeleteRow = (sp) => {
-    // If row is new → can delete
-    if (!sp.id) return true;
+  // const canDeleteRow = (sp) => {
+  //   // If row is new → can delete
+  //   if (!sp.id) return true;
 
-    // Find matching original item(s) by sparepart + product
-    const original = initialItems.find(
-      (i) =>
-        i.sparepart_id === sp.sparepart_id &&
-        i.product_id === sp.product_id
-    );
+  //   // Find matching original item(s) by sparepart + product
+  //   const original = initialItems.find(
+  //     (i) =>
+  //       i.sparepart_id === sp.sparepart_id &&
+  //       i.product_id === sp.product_id
+  //   );
 
-    if (!original) return true; // fallback
+  //   if (!original) return true; // fallback
 
-    // Only allow delete if original warranty is inactive OR original qty === 0
-    const warranty = (original.warranty_status || "").toLowerCase().trim();
-    const qty = Number(original.quantity || 0);
+  //   // Only allow delete if original warranty is inactive OR original qty === 0
+  //   const warranty = (original.warranty_status || "").toLowerCase().trim();
+  //   const qty = Number(original.quantity || 0);
 
-    return warranty !== "active" || qty === 0;
-  };
+  //   return warranty !== "active" || qty === 0;
+  // };
 
 
 
@@ -773,15 +783,26 @@ export default function EditSparepartPurchase({ purchaseId }) {
       .filter(Boolean)
       .filter(id => !items.some(it => it.id === id) && !deletedSparepartIds.includes(id));
 
-    const payload = {
-      vendor_id: vendorId,
-      challan_no: challanNo,
-      challan_date: formattedDate,
-      items,
-      deleted_ids,
-      deleted_sparepart_ids: deletedSparepartIds,
-      deleted_item_ids: deletedItemIds,
-    };
+    const formData = new FormData();
+    formData.append("vendor_id", vendorId);
+    formData.append("challan_no", challanNo);
+    formData.append("challan_date", challanDate);
+    formData.append("received_date", receivedDate);
+
+    // Attach uploaded files if any
+    if (documentRecipientFile) formData.append("document_recipient", documentRecipientFile);
+    if (documentChallan1File) formData.append("document_challan_1", documentChallan1File);
+    if (documentChallan2File) formData.append("document_challan_2", documentChallan2File);
+
+    // Items as JSON string
+    formData.append("items", JSON.stringify(items));
+    formData.append("deleted_ids", JSON.stringify(deleted_ids));
+    formData.append("deleted_sparepart_ids", JSON.stringify(deletedSparepartIds));
+    formData.append("deleted_item_ids", JSON.stringify(deletedItemIds));
+
+    await axios.put(`${API_BASE_URL}/purchaseUpdate/${purchaseKey}`, formData, {
+      headers: { "Content-Type": "multipart/form-data" }
+    });
 
     try {
       const res = await axios.put(
@@ -870,7 +891,109 @@ export default function EditSparepartPurchase({ purchaseId }) {
                 {errors.challan_date && <div style={feedbackStyle}>{errors.challan_date}</div>}
               </Form.Group>
             </Col>
+            <Col md={4}>
+              <Form.Group className="mb-2">
+                <Form.Label>Received Date</Form.Label>
+                <Form.Control
+                  type="date"
+                  value={receivedDate}
+                  onChange={(e) => setReceivedDate(e.target.value)}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={4}>
+              <Form.Group className="mb-2">
+                <Form.Label>Document Recipient</Form.Label>
+                <div className="input-group">
+                  {/* Button on the left side */}
+                  <label className="btn btn-outline-secondary mb-0">
+                    Choose File
+                    <input
+                      type="file"
+                      onChange={(e) => setDocumentRecipientFile(e.target.files[0])}
+                      hidden
+                    />
+                  </label>
+
+                  {/* Text input showing file name */}
+                  <Form.Control
+                    type="text"
+                    readOnly
+                    value={
+                      documentRecipientFile
+                        ? documentRecipientFile.name
+                        : documentRecipient
+                          ? documentRecipient.split("/").pop()
+                          : ""
+                    }
+                  />
+                </div>
+              </Form.Group>
+            </Col>
+
+
+
+            {/* Document Challan 1 */}
+            {/* Document Challan 1 */}
+            <Col md={4}>
+              <Form.Group className="mb-2">
+                <Form.Label>Document Challan 1</Form.Label>
+                <div className="input-group">
+                  <label className="btn btn-outline-secondary mb-0">
+                    Choose File
+                    <input
+                      type="file"
+                      onChange={(e) => setDocumentChallan1File(e.target.files[0])}
+                      hidden
+                    />
+                  </label>
+                  <Form.Control
+                    type="text"
+                    readOnly
+                    value={
+                      documentChallan1File
+                        ? documentChallan1File.name
+                        : documentChallan1
+                          ? documentChallan1.split("/").pop()
+                          : ""
+                    }
+                  />
+                </div>
+              </Form.Group>
+            </Col>
+
+            {/* Document Challan 2 */}
+            <Col md={4}>
+              <Form.Group className="mb-2">
+                <Form.Label>Document Challan 2</Form.Label>
+                <div className="input-group">
+                  <label className="btn btn-outline-secondary mb-0">
+                    Choose File
+                    <input
+                      type="file"
+                      onChange={(e) => setDocumentChallan2File(e.target.files[0])}
+                      hidden
+                    />
+                  </label>
+                  <Form.Control
+                    type="text"
+                    readOnly
+                    value={
+                      documentChallan2File
+                        ? documentChallan2File.name
+                        : documentChallan2
+                          ? documentChallan2.split("/").pop()
+                          : ""
+                    }
+                  />
+                </div>
+              </Form.Group>
+            </Col>
+
+
+
           </Row>
+
         </Card.Body>
       </Card>
 

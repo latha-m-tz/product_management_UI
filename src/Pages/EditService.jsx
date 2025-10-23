@@ -100,6 +100,7 @@ const EditService = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  // Handle item row changes
   const handleItemChange = async (index, e) => {
     const { name, value } = e.target;
     const items = [...formData.items];

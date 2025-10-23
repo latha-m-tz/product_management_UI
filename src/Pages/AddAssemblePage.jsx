@@ -449,31 +449,49 @@ export default function AddAssemblePage() {
             };
             const response = await axios.post(`${API_BASE_URL}/inventory`, payload);
             if (response.data.items && Array.isArray(response.data.items)) {
-                const existsItems = response.data.items.filter(i => i.status === "exists");
-                if (existsItems.length > 0) {
-                    toast.warn(
-                        <div>
-                            <strong>{response.data.message}</strong>
-                            <ul className="mb-0 mt-1 small">
-                                {existsItems.slice(0, 5).map((item, i) => (
-                                    <li key={i}>
-                                        Serial {item.serial_no}: {item.message}
-                                    </li>
-                                ))}
-                                {existsItems.length > 5 && (
-                                    <li>...and {existsItems.length - 5} more</li>
-                                )}
-                            </ul>
-                        </div>,
-                        { autoClose: 8000 }
-                    );
-                } else {
-                    toast.success(response.data.message || "Inventory saved successfully!");
-                    navigate("/assemble");
-                }
-            } else {
-                toast.success(response.data.message || "Inventory saved successfully!");
-                navigate("/assemble");
+    const existsItems = response.data.items.filter(i => i.status === "exists");
+    const notPurchasedItems = response.data.items.filter(i => i.status === "not_purchased");
+
+    if (notPurchasedItems.length > 0) {
+        toast.error(
+            <div>
+                <strong>Some serials were not added</strong>
+                <ul className="mb-0 mt-1 small">
+                    {notPurchasedItems.map((item, i) => (
+                        <li key={i}>
+                            Serial {item.serial_no}: {item.message}
+                        </li>
+                    ))}
+                </ul>
+            </div>,
+            { autoClose: 8000 }
+        );
+    } else if (existsItems.length > 0) {
+        toast.warn(
+            <div>
+                <strong>{response.data.message}</strong>
+                <ul className="mb-0 mt-1 small">
+                    {existsItems.slice(0, 5).map((item, i) => (
+                        <li key={i}>
+                            Serial {item.serial_no}: {item.message}
+                        </li>
+                    ))}
+                    {existsItems.length > 5 && (
+                        <li>...and {existsItems.length - 5} more</li>
+                    )}
+                </ul>
+            </div>,
+            { autoClose: 8000 }
+        );
+    } else {
+        toast.success(response.data.message || "Inventory saved successfully!");
+        navigate("/assemble");
+    }
+} else {
+    toast.success(response.data.message || "Inventory saved successfully!");
+    navigate("/assemble");
+
+
             }
         } catch (error) {
             console.error(error);

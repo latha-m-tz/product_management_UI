@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../api";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
+// import { useNavigate } from "react-router-dom";
 
 export default function AddSparepartPurchase() {
   const [vendorId, setVendorId] = useState("");
@@ -299,80 +300,55 @@ export default function AddSparepartPurchase() {
   };
 
   const handleSubmit = async () => {
-    if (!validateForm()) {
-      // toast.error("Please fix the errors below");
-      return;
-    }
+    if (!validateForm()) return;
 
+    const formData = new FormData();
+
+    formData.append("vendor_id", vendorId || "");
+    formData.append("challan_no", challanNo || "");
+
+    // Format date to dd-mm-yyyy
     let formattedDate = challanDate;
-    if (challanDate && /^\d{4}-\d{2}-\d{2}$/.test(challanDate)) {
+    if (challanDate) {
       const [year, month, day] = challanDate.split("-");
-      formattedDate = `${day}-${month}-${year}`; // dd-mm-yyyy
-    } else if (/^\d{2}-\d{2}-\d{4}$/.test(challanDate)) {
-      // already in correct format
-      formattedDate = challanDate;
-    } else {
-      toast.error("Invalid challan date format");
-      return;
+      formattedDate = `${day}-${month}-${year}`;
+    }
+    formData.append("challan_date", formattedDate);
+
+    if (receivedDate) {
+      const [year, month, day] = receivedDate.split("-");
+      formData.append("received_date", `${day}-${month}-${year}`);
     }
 
+    if (recipientFile) formData.append("image_recipient", recipientFile);
+    if (challan1File) formData.append("image_challan_1", challan1File);
+    if (challan2File) formData.append("image_challan_2", challan2File);
 
-    const items = spareparts
-      .map((sp) => {
-        if (!sp.sparepart_id) return null;
-        const type = sparepartTypeOf(sp.sparepart_id);
-        const qty = Number(sp.qty) || 1;
+    // ✅ Append items as proper array fields
+    spareparts.forEach((sp, index) => {
+      if (!sp.sparepart_id) return;
 
-        if (type.includes("serial")) {
-          return {
-            sparepart_id: sp.sparepart_id,
-            product_id: sp.product_id || null,
-            from_serial: sp.from_serial || null,
-            to_serial: sp.to_serial || null,
-            warranty_status: sp.warranty_status || null,
-            quantity: qty,
-          };
-        } else if (type.includes("warranty")) {
-          return {
-            sparepart_id: sp.sparepart_id,
-            warranty_status: sp.warranty_status || null,
-            quantity: qty,
-          };
-        } else {
-          return {
-            sparepart_id: sp.sparepart_id,
-            quantity: qty,
-          };
-        }
-      })
-      .filter(Boolean);
-
-    const payload = {
-      vendor_id: vendorId || null,
-      challan_no: challanNo || null,
-      challan_date: formattedDate || null, // <-- send in dd-mm-yyyy format
-      items,
-    };
+      formData.append(`items[${index}][sparepart_id]`, sp.sparepart_id);
+      if (sp.product_id) formData.append(`items[${index}][product_id]`, sp.product_id);
+      if (sp.from_serial) formData.append(`items[${index}][from_serial]`, sp.from_serial);
+      if (sp.to_serial) formData.append(`items[${index}][to_serial]`, sp.to_serial);
+      if (sp.warranty_status) formData.append(`items[${index}][warranty_status]`, sp.warranty_status);
+      formData.append(`items[${index}][quantity]`, sp.qty || 1);
+    });
 
     try {
-      const res = await axios.post(
-        `${API_BASE_URL}/sparepartNew-purchases`,
-        payload
-      );
+      const res = await axios.post(`${API_BASE_URL}/sparepartNew-purchases`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
       toast.success("Purchase saved successfully!");
       navigate("/spare-partsPurchase");
-      console.log(res.data);
     } catch (err) {
       if (err.response?.data?.errors) {
         const backendErrors = err.response.data.errors;
         setErrors(backendErrors);
-
         Object.values(backendErrors).forEach((fieldErrors) => {
-          if (Array.isArray(fieldErrors)) {
-            fieldErrors.forEach((msg) => toast.error(msg));
-          } else if (typeof fieldErrors === "string") {
-            toast.error(fieldErrors);
-          }
+          if (Array.isArray(fieldErrors)) fieldErrors.forEach((msg) => toast.error(msg));
+          else if (typeof fieldErrors === "string") toast.error(fieldErrors);
         });
       } else if (err.response?.data?.message) {
         toast.error(err.response.data.message);
@@ -381,6 +357,7 @@ export default function AddSparepartPurchase() {
       }
     }
   };
+
 
 
   const feedbackStyle = { color: "red", fontSize: "0.85rem", marginTop: "4px" };
@@ -412,7 +389,7 @@ export default function AddSparepartPurchase() {
 
           <Row className="mb-2">
             <Col md={4}>
-              <Form.Group className="mb-2">
+              <Form.Group className="mb-2 form-field">
                 <Form.Label>
                   Vendor<span style={{ color: "red" }}> *</span>
                 </Form.Label>
@@ -449,7 +426,7 @@ export default function AddSparepartPurchase() {
             </Col>
 
             <Col md={4}>
-              <Form.Group className="mb-2">
+              <Form.Group className="mb-2 form-field">
                 <Form.Label>
                   Challan No<span style={{ color: "red" }}> *</span>
                 </Form.Label>
@@ -471,7 +448,7 @@ export default function AddSparepartPurchase() {
             </Col>
 
             <Col md={4}>
-              <Form.Group className="mb-2">
+              <Form.Group className="mb- form-field">
                 <Form.Label>
                   Challan Date<span style={{ color: "red" }}> *</span>
                 </Form.Label>
@@ -505,13 +482,56 @@ export default function AddSparepartPurchase() {
                 {errors.challan_date && <div style={feedbackStyle}>{errors.challan_date}</div>}
               </Form.Group>
             </Col>
+            <Col md={4}>
+              <Form.Group className="mb-2 form-field">
+                <Form.Label>Received Date</Form.Label>
+                <Form.Control
+                  type="date"
+                  value={receivedDate}
+                  onChange={(e) => setReceivedDate(e.target.value)}
+                />
+              </Form.Group>
+            </Col>
+
+            <Col md={4}>
+              <Form.Group className="mb-2 form-field">
+                <Form.Label>Recipient Document</Form.Label>
+                <Form.Control
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setRecipientFile(e.target.files[0])}
+                />
+              </Form.Group>
+            </Col>
+
+            <Col md={4}>
+              <Form.Group className="mb-2 form-field">
+                <Form.Label>Challan Document 1</Form.Label>
+                <Form.Control
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setChallan1File(e.target.files[0])}
+                />
+              </Form.Group>
+            </Col>
+
+            <Col md={4}>
+              <Form.Group className="mb-2 form-field">
+                <Form.Label>Challan Document 2</Form.Label>
+                <Form.Control
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setChallan2File(e.target.files[0])}
+                />
+              </Form.Group>
+            </Col>
 
           </Row>
 
           {/* First sparepart dropdown + conditional fields */}
           <Row className="align-items-end">
             <Col md={4}>
-              <Form.Group className="mb-2">
+              <Form.Group className="mb-2 form-field">
                 <Form.Label>
                   Spare parts<span style={{ color: "red" }}> *</span>
                 </Form.Label>
@@ -545,7 +565,7 @@ export default function AddSparepartPurchase() {
                       {/* Row 1 */}
                       <Row>
                         <Col md={4}>
-                          <Form.Group className="mb-2">
+                          <Form.Group className="mb-2 form-field">
                             <Form.Label>
                               Product<span style={{ color: "red" }}> *</span>
                             </Form.Label>
@@ -567,7 +587,7 @@ export default function AddSparepartPurchase() {
                         </Col>
 
                         <Col md={4}>
-                          <Form.Group className="mb-2">
+                          <Form.Group className="mb-2 form-field">
                             <Form.Label>
                               From Serial<span style={{ color: "red" }}> *</span>
                             </Form.Label>
@@ -581,7 +601,7 @@ export default function AddSparepartPurchase() {
                         </Col>
 
                         <Col md={4}>
-                          <Form.Group className="mb-2">
+                          <Form.Group className="mb-2 form-field">
                             <Form.Label>
                               To Serial<span style={{ color: "red" }}> *</span>
                             </Form.Label>
@@ -598,7 +618,7 @@ export default function AddSparepartPurchase() {
                       {/* Row 2 */}
                       <Row>
                         <Col md={4}>
-                          <Form.Group className="mb-2">
+                          <Form.Group className="mb-2 form-field">
                             <Form.Label>Quantity</Form.Label>
                             <Form.Control
                               type="number"
@@ -614,7 +634,7 @@ export default function AddSparepartPurchase() {
                         </Col>
 
                         <Col md={4}>
-                          <Form.Group className="mb-2">
+                          <Form.Group className="mb-2 form-field">
                             <Form.Label>Warranty Status</Form.Label>
                             <Form.Select
                               value={spareparts[0].warranty_status}
@@ -638,7 +658,7 @@ export default function AddSparepartPurchase() {
                   return (
                     <Row>
                       <Col md={4}>
-                        <Form.Group className="mb-2">
+                        <Form.Group className="mb-2 form-field">
                           <Form.Label>Warranty Status</Form.Label>
                           <Form.Select
                             value={spareparts[0].warranty_status}
@@ -653,7 +673,7 @@ export default function AddSparepartPurchase() {
                       </Col>
 
                       <Col md={4}>
-                        <Form.Group className="mb-2">
+                        <Form.Group className="mb-2 form-field">
                           <Form.Label>Quantity</Form.Label>
                           <Form.Control
                             type="number"
@@ -671,7 +691,7 @@ export default function AddSparepartPurchase() {
                 } else {
                   return (
                     <Col md={4}>
-                      <Form.Group className="mb-2">
+                      <Form.Group className="mb-2 form-field">
                         <Form.Label>Quantity</Form.Label>
                         <Form.Control
                           type="number"
@@ -761,17 +781,37 @@ export default function AddSparepartPurchase() {
                       </Form.Group>
                     </Col>
 
-                    <Col md={4}>
-                      <Form.Group className="mb-2">
-                        <Form.Label>To Serial</Form.Label>
-                        <Form.Control
-                          type="text"
-                          value={sp.to_serial}
-                          onChange={(e) => handleInputChange(realIndex, "to_serial", e.target.value)}
-                        />
-                      </Form.Group>
+                    <Col md={4} className="d-flex align-items-end">
+                      <div className="flex-grow-1">
+                        <Form.Group className="mb-2">
+                          <Form.Label>To Serial</Form.Label>
+                          <Form.Control
+                            type="text"
+                            value={sp.to_serial}
+                            onChange={(e) => handleInputChange(realIndex, "to_serial", e.target.value)}
+                          />
+                        </Form.Group>
+                      </div>
+                      <Button
+                        variant="info"
+                        size="sm"
+                        className="ms-2 mb-2"
+                        onClick={() =>
+                          navigate("/pcb-serials", {
+                            state: {
+                              sparepart: {
+                                ...sp,
+                                product_name: availableCategories.find(
+                                  (c) => c.id === sp.product_id
+                                )?.name || ""
+                              },
+                            },
+                          })
+                        }
+                      >
+                        View
+                      </Button>
                     </Col>
-
                     <Col md={4}>
                       <Form.Group className="mb-2">
                         <Form.Label>Quantity</Form.Label>

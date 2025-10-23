@@ -12,14 +12,14 @@ export default function PurchaseViewPage() {
   const [purchase, setPurchase] = useState(null);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-const pageSize = 10; // items per page
+  const pageSize = 10; // items per page
 
-const totalItems = purchase?.items ? purchase.items.length : 0;
-const totalPages = Math.ceil(totalItems / pageSize);
+  const totalItems = purchase?.items ? purchase.items.length : 0;
+  const totalPages = Math.ceil(totalItems / pageSize);
 
-const paginatedItems = purchase?.items
-  ? purchase.items.slice((currentPage - 1) * pageSize, currentPage * pageSize)
-  : [];
+  const paginatedItems = purchase?.items
+    ? purchase.items.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+    : [];
 
 
 
@@ -92,9 +92,55 @@ const paginatedItems = purchase?.items
             <InfoRow label="Vendor" value={purchase.vendor} />
             <InfoRow label="Challan No" value={purchase.challan_no} />
             <InfoRow label="Challan Date" value={purchase.challan_date} />
-                <InfoRow label="Total Quantity" value={purchase.total_quantity} />
-          </Col>
+            <InfoRow label="Received Date" value={purchase.received_date || "-"} />
+            <InfoRow label="Total Quantity" value={purchase.total_quantity} />
 
+            <InfoRow
+              label="Recipient Document"
+              value={
+                purchase.document_recipient ? (
+                  <a
+                    href={`${API_BASE_URL.replace('/api', '')}/${purchase.document_recipient}`}
+                    download
+                  >
+                    Download
+                  </a>
+                ) : (
+                  "-"
+                )
+              }
+            />
+            <InfoRow
+              label="Challan 1"
+              value={
+                purchase.document_challan_1 ? (
+                  <a
+                    href={`${API_BASE_URL.replace('/api', '')}/${purchase.document_challan_1}`}
+                    download
+                  >
+                    Download
+                  </a>
+                ) : (
+                  "-"
+                )
+              }
+            />
+            <InfoRow
+              label="Challan 2"
+              value={
+                purchase.document_challan_2 ? (
+                  <a
+                    href={`${API_BASE_URL.replace('/api', '')}/${purchase.document_challan_2}`}
+                    download
+                  >
+                    Download
+                  </a>
+                ) : (
+                  "-"
+                )
+              }
+            />
+          </Col>
         </Row>
       </SectionCard>
 
@@ -105,61 +151,61 @@ const paginatedItems = purchase?.items
             <thead style={{ backgroundColor: "#2E3A59", color: "white" }}>
               <tr>
                 <th style={{ width: "50px", textAlign: "center" }}>S.No</th>
-                  <th>Sparepart</th>
+                <th>Sparepart</th>
                 <th>Product</th>
                 <th>Serial No</th>
                 <th>Quantity</th>
               </tr>
             </thead>
-           <tbody>
-  {paginatedItems && paginatedItems.length > 0 ? (
-    paginatedItems.map((item, index) => (
-      <tr key={item.id}>
-        <td className="text-center">
-          {(currentPage - 1) * pageSize + index + 1}
-        </td>
-        <td>{item.sparepart}</td>
-        <td>{item.product}</td>
-        <td>{item.serial_numbers?.join(", ")}</td>
-        <td>{item.quantity}</td>
-      </tr>
-    ))
-  ) : (
-    <tr>
-      <td colSpan="5" className="text-center py-4 text-muted">
-        No items found
-      </td>
-    </tr>
-  )}
-</tbody>
+            <tbody>
+              {paginatedItems && paginatedItems.length > 0 ? (
+                paginatedItems.map((item, index) => (
+                  <tr key={item.id}>
+                    <td className="text-center">
+                      {(currentPage - 1) * pageSize + index + 1}
+                    </td>
+                    <td>{item.sparepart}</td>
+                    <td>{item.product}</td>
+                    <td>{item.serial_numbers?.join(", ")}</td>
+                    <td>{item.quantity}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="5" className="text-center py-4 text-muted">
+                    No items found
+                  </td>
+                </tr>
+              )}
+            </tbody>
 
           </table>
 
-          
+
         </div>
         {totalPages > 1 && (
-  <div className="d-flex justify-content-between align-items-center mt-2">
-    <Button
-      size="sm"
-      variant="outline-secondary"
-      disabled={currentPage === 1}
-      onClick={() => setCurrentPage((p) => p - 1)}
-    >
-      Previous
-    </Button>
-    <span>
-      Page {currentPage} of {totalPages}
-    </span>
-    <Button
-      size="sm"
-      variant="outline-secondary"
-      disabled={currentPage === totalPages}
-      onClick={() => setCurrentPage((p) => p + 1)}
-    >
-      Next
-    </Button>
-  </div>
-)}
+          <div className="d-flex justify-content-between align-items-center mt-2">
+            <Button
+              size="sm"
+              variant="outline-secondary"
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage((p) => p - 1)}
+            >
+              Previous
+            </Button>
+            <span>
+              Page {currentPage} of {totalPages}
+            </span>
+            <Button
+              size="sm"
+              variant="outline-secondary"
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage((p) => p + 1)}
+            >
+              Next
+            </Button>
+          </div>
+        )}
 
       </SectionCard>
 
