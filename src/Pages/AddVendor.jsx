@@ -1,21 +1,20 @@
-import React, { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button, Form, Row, Col } from "react-bootstrap";
-import DataTable from "react-data-table-component";
 import CreatableSelect from "react-select/creatable";
-import PhoneInput from "react-phone-number-input";
 import "react-phone-number-input/style.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useNavigate } from "react-router-dom";
- import ActionButton from "../components/ActionButton";
-import { parsePhoneNumberFromString, getCountryCallingCode, isValidPhoneNumber } from "libphonenumber-js";
+import ActionButton from "../components/ActionButton";
+import { isValidPhoneNumber } from "libphonenumber-js";
 import { API_BASE_URL } from "../api";
- 
-// import { getCountryCallingCode } from "libphonenumber-js";
- 
+import CountryPhoneInput from "../components/CountryPhoneInput";
+import Swal from "sweetalert2";
+import withReactContent from "sweetalert2-react-content";
+
 export default function AddVendor() {
-    const navigate = useNavigate();
+  const navigate = useNavigate();
   const [vendor, setVendor] = useState({
     vendor: "",
     gst_no: "",
@@ -27,16 +26,16 @@ export default function AddVendor() {
     address: "",
     mobile_no: "",
   });
- 
+
   const [cityOptions, setCityOptions] = useState([]);
   const [contactPersons, setContactPersons] = useState([]);
   const [showPanel, setShowPanel] = useState(false);
   const [editingIndex, setEditingIndex] = useState(null);
   const [contactErrors, setContactErrors] = useState({});
-  const [countryCode, setCountryCode] = useState("");
-  const [countries, setCountries] = useState([]);
   const [vendorErrors, setVendorErrors] = useState({});
- 
+  const MySwal = withReactContent(Swal);
+  const [panelKey, setPanelKey] = useState(0);
+
   const [contact, setContact] = useState({
     name: "",
     designation: "",
@@ -45,201 +44,123 @@ export default function AddVendor() {
     status: "Active",
     isMain: false,
   });
- 
-  useEffect(() => {
-    fetch("https://ipapi.co/json/")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data && data.country_calling_code) {
-          setCountryCode(data.country_calling_code); // e.g. "+1", "+91"
-        }
-      })
-      .catch(() => {
-        setCountryCode("");
-      });
-  }, []);
- 
-const handleVendorMobileChange = (value) => {
-  setVendor(prev => ({ ...prev, mobile_no: value }));
- 
-  if (!value) {
-    setVendorErrors(prev => ({ ...prev, mobile_no: "Mobile number is required" }));
-    return;
-  }
- 
-  try {
-    const phoneNumber = parsePhoneNumberFromString(value);
-    if (!phoneNumber) {
-      setVendorErrors(prev => ({ ...prev, mobile_no: "Invalid mobile number" }));
+
+  const handleVendorMobileChange = (inputNumber) => {
+    let formattedNumber = inputNumber || "";
+    if (
+      formattedNumber &&
+      !formattedNumber.startsWith("+") &&
+      /^[6-9]\d{9}$/.test(formattedNumber)
+    ) {
+      formattedNumber = "+91" + formattedNumber;
+    }
+    setVendor(prev => ({ ...prev, mobile_no: formattedNumber }));
+
+    if (!formattedNumber) {
+      setVendorErrors(prev => ({ ...prev, mobile_no: "Mobile number is required" }));
       return;
     }
- 
-    if (!isValidPhoneNumber(value)) {
-      setVendorErrors(prev => ({ ...prev, mobile_no: "Mobile number is invalid for this country" }));
-    } else {
-      setVendorErrors(prev => ({ ...prev, mobile_no: "" }));
-    }
-  } catch (err) {
-    setVendorErrors(prev => ({ ...prev, mobile_no: "Invalid mobile number" }));
-  }
-};
- 
- 
-  // const handleMobileChange = (e) => {
-  //   let value = e.target.value;
- 
-  //   // Use detected country code
-  //   if (countryCode && !value.startsWith("+")) {
-  //     // convert 'IN' -> '91'
-  //     const numericCode = getCountryCallingCode(countryCode.replace("+", ""));
-  //     value = `+${numericCode}${value.replace(/\D/g, "")}`;
-  //   }
- 
-  //   setVendor({ ...vendor, mobile_no: value });
-  // };
- 
- 
+    setVendorErrors(prev => ({
+      ...prev,
+      mobile_no: isValidPhoneNumber(formattedNumber) ? "" : "Invalid mobile number for selected country"
+    }));
+  };
+
   const validateVendor = () => {
     const errors = {};
- 
-    if (!vendor.vendor.trim()) errors.vendor = "Company Name is required";
-    // if (!vendor.gst_no.trim()) errors.gst_no = "GST No is required";
- if (vendor.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(vendor.email)) {
-  errors.email = "Invalid email format";
-}
 
-    if (!vendor.mobile_no.trim()) errors.mobile_no = "Mobile number is required";
-    if (!vendor.pincode.trim()) errors.pincode = "Pincode is required";
-    if (!vendor.city.trim()) errors.city = "City is required";
-    if (!vendor.district.trim()) errors.district = "District is required";
-    if (!vendor.state.trim()) errors.state = "State is required";
-    if (!vendor.address.trim()) errors.address = "Address is required";
- 
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+
+    if (!vendor.vendor?.trim()) {
+      errors.vendor = "Vendor name is required";
+    }
+
+    if (!vendor.mobile_no) {
+      errors.mobile_no = "Mobile number is required";
+    } else if (!isValidPhoneNumber(vendor.mobile_no)) {
+      errors.mobile_no = "Invalid mobile number for selected country";
+    }
+
+    // Email validation: allow spaces before/after, but not inside
+    if (vendor.email) {
+      const emailTrimmed = vendor.email.trim();
+      if (/\s/.test(emailTrimmed.replace(/^\s+|\s+$/g, ""))) {
+        errors.email = "Invalid email format (spaces are not allowed inside email)";
+      } else if (!emailPattern.test(emailTrimmed)) {
+        errors.email = "Invalid email format";
+      }
+    }
+
+    if (vendor.gst_no) {
+      const gst = vendor.gst_no.trim().toUpperCase();
+      if (gst.length !== 15) {
+        errors.gst_no = "GST No must be 15 characters";
+      } else if (!gstRegex.test(gst)) {
+        errors.gst_no = "Invalid GST No format";
+      }
+    }
+
+    if (!vendor.pincode?.trim()) errors.pincode = "Pincode is required";
+    if (!vendor.city?.trim()) errors.city = "City is required";
+    if (!vendor.district?.trim()) errors.district = "District is required";
+    if (!vendor.state?.trim()) errors.state = "State is required";
+    if (!vendor.address?.trim()) errors.address = "Address is required";
+
     setVendorErrors(errors);
     return Object.keys(errors).length === 0;
   };
- 
-  const validateContact = () => {
-    const errors = {};
- 
-    // if (!contact.name.trim()) errors.name = "Name is required";
-    // if (!contact.designation.trim()) errors.designation = "Designation is required";
-    if (!contact.mobile_no || contact.mobile_no.length < 10)
-      errors.mobile_no = "Mobile number is required and must be valid";
- 
-    // if (!contact.email.trim()) errors.email = "Email is required";
-    // else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.email))
-    //   errors.email = "Invalid email format";
- if (contact.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.email)) {
-  errors.email = "Invalid email format";
-} else if (
-  contact.email.trim() &&
-  vendor.email &&
-  contact.email.trim().toLowerCase() === vendor.email.trim().toLowerCase()
-) {
-  errors.email = "Contact email cannot be the same as company email";
-}
 
- 
-    if (!contact.status) errors.status = "Status is required";
- 
- 
-    setContactErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
- 
-  // Handle vendor inputs
-  // const handleVendorChange = (e) => {
-  //   const { name, value } = e.target;
-  //   setVendor({ ...vendor, [name]: value });
-  //    if (vendorErrors[name]) {
-  //   setVendorErrors((prev) => ({ ...prev, [name]: "" }));
-  // }
- 
-  // };
- 
   const handleVendorChange = (e) => {
     const { name, value } = e.target;
- 
-    setVendor({ ...vendor, [name]: value });
- 
-    if (name === "mobile_no") {
-      if (!value.trim()) {
-        setVendorErrors((prev) => ({ ...prev, mobile_no: "Mobile number is required" }));
-      } else if (value.replace(/\D/g, "").length > 15) {
-        setVendorErrors((prev) => ({ ...prev, mobile_no: "Mobile number cannot exceed 15 digits" }));
-      } else {
-        setVendorErrors((prev) => ({ ...prev, mobile_no: "" }));
+
+    if (name === "pincode") {
+      let input = value.replace(/\D/g, "");
+      if (input.length > 6) input = input.slice(0, 6);
+
+      setVendor((prev) => ({ ...prev, pincode: input }));
+      setVendorErrors((prev) => ({ ...prev, pincode: "" }));
+
+      if (input.length === 6) {
+        fetchPincodeDetails(input);
       }
+      return;
     }
- 
-    else if (vendorErrors[name]) {
+
+    setVendor((prev) => ({ ...prev, [name]: value }));
+    if (vendorErrors[name]) {
       setVendorErrors((prev) => ({ ...prev, [name]: "" }));
     }
- 
-    if (name === "pincode" && value.length === 6) {
-      fetchPincodeDetails(value);
-    }
   };
- 
-  // Handle contact inputs
+
   const handleContactChange = (e) => {
     const { name, value } = e.target;
     setContact({ ...contact, [name]: value });
- 
-    if (name === "mobile_no") {
-      if (!value.trim()) {
-        setContactErrors((prev) => ({ ...prev, mobile_no: "Mobile number is required" }));
-      } else if (value.replace(/\D/g, "").length > 15) {
-        setContactErrors((prev) => ({ ...prev, mobile_no: "Mobile number cannot exceed 15 digits" }));
-      } else {
-        setContactErrors((prev) => ({ ...prev, mobile_no: "" }));
-      }
-    } else if (contactErrors[name]) {
+
+    if (name !== "mobile_no" && contactErrors[name]) {
       setContactErrors((prev) => ({ ...prev, [name]: "" }));
     }
   };
- 
-  const columns = [
-    { name: "Name", selector: (row) => row.name + (row.isMain ? " (Main person)" : "") },
-    { name: "Designation", selector: (row) => row.designation, sortable: true },
-    { name: "Mobile", selector: (row) => row.mobile_no, sortable: true },
-    { name: "Email", selector: (row) => row.email, sortable: true },
-    { name: "Status", selector: (row) => row.status, sortable: true },
-    {
-      name: "Actions",
-      cell: (row, index) => (
-    <ActionButton
-      onEdit={() => editContact(index)}
-      onDelete={() => deleteContact(index)}
-    />
-      ),
- 
-      ignoreRowClick: true,
-      allowOverflow: true,
-      button: true,
-    },
-  ];
- 
+
   const cityOptionsFormatted = cityOptions.map((c) => ({ label: c, value: c }));
- 
+
   const fetchPincodeDetails = async (pincode) => {
     try {
       const res = await fetch(`https://api.postalpincode.in/pincode/${pincode}`);
       const data = await res.json();
- 
+
       if (data[0].Status === "Success") {
         const postOffices = data[0].PostOffice;
         const cities = postOffices.map((po) => po.Name);
- 
+
         setCityOptions(cities);
         setVendor((prev) => ({
           ...prev,
-          state: postOffices[0].State,
-          district: postOffices[0].District,
+          state: postOffices[0].State || "",
+          district: postOffices[0].District || "",
           city: cities.length === 1 ? cities[0] : "",
         }));
- 
+
         setVendorErrors((prev) => ({
           ...prev,
           city: cities.length === 1 ? "" : prev.city,
@@ -247,16 +168,14 @@ const handleVendorMobileChange = (value) => {
           state: postOffices[0].State ? "" : prev.state,
         }));
       } else {
-        // API returned error
         fallbackToManual();
       }
     } catch (err) {
       console.error("Pincode API failed", err);
-      // Network or parse error → fallback
       fallbackToManual();
     }
   };
- 
+
   const fallbackToManual = () => {
     setCityOptions([]);
     setVendor((prev) => ({
@@ -267,353 +186,37 @@ const handleVendorMobileChange = (value) => {
     }));
     toast.error("Could not fetch details. Please enter City, District, and State manually.");
   };
- 
- 
+
   const addContactPerson = () => {
-  if (!validateContact()) return;
- 
-  const contactToSave = { ...contact };
-  let updatedContacts = [...contactPersons];
- 
-  // If this contact is marked as Main, unset isMain for all others
-  if (contactToSave.isMain) {
-    updatedContacts = updatedContacts.map(c => ({ ...c, isMain: false }));
-  }
- 
-  if (editingIndex !== null) {
-    updatedContacts[editingIndex] = contactToSave;
-    setContactPersons(updatedContacts);
-  } else {
-    setContactPersons([...updatedContacts, contactToSave]);
-  }
- 
-  // Reset form
-  setContact({
-    name: "",
-    designation: "",
-    mobile_no: "",
-    email: "",
-    status: "Active",
-    isMain: false,
-  });
-  setEditingIndex(null);
-  setShowPanel(false);
-};
- 
- 
-  const handleContactMobileChange = (e) => {
-    let value = e.target.value;
- 
-    if (!value.startsWith("+") && countryCode) {
-      value = countryCode + value.replace(/\D/g, "");
-    }
- 
-    setContact({ ...contact, mobile_no: value });
-  };
- 
- 
-  const editContact = (index) => {
-    const c = contactPersons[index];
-    setContact({
-      ...c,
-      isMain: !!c.isMain,
-    });
-    setEditingIndex(index);
-    setShowPanel(true);
-  };
- 
-  const deleteContact = (index) => {
-    const updated = [...contactPersons];
-    updated.splice(index, 1);
-    setContactPersons(updated);
-  };
- 
-  const handleContacMobileChange = (value) => {
-  setContact(prev => ({ ...prev, mobile_no: value }));
- 
-  if (!value) {
-    setContactErrors(prev => ({ ...prev, mobile_no: "Mobile number is required" }));
-    return;
-  }
- 
-  try {
-    const phoneNumber = parsePhoneNumberFromString(value);
-    if (!phoneNumber) {
-      setContactErrors(prev => ({ ...prev, mobile_no: "Invalid mobile number" }));
+    if (!validateContact()) return;
+
+    const contactToSave = { ...contact };
+    let updatedContacts = [...contactPersons];
+
+    const duplicateInContacts = updatedContacts.some(
+      (c, idx) => c.mobile_no === contactToSave.mobile_no && idx !== editingIndex
+    );
+
+    const duplicateWithVendor = contactToSave.mobile_no === vendor.mobile_no;
+
+    if (duplicateInContacts || duplicateWithVendor) {
+      toast.error(`Mobile number ${contactToSave.mobile_no} is already used!`);
       return;
     }
- 
-    if (!isValidPhoneNumber(value)) {
-      setContactErrors(prev => ({ ...prev, mobile_no: "Mobile number is invalid for this country" }));
+
+    if (contactToSave.isMain) {
+      updatedContacts = updatedContacts.map(c => ({ ...c, isMain: false }));
+    }
+
+    if (editingIndex !== null) {
+      updatedContacts[editingIndex] = contactToSave;
+      setContactPersons(updatedContacts);
+      toast.success(`Contact person "${contactToSave.name}" updated successfully!`);
     } else {
-      setContactErrors(prev => ({ ...prev, mobile_no: "" }));
+      setContactPersons([...updatedContacts, contactToSave]);
+      toast.success(`Contact person "${contactToSave.name}" added successfully!`);
     }
-  } catch (err) {
-    setContactErrors(prev => ({ ...prev, mobile_no: "Invalid mobile number" }));
-  }
-};
- 
- 
-  const saveVendor = async () => {
-    if (!validateVendor()) return;
- 
-    const payload = {
-      ...vendor,
-      contact_persons: contactPersons.map(c => ({
-        name: c.name.replace(" (Main person)", ""),
-        designation: c.designation,
-        mobile_no: c.mobile_no,
-        alt_mobile_no: c.alt_mobile_no || null,
-        email: c.email,
-        status: c.status,
-        is_main: c.isMain ? true : false,
-      })),
-    };
- 
-    try {
-      const response = await fetch(`${API_BASE_URL}/vendors/new`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
- 
-      const data = await response.json();
-   if (!response.ok) {
-      // Check for duplicate fields
-      if (data.errors) {
-        if (data.errors.email) toast.error(`Email already taken: ${data.errors.email}`);
-        if (data.errors.mobile_no) toast.error(`Mobile number already taken: ${data.errors.mobile_no}`);
-      } else if (data.message) {
-        toast.error(data.message);
-      } else {
-        toast.error("Error saving customer!");
-      }
-      console.error(data);
-      return;
-    }
- 
- 
-      toast.success("Vendor saved successfully!");
-      navigate("/vendor");
-      console.log(data);
-    // } catch (err) {
-    //   console.error(err);
-    //   toast.error("Error saving vendor!");
-    // }
 
-   } catch (err) {
-  console.error(err);
-
-  if (err.response?.data?.errors) {
-    const backendErrors = err.response.data.errors;
-    setErrors(backendErrors);
-
-    // Show each validation error in toast
-    Object.values(backendErrors).forEach((messages) => {
-      if (Array.isArray(messages)) {
-        messages.forEach((msg) => toast.error(msg));
-      } else if (typeof messages === "string") {
-        toast.error(messages);
-      }
-    });
-  } else if (err.response?.data?.message) {
-    toast.error(err.response.data.message);
-  } else {
-    toast.error("Error saving vendor!");
-  }
-}
-
-  };
- 
-  const feedbackStyle = { color: "red", fontSize: "0.85rem", marginTop: "4px" };
-  const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
- 
-  return (
-    <div className="container-fluid p-4" style={{ background: "white", minHeight: "100vh", position: "relative" }}>
-      <h5 className="mb-3">Add Vendor Details</h5>
- 
-      {/* Vendor Form */}
-      <div style={{ background: "#f1f3f5", padding: "20px", borderRadius: "6px", marginBottom: "20px" }}>
-        <h6 className="mb-3">Company Details</h6>
-        <Row>
-          <Col md={4}>
-            <Form.Group className="mb-3">
-              <Form.Label>
-  Vendor<span style={{ color: "red" }}> *</span>
-</Form.Label>
-
-              <Form.Control type="text" name="vendor" value={vendor.vendor} onChange={handleVendorChange}
-                placeholder="Enter company name"
- 
-              />
-              {vendorErrors.vendor && (
-                <div style={{ color: "red", fontSize: "0.85rem", marginTop: "4px" }}>
-                  {vendorErrors.vendor}
-                </div>
-              )}
-            </Form.Group>
-          </Col>
-          <Col md={4}>
-
-<Form.Group className="mb-3">
-  <Form.Label>GST No</Form.Label>
-  <Form.Control
-    type="text"
-    name="gst_no"
-    value={vendor.gst_no}
-    onChange={(e) => {
-      const value = e.target.value.toUpperCase();
-      setVendor({ ...vendor, gst_no: value });
-
-      if (!value.trim()) {
-        setVendorErrors((prev) => ({ ...prev, gst_no: "GST No is required" }));
-      } else if (value.length !== 15) {
-        setVendorErrors((prev) => ({ ...prev, gst_no: "GST No must be 15 characters" }));
-      } else if (!gstRegex.test(value)) {
-        setVendorErrors((prev) => ({ ...prev, gst_no: "Invalid GST No format" }));
-      } else {
-        setVendorErrors((prev) => ({ ...prev, gst_no: "" }));
-      }
-    }}
-    placeholder="Enter GST No"
-  />
-  {vendorErrors.gst_no && (
-    <div style={{ color: "red", fontSize: "0.85rem", marginTop: "4px" }}>
-      {vendorErrors.gst_no}
-    </div>
-  )}
-</Form.Group>
-
- 
-          </Col>
-          <Col md={4}>
-            <Form.Group className="mb-3">
-             <Form.Label>
-  Pincode<span style={{ color: "red" }}> *</span>
-</Form.Label>
-
-              <Form.Control type="text" name="pincode" value={vendor.pincode} onChange={handleVendorChange}
-                placeholder=" Enter pincode"
-              />
-              {vendorErrors.pincode && <div style={feedbackStyle}>{vendorErrors.pincode}</div>}
- 
-            </Form.Group>
-          </Col>
-        </Row>
- 
-        <Row>
-          <Col md={4}>
-            <Form.Group className="mb-3">
-            <Form.Label>
-  City<span style={{ color: "red" }}> *</span>
-</Form.Label>
-
-              <CreatableSelect
-                isClearable
-                options={cityOptionsFormatted}
-                value={vendor.city ? { label: vendor.city, value: vendor.city } : null}
-                onChange={(selected) => {
-                  const cityValue = selected ? selected.value : "";
-                  setVendor({ ...vendor, city: cityValue });
- 
-                  if (cityValue) {
-                    setVendorErrors((prev) => ({ ...prev, city: "" }));
-                  }
-                }}
-                onInputChange={(inputValue, { action }) => {
-                  if (action === "input-change") {
-                    setVendor({ ...vendor, city: inputValue });
- 
-                    if (inputValue) {
-                      setVendorErrors((prev) => ({ ...prev, city: "" }));
-                    }
-                  }
-                }}
-                placeholder="Select or type city"
-                  classNamePrefix="my-select"   
-              />
-              {vendorErrors.city && <div style={feedbackStyle}>{vendorErrors.city}</div>}
- 
-            </Form.Group>
-          </Col>
-          <Col md={4}>
-            <Form.Group className="mb-3">
-          <Form.Label>
-  District<span style={{ color: "red" }}> *</span>
-</Form.Label>
-
-              <Form.Control type="text" name="district" value={vendor.district}
-                onChange={handleVendorChange}
-                placeholder="Enter District" />
-              {vendorErrors.district && <div style={feedbackStyle}>{vendorErrors.district}</div>}
-            </Form.Group>
-          </Col>
-          <Col md={4}>
-            <Form.Group className="mb-3">
-             <Form.Label>
-  State<span style={{ color: "red" }}> *</span>
-</Form.Label>
-
-              <Form.Control type="text" name="state" value={vendor.state}
-                onChange={handleVendorChange}
-                placeholder="Enter State" />
-              {vendorErrors.state && <div style={feedbackStyle}>{vendorErrors.state}</div>}
-            </Form.Group>
-          </Col>
-        </Row>
- 
-        <Row>
-          <Col md={4}>
-            <Form.Group className="mb-3">
-              <Form.Label>Email</Form.Label>
-              <Form.Control type="email" name="email" value={vendor.email} onChange={handleVendorChange}
-                placeholder="Enter Email"
-              />
-              {vendorErrors.email && <div style={feedbackStyle}>{vendorErrors.email}</div>}
- 
-            </Form.Group>
-          </Col>
-          <Col md={4}>
-          <Form.Group className="mb-3">
- <Form.Label>
-  Mobile No<span style={{ color: "red" }}> *</span>
-</Form.Label>
-
-  <PhoneInput
-    international
-    defaultCountry="IN"
-    className="form-control"
-    value={vendor.mobile_no}
-    onChange={handleVendorMobileChange}
-  />
-  {vendorErrors.mobile_no && (
-    <div style={{ color: "red", fontSize: "0.85rem", marginTop: "4px" }}>
-      {vendorErrors.mobile_no}
-    </div>
-  )}
-</Form.Group>
- 
- 
-          </Col>
-          <Col md={12}>
-            <Form.Group className="mb-3">
-             <Form.Label>
-  Address<span style={{ color: "red" }}> *</span>
-</Form.Label>
-
-              <Form.Control as="textarea" rows={2} name="address" value={vendor.address} onChange={handleVendorChange}
-                placeholder="Enter Address"
-              />
-              {vendorErrors.address && <div style={feedbackStyle}>{vendorErrors.address}</div>}
- 
-            </Form.Group>
-          </Col>
-        </Row>
- 
-      </div>
-  <Button
-  variant="success"
-  onClick={() => {
     setContact({
       name: "",
       designation: "",
@@ -624,265 +227,600 @@ const handleVendorMobileChange = (value) => {
     });
     setContactErrors({});
     setEditingIndex(null);
+    setShowPanel(false);
+    setTimeout(() => setShowPanel(false), 0);
+  };
+
+  const editContact = (index) => {
+    const c = contactPersons[index];
+    setContact({ ...c });
+    setEditingIndex(index);
     setShowPanel(true);
-  }}
->
-  + Add Contact Person
-</Button>
- 
- 
-     {contactPersons.length > 0 && (
-  <div className="mt-3 table-responsive">
-   <table className="table align-middle mb-0">
-  <thead>
-    <tr>
-      <th
-        style={{
-          width: "50px",
-          textAlign: "center",
-          cursor: "pointer",
-          backgroundColor: "#f1f3f5",
-          fontWeight: "normal",
-          color: "inherit",
-        }}
-      >
-        S.No
-      </th>
-      {[
-        { label: "Name", field: "name" },
-        { label: "Designation", field: "designation" },
-        { label: "Mobile", field: "mobile_no" },
-        { label: "Email", field: "email" },
-        { label: "Status", field: "status" },
-      ].map(({ label, field }) => (
-        <th
-          key={field}
-          style={{
-            cursor: "pointer",
-            backgroundColor: "#f1f3f5",
-            fontWeight: "normal",
-            color: "inherit",
-          }}
-        >
-          {label}
-        </th>
-      ))}
-      <th
-        style={{
-          textAlign: "center",
-          backgroundColor: "#f1f3f5",
-          fontWeight: "normal",
-          color: "inherit",
-        }}
-      >
-        Action
-      </th>
-    </tr>
-  </thead>
-  <tbody>
-    {contactPersons.length === 0 ? (
-      <tr>
-        <td colSpan="7" className="text-center py-4 text-muted">
-          No contact persons found
-        </td>
-      </tr>
-    ) : (
-      contactPersons.map((c, index) => (
-        <tr key={index}>
-          <td className="text-center">{index + 1}</td>
-          <td>{c.name}{c.isMain ? " (Main)" : ""}</td>
-          <td>{c.designation}</td>
-          <td>{c.mobile_no}</td>
-          <td>{c.email}</td>
-          <td>
-            <span className={`badge ${c.status === "Active" ? "bg-success" : "bg-danger"}`}>
-              {c.status}
-            </span>
-          </td>
-          <td className="text-center">
-            <ActionButton
-              onEdit={() => editContact(index)}
-              onDelete={() => deleteContact(index)}
-            />
-          </td>
-        </tr>
-      ))
-    )}
-  </tbody>
-</table>
+  };
 
-  </div>
-)}
+  const deleteContact = (index) => {
+    const contactName = contactPersons[index].name;
+    MySwal.fire({
+      title: "Are you sure?",
+      text: `Do you want to delete ${contactName}?`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "Yes, delete it!",
+    }).then((result) => {
+      if (result.isConfirmed) {
+        const updated = [...contactPersons];
+        updated.splice(index, 1);
+        setContactPersons(updated);
+        toast.success(`Contact person "${contactName}" deleted successfully!`);
+      }
+    });
+  };
+  const handleContactMobileChange = (inputNumber) => {
+    let formattedNumber = inputNumber || "";
+    if (
+      formattedNumber &&
+      !formattedNumber.startsWith("+") &&
+      /^[6-9]\d{9}$/.test(formattedNumber)
+    ) {
+      formattedNumber = "+91" + formattedNumber;
+    }
+    setContact((prev) => ({ ...prev, mobile_no: formattedNumber }));
 
-  <div className="d-flex justify-content-end">
-  <Button
-  variant="secondary"
-  className="me-2"
-  onClick={() => navigate("/vendor")}  // navigate to vendor list
->
-  Cancel
-</Button>
- 
-        <Button variant="success" onClick={saveVendor}>
-          Save
-        </Button>
-      </div>
- 
-      {/* Right Side Panel */}
-      <div
-        style={{
-          position: "fixed",
-          top: 0,
-          right: showPanel ? 0 : "-500px",
-          width: "500px",
-          height: "100%",
-          background: "white",
-          boxShadow: "-2px 0 6px rgba(0,0,0,0.2)",
-          transition: "right 0.3s",
-          zIndex: 1050,
-          padding: "20px",
-        }}
-      >
-        <h5>{editingIndex !== null ? "Edit Contact" : "Add Contact"}</h5>
-        <Button
-          variant="secondary"
-          size="sm"
-          style={{ position: "absolute", top: "10px", right: "10px" }}
-          onClick={() => {
-            setShowPanel(false);
-            setEditingIndex(null);
-          }}
-        >
-          X
-        </Button>
- 
-        <Form className="mt-4">
-          {/* Row 1: Name + Designation */}
-          <div style={{ background: "#f5f5f5", borderRadius: "6px" }}>
- 
-            <Row className="p-2">
-              <Col md={6}>
-                <Form.Group>
-                  <Form.Label>Name</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="name"
-                    value={contact.name.replace(" (Main person)", "")} // show clean name
-                    // onChange={(e) =>
-                    //   setContact({ ...contact, name: e.target.value })
-                    // }
-                    onChange={handleContactChange}
- 
-                    placeholder="Enter Name"
-                  />
-                  {contactErrors.name && <div style={feedbackStyle}>{contactErrors.name}</div>}
- 
- 
-                </Form.Group>
-                <Form.Check
-                  type="checkbox"
-                  label="Main Contact"
-                  checked={contact.isMain || false}
-                  onChange={(e) => setContact({ ...contact, isMain: e.target.checked })}
-                />
- 
-              </Col>
- 
-              <Col md={6}>
-                <Form.Group>
-                  <Form.Label>Designation</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="designation"
-                    value={contact.designation}
-                    onChange={handleContactChange}
- 
-                    placeholder="Enter Designation"
-                  />
-                  {contactErrors.designation && <div style={feedbackStyle}>{contactErrors.designation}</div>}                </Form.Group>
-              </Col>
-            </Row>
- 
-            {/* Row 2: Mobile + Email */}
-            <Row className="p-2">
-              <Col md={6}>
-                <Form.Group>
-                  <Form.Label>
-  Mobile No<span style={{ color: "red" }}> *</span>
-</Form.Label>
+    if (!formattedNumber) {
+      setContactErrors((prev) => ({ ...prev, mobile_no: "Mobile number is required" }));
+      return;
+    }
+    setContactErrors((prev) => ({
+      ...prev,
+      mobile_no: isValidPhoneNumber(formattedNumber) ? "" : "Invalid mobile number"
+    }));
+  };
 
-                  <PhoneInput
-  international
-  defaultCountry="IN"
-  value={contact.mobile_no}
-  onChange={handleContacMobileChange}
-  className="form-control"
-/>
-                  {contactErrors.mobile_no && <div style={feedbackStyle}>{contactErrors.mobile_no}</div>}
- 
- 
-                </Form.Group>
- 
-              </Col>
-              <Col md={6}>
-                <Form.Group>
-                  <Form.Label>Email</Form.Label>
-                  <Form.Control
-                    type="email"
-                    name="email"
-                    value={contact.email}
-                    onChange={handleContactChange}
-                    placeholder="Enter Email"
-                  />
-                  {contactErrors.email && <div style={feedbackStyle}>{contactErrors.email}</div>}
-                </Form.Group>
-              </Col>
-            </Row>
- 
-            {/* Row 3: Status */}
-            <Row className=" p-2">
-              <Col md={6}>
-                <Form.Group>
-                  <Form.Label>Status</Form.Label>
-                  <Form.Select
-                    name="status"
-                    value={contact.status}
-                    onChange={handleContactChange}
- 
-                  >
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
-                  </Form.Select>
-                  {contactErrors.status && <div style={feedbackStyle}>{contactErrors.status}</div>}                </Form.Group>
-              </Col>
-            </Row>
- 
-          </div>
- 
-          <div className="d-flex justify-content-end mt-3">
-            {/* <Button variant="secondary" className="me-2" onClick={() => setShowPanel(false)}>
-              Cancel
-            </Button> */}
-         <Button
-                variant="secondary"
-                className="me-2"
-                onClick={() => {
-                  setShowPanel(false);
-                  setEditingIndex(null);
-                }}
-              >
-                Cancel
-              </Button>
- 
-           
-            <Button variant="success" onClick={addContactPerson}>
-              Save
+  const validateContact = () => {
+    const errors = {};
+
+    if (!contact.name.trim()) errors.name = "Name is required";
+
+    let mobileToValidate = contact.mobile_no;
+    if (
+      mobileToValidate &&
+      !mobileToValidate.startsWith("+") &&
+      /^[6-9]\d{9}$/.test(mobileToValidate)
+    ) {
+      mobileToValidate = "+91" + mobileToValidate;
+    }
+
+    if (!mobileToValidate) {
+      errors.mobile_no = "Mobile number is required";
+    } else if (!isValidPhoneNumber(mobileToValidate)) {
+      errors.mobile_no = "Invalid mobile number";
+    }
+
+    // Email validation: allow spaces before/after, but not inside
+    if (contact.email) {
+      const emailCleaned = contact.email.trim();
+      if (/\s/.test(emailCleaned.replace(/^\s+|\s+$/g, ""))) {
+        errors.email = "Email cannot contain spaces inside";
+      }
+      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailCleaned)) {
+        errors.email = "Invalid email format";
+      }
+      else if (
+        vendor.email &&
+        emailCleaned.toLowerCase() === vendor.email.trim().toLowerCase()
+      ) {
+        errors.email = "Contact email cannot be the same as company email";
+      }
+      else {
+        contact.email = emailCleaned;
+      }
+    }
+
+    setContactErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const saveVendor = async () => {
+    if (!validateVendor()) {
+      return;
+    }
+    if (contactPersons.length === 0) {
+      toast.error("Please add at least one contact person.");
+      return;
+    }
+    try {
+      const response = await fetch(`${API_BASE_URL}/vendors/new`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...vendor,
+          contacts: contactPersons,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        if (data.errors) {
+          if (data.errors.vendor) toast.error("Company name already exists");
+          if (data.errors.email) toast.error(`Email already taken: ${data.errors.email}`);
+          if (data.errors.mobile_no) toast.error(`Mobile number already taken: ${data.errors.mobile_no}`);
+        } else if (data.message) {
+          toast.error(data.message);
+        } else {
+          toast.error("Error saving vendor!");
+        }
+        return;
+      }
+      toast.success("Vendor added successfully!");
+      navigate("/vendor");
+    } catch (err) {
+      console.error(err);
+      toast.error("Error saving vendor!");
+    }
+  };
+
+  const feedbackStyle = { color: "red", fontSize: "0.85rem", marginTop: "4px" };
+  const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+
+  return (
+    <>
+      <div className="container-fluid " style={{ background: "white", minHeight: "100vh", position: "relative" }}>
+        <Row className="align-items-center mb-3 fixed-header">
+          <Col>
+            <h4>Add Vendor Details</h4>
+          </Col>
+          <Col className="text-end">
+            <Button
+              variant="outline-secondary"
+              size="sm"
+              className="me-2"
+              onClick={() => navigate("/vendor")}
+            >
+              <i className="bi bi-arrow-left"></i> Back
             </Button>
-          </div>
-        </Form>
+          </Col>
+        </Row>
+
+        {/* Vendor Form */}
+        <div style={{ background: "#F4F4F8", padding: "20px", borderRadius: "6px", marginBottom: "20px" }}>
+          <h6 className="mb-3">Company Details</h6>
+          <Row>
+            <Col md={4}>
+              <Form.Group className="mb-3 form-field">
+                <Form.Label>
+                  Vendor<span style={{ color: "red" }}> *</span>
+                </Form.Label>
+
+                <Form.Control type="text" name="vendor" value={vendor.vendor} onChange={handleVendorChange}
+                  placeholder="Enter company name"
+                />
+                {vendorErrors.vendor && (
+                  <div style={{ color: "red", fontSize: "0.85rem", marginTop: "4px" }}>
+                    {vendorErrors.vendor}
+                  </div>
+                )}
+              </Form.Group>
+            </Col>
+            <Col md={4}>
+              <Form.Group className="mb-3 form-field">
+                <Form.Label>GST No</Form.Label>
+                <Form.Control
+                  type="text"
+                  name="gst_no"
+                  value={vendor.gst_no}
+                  maxLength={15}
+                  onChange={(e) => {
+                    let value = e.target.value.toUpperCase().trim();
+
+                    if (value.length > 15) value = value.slice(0, 15);
+
+                    setVendor({ ...vendor, gst_no: value });
+
+                    if (!value) {
+                      setVendorErrors(prev => ({ ...prev, gst_no: "GST No is required" }));
+                    } else if (value.length !== 15) {
+                      setVendorErrors(prev => ({ ...prev, gst_no: "GST No must be 15 characters" }));
+                    } else if (!gstRegex.test(value)) {
+                      setVendorErrors(prev => ({ ...prev, gst_no: "Invalid GST No format" }));
+                    } else {
+                      setVendorErrors(prev => ({ ...prev, gst_no: "" }));
+                    }
+                  }}
+                  placeholder="Enter GST No"
+                />
+
+                {vendorErrors.gst_no && (
+                  <div style={{ color: "red", fontSize: "0.85rem", marginTop: "4px" }}>
+                    {vendorErrors.gst_no}
+                  </div>
+                )}
+              </Form.Group>
+            </Col>
+            <Col md={4}>
+              <Form.Group className="mb-3 form-field">
+                <Form.Label>
+                  Pincode<span style={{ color: "red" }}> *</span>
+                </Form.Label>
+                <Form.Control type="number" name="pincode" value={vendor.pincode} onChange={handleVendorChange}
+                  placeholder=" Enter pincode"
+                />
+
+                {vendorErrors.pincode && <div style={feedbackStyle}>{vendorErrors.pincode}</div>}
+              </Form.Group>
+            </Col>
+          </Row>
+
+          <Row>
+            <Col md={4}>
+              <Form.Group className="mb-3 form-field">
+                <Form.Label>
+                  City<span style={{ color: "red" }}> *</span>
+                </Form.Label>
+
+                <CreatableSelect
+                  isClearable
+                  options={cityOptionsFormatted}
+                  value={vendor.city ? { label: vendor.city, value: vendor.city } : null}
+                  onChange={(selected) => {
+                    const cityValue = selected ? selected.value : "";
+                    setVendor({ ...vendor, city: cityValue });
+
+                    if (cityValue) {
+                      setVendorErrors((prev) => ({ ...prev, city: "" }));
+                    }
+                  }}
+                  onInputChange={(inputValue, { action }) => {
+                    if (action === "input-change") {
+                      setVendor({ ...vendor, city: inputValue });
+
+                      if (inputValue) {
+                        setVendorErrors((prev) => ({ ...prev, city: "" }));
+                      }
+                    }
+                  }}
+                  placeholder="Select or type city"
+                  classNamePrefix="my-select"
+                />
+                {vendorErrors.city && <div style={feedbackStyle}>{vendorErrors.city}</div>}
+
+              </Form.Group>
+            </Col>
+            <Col md={4}>
+              <Form.Group className="mb-3 form-field">
+                <Form.Label>
+                  District<span style={{ color: "red" }}> *</span>
+                </Form.Label>
+
+                <Form.Control type="text" name="district" value={vendor.district}
+                  onChange={handleVendorChange}
+                  placeholder="Enter District"
+                  readOnly={!!vendor.district}
+                />
+
+                {vendorErrors.district && <div style={feedbackStyle}>{vendorErrors.district}</div>}
+              </Form.Group>
+            </Col>
+            <Col md={4}>
+              <Form.Group className="mb-3 form-field">
+                <Form.Label>
+                  State<span style={{ color: "red" }}> *</span>
+                </Form.Label>
+
+                <Form.Control type="text" name="state" value={vendor.state}
+                  onChange={handleVendorChange}
+                  placeholder="Enter State" />
+                {vendorErrors.state && <div style={feedbackStyle}>{vendorErrors.state}</div>}
+              </Form.Group>
+            </Col>
+          </Row>
+
+          <Row>
+            <Col md={4}>
+              <Form.Group className="mb-3 form-field">
+                <Form.Label>Email</Form.Label>
+                <Form.Control
+                  type="email"
+                  name="email"
+                  value={vendor.email}
+                  onChange={(e) => setVendor({ ...vendor, email: e.target.value })}
+                  placeholder="Enter Email"
+                />
+
+                {vendorErrors.email && <div style={feedbackStyle}>{vendorErrors.email}</div>}
+
+              </Form.Group>
+            </Col>
+            <Col md={4}>
+              <Form.Group className="mb-3 form-field">
+                <CountryPhoneInput
+                  label="Mobile No"
+                  value={vendor.mobile_no}
+                  onChange={handleVendorMobileChange}
+                  defaultCountry="IN"
+                  error={vendorErrors.mobile_no}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={4}>
+              <Form.Group className="mb-3 form-field">
+                <Form.Label>
+                  Address<span style={{ color: "red" }}> *</span>
+                </Form.Label>
+
+                <Form.Control as="textarea" rows={2} name="address" value={vendor.address} onChange={handleVendorChange}
+                  placeholder="Enter Address"
+                />
+                {vendorErrors.address && <div style={feedbackStyle}>{vendorErrors.address}</div>}
+
+              </Form.Group>
+            </Col>
+          </Row>
+        </div>
+        <Button
+          variant="success"
+          onClick={() => {
+            const requiredFields = [
+              "vendor",
+              "mobile_no",
+              "pincode",
+              "city",
+              "state",
+              "district",
+            ];
+
+            const emptyField = requiredFields.find((field) => !vendor[field].trim());
+
+            if (emptyField) {
+              toast.error("Please fill the company details first!");
+              return;
+            }
+
+            setContact({
+              name: "",
+              designation: "",
+              mobile_no: "",
+              email: "",
+              status: "Active",
+              isMain: false,
+            });
+            setContactErrors({});
+            setEditingIndex(null);
+            setPanelKey((prev) => prev + 1);
+            setShowPanel(true);
+          }}
+        >
+          + Add Contact Person
+        </Button>
+
+        <div style={{ marginTop: "20px", background: "#fff", borderRadius: "6px", padding: "20px" }}>
+          <table className="table table-bordered table-hover">
+            <thead>
+              <tr>
+                <th
+                  style={{
+                    width: "50px",
+                    textAlign: "center",
+                    cursor: "pointer",
+                    backgroundColor: "#f1f3f5",
+                    fontWeight: "normal",
+                    color: "inherit",
+                  }}
+                >
+                  S.No
+                </th>
+                {[
+                  { label: "Name", field: "name" },
+                  { label: "Designation", field: "designation" },
+                  { label: "Mobile", field: "mobile_no" },
+                  { label: "Email", field: "email" },
+                  { label: "Status", field: "status" },
+                ].map(({ label, field }) => (
+                  <th
+                    key={field}
+                    style={{
+                      cursor: "pointer",
+                      backgroundColor: "#f1f3f5",
+                      fontWeight: "normal",
+                      color: "inherit",
+                    }}
+                  >
+                    {label}
+                  </th>
+                ))}
+                <th
+                  style={{
+                    textAlign: "center",
+                    backgroundColor: "#f1f3f5",
+                    fontWeight: "normal",
+                    color: "inherit",
+                  }}
+                >
+                  Action
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {contactPersons.length === 0 ? (
+                <tr>
+                  <td colSpan="7" className="text-center py-4 text-muted">
+                    No contact persons found
+                  </td>
+                </tr>
+              ) : (
+                contactPersons.map((c, index) => (
+                  <tr key={index}>
+                    <td className="text-center">{index + 1}</td>
+                    <td>{c.name}{c.isMain ? " (Main)" : ""}</td>
+                    <td>{c.designation}</td>
+                    <td>{c.mobile_no}</td>
+                    <td>{c.email}</td>
+                    <td>
+                      <span className={`badge ${c.status === "Active" ? "bg-success" : "bg-danger"}`}>
+                        {c.status}
+                      </span>
+                    </td>
+                    <td className="text-center">
+                      <ActionButton
+                        onEdit={() => editContact(index)}
+                        onDelete={() => deleteContact(index)}
+                      />
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="d-flex justify-content-end">
+          <Button
+            variant="secondary"
+            className="me-2"
+            onClick={() => navigate("/vendor")}
+          >
+            Cancel
+          </Button>
+
+          <Button variant="success" onClick={saveVendor}>
+            Save
+          </Button>
+        </div>
+
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            right: showPanel ? 0 : "-500px",
+            width: "500px",
+            height: "100%",
+            background: "white",
+            boxShadow: "-2px 0 6px rgba(0,0,0,0.2)",
+            transition: "right 0.3s",
+            zIndex: 1050,
+            padding: "20px",
+          }}
+        >
+          <h5>{editingIndex !== null ? "Edit Contact" : "Add Contact"}</h5>
+          <Button
+            variant="outline-secondary"
+            size="sm"
+            className="rounded-circle border-0 d-flex justify-content-center align-items-center"
+            style={{
+              position: "absolute",
+              top: "10px",
+              right: "10px",
+              width: "32px",
+              height: "32px",
+              padding: 0,
+            }}
+            onClick={() => {
+              setShowPanel(false);
+              setEditingIndex(null);
+            }}
+          >
+            <i className="bi bi-x-lg fs-6"></i>
+          </Button>
+
+          <Form key={panelKey} className="mt-4 form-field">
+            <div style={{ background: "rgb(244, 244, 248)", borderRadius: "6px" }}>
+              <Row className="p-2">
+                <Col md={6}>
+                  <Form.Group>
+                    <Form.Label>
+                      Name<span style={{ color: "red" }}> *</span>
+                    </Form.Label>
+                    <Form.Control
+                      type="text"
+                      name="name"
+                      value={contact.name.replace(" (Main person)", "")}
+                      onChange={handleContactChange}
+                      placeholder="Enter Name"
+                    />
+                    {contactErrors.name && <div style={feedbackStyle}>{contactErrors.name}</div>}
+                  </Form.Group>
+
+                  <Form.Check
+                    type="checkbox"
+                    label="Main Contact"
+                    checked={contact.isMain || false}
+                    onChange={(e) => setContact({ ...contact, isMain: e.target.checked })}
+                  />
+                </Col>
+
+                <Col md={6}>
+                  <Form.Group>
+                    <Form.Label>Designation</Form.Label>
+                    <Form.Control
+                      type="text"
+                      name="designation"
+                      value={contact.designation}
+                      onChange={handleContactChange}
+                      placeholder="Enter Designation"
+                    />
+                    {contactErrors.designation && <div style={feedbackStyle}>{contactErrors.designation}</div>}
+                  </Form.Group>
+                </Col>
+              </Row>
+
+              <Row className="p-2">
+                <Col md={12}>
+                  <Form.Group className="mb-3 form-field">
+                    <CountryPhoneInput
+                      label="Mobile No"
+                      value={contact.mobile_no}
+                      onChange={handleContactMobileChange}
+                      defaultCountry="IN"
+                      error={contactErrors.mobile_no}
+                    />
+                  </Form.Group>
+                </Col>
+              </Row>
+              <Row className="p-2">
+                <Col md={6}>
+                  <Form.Group>
+                    <Form.Label>Email</Form.Label>
+                    <Form.Control
+                      type="email"
+                      name="email"
+                      value={contact.email}
+                      onChange={(e) => {
+                        let input = e.target.value;
+                        setContact({ ...contact, email: input });
+                      }}
+                      placeholder="Enter Email"
+                    />
+                    {contactErrors.email && <div style={feedbackStyle}>{contactErrors.email}</div>}
+                  </Form.Group>
+                </Col>
+
+                <Col md={6}>
+                  <Form.Group>
+                    <Form.Label>Status</Form.Label>
+                    <Form.Select
+                      name="status"
+                      value={contact.status}
+                      onChange={handleContactChange}
+                    >
+                      <option value="Active">Active</option>
+                      <option value="Inactive">Inactive</option>
+                    </Form.Select>
+                    {contactErrors.status && <div style={feedbackStyle}>{contactErrors.status}</div>}
+                  </Form.Group>
+                </Col>
+              </Row>
+            </div>
+
+            <div className="d-flex justify-content-end mt-3">
+              <Button variant="success" onClick={addContactPerson}>
+                Save
+              </Button>
+            </div>
+          </Form>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
- 
- 

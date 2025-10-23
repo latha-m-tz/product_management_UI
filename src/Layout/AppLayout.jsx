@@ -59,7 +59,7 @@ export default function AppLayout({ onLogout }) {
             className="flex-grow-1 overflow-auto"
             style={{
               backgroundColor: "#f8f9fa",
-              padding: "16px",
+              // padding: "16px",
               WebkitOverflowScrolling: "touch",
             }}
           >

@@ -40,9 +40,10 @@ import InventoryDetailsPage from "./Pages/InventoryDetailsPage";
 import TrackingPage from "./Pages/TrackingPage";
 import PurchaseViewPage from "./Pages/PurchaseViewPage";
 import MissingSerialsPage from "./Pages/MissingProductPage";
-// App.jsx
+import DatePicker from "react-datepicker";
 import ComponentsRequirement from "./Pages/Componentsrequirement";
-
+import "country-flag-icons/3x2/flags.css";
+import TechnicianPage from "./Pages/Technician";
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem("authToken"));
 
@@ -88,16 +89,16 @@ export default function App() {
           {/* Pages */}
           <Route path="overview" element={<Overview />} />
           <Route path="sales-order" element={<SalesListPage />} />
-          <Route path="sales/add" element={<AddSalesPage />} />
+          <Route path="sales-order/add" element={<AddSalesPage />} />
           <Route path="sales/edit/:id" element={<EditSalesPage />} />
-          <Route path="sales-overview" element={<SalesOverviewPage />} />
-          <Route path="sales-overview/:id" element={<SalesOverviewPage />} />
+          <Route path="sales-order-overview" element={<SalesOverviewPage />} />
+          <Route path="sales-order-overview/:id" element={<SalesOverviewPage />} />
           <Route path="add-product" element={<AddProductPage />} />
           {/* <Route path="product/edit/:id" element={<AddProductPage />} /> */}
           <Route path="service-product" element={<ServiceList />} />
-          <Route path="service/add" element={<AddServicePage />} />
+          <Route path="service-product/add" element={<AddServicePage />} />
           <Route path="service/:id/edit" element={<EditService />} />
-          <Route path="service/:id/view" element={<ViewServicePage />} />
+          <Route path="service-product/:id/view" element={<ViewServicePage />} />
           <Route path="components" element={<ComponentsPage />} />
           <Route path="vendor" element={<VendorPage />} />
           <Route path="vendor/add" element={<AddVendor />} />
@@ -123,7 +124,7 @@ export default function App() {
           <Route path="/tracking" element={<TrackingPage />} />
           <Route path="/missing-serials/:from_serial/:to_serial" element={<MissingSerialsPage />} />
           <Route path="/spare-parts-by-series" element={<Navigate to="/spare-parts-by-series/7-series" />} />
-
+          <Route path="/technician" element={<TechnicianPage />} />
           {/* Actual route with series param */}
           <Route path="/spare-parts-by-series/:series" element={<ComponentsRequirement />} />
 

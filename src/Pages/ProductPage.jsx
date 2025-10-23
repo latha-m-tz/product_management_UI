@@ -350,9 +350,9 @@ export default function ProductPage() {
           </div>
 
           <div className="border-top pt-3 mt-2 d-flex justify-content-end gap-2">
-            <Button variant="outline-danger" onClick={handleModalClose}>
+            {/* <Button variant="outline-danger" onClick={handleModalClose}>
               Cancel
-            </Button>
+            </Button> */}
             <Button variant="success" onClick={handleSave}>
               {editingProductId ? "Update" : "Save"}
             </Button>

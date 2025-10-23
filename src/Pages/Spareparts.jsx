@@ -18,55 +18,6 @@ import { useLocation, useNavigate } from "react-router-dom";
 const MySwal = withReactContent(Swal);
 import { API_BASE_URL } from "../api";
 
-//   const dropdownRef = useRef(null);
-
-//   const handleToggle = () => setIsOpen(!isOpen);
-
-//   const handleOptionClick = (optionValue) => {
-//     onChange({ target: { name, value: optionValue } });
-//     setIsOpen(false);
-//   };
-
-//   const handleClickOutside = (event) => {
-//     if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-//       setIsOpen(false);
-//     }
-//   };
-
-//   useEffect(() => {
-//     document.addEventListener("mousedown", handleClickOutside);
-//     return () => document.removeEventListener("mousedown", handleClickOutside);
-//   }, []);
-
-//   const selectedLabel = options.find(option => option.value === value)?.label || "Select Status";
-
-//   return (
-//     <div ref={dropdownRef} className="custom-dropdown-container">
-//       <div
-//         className={`custom-dropdown-toggle ${isOpen ? 'active' : ''} ${isInvalid ? 'is-invalid' : ''}`}
-//         onClick={handleToggle}
-//         style={{ cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}
-//       >
-//         <span className="selected-value">{selectedLabel}</span>
-//         <i className={`bi bi-chevron-${isOpen ? 'up' : 'down'} custom-dropdown-arrow`}></i>
-//       </div>
-//       {isOpen && (
-//         <div className="custom-dropdown-menu">
-//           {options.map((option) => (
-//             <div
-//               key={option.value}
-//               className="custom-dropdown-item"
-//               onClick={() => handleOptionClick(option.value)}
-//             >
-//               {option.label}
-//             </div>
-//           ))}
-//         </div>
-//       )}
-//       {isInvalid && <div className="invalid-feedback" style={{ color: "#dc3545", fontSize: "13px", marginTop: "4px", display: 'block' }}>{error}</div>}
-//     </div>
-//   );
-// };
 
 export default function App() {
   const navigate = useNavigate();
@@ -88,6 +39,7 @@ export default function App() {
   function initialFormState() {
     return {
       name: "",
+      code: "",
       sparepart_type: "",
     };
   }
@@ -174,8 +126,9 @@ export default function App() {
 
   const validateForm = () => {
     const newErrors = {};
+    if (!formData.code || !formData.code.trim()) newErrors.code = "Spare Part Code is required.";
     if (!formData.name || !formData.name.trim()) newErrors.name = "Spare Part Name is required.";
-    if (!formData.sparepart_type || !formData.sparepart_type.trim()) newErrors.sparepart_type = "Sparepart Type is required.";
+    if (!formData.sparepart_type || !formData.sparepart_type.trim()) newErrors.sparepart_type = "Spare part Type is required.";
     return newErrors;
   };
 
@@ -184,10 +137,11 @@ export default function App() {
     const validationErrors = validateForm();
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
-      toast.error("Please fill in all required fields correctly.");
+      // toast.error("Please fill in all required fields correctly.");
       return;
     }
     const payload = {
+      code: formData.code.trim(),
       name: formData.name.trim(),
       sparepart_type: formData.sparepart_type.trim(),
     };
@@ -239,6 +193,8 @@ export default function App() {
       : "";
     setFormData({
       name: part.name || "",
+      code: part.code || "",
+
       sparepart_type: part.sparepart_type || "",
     });
     setShowForm(true);
@@ -270,10 +226,13 @@ export default function App() {
       const searchLower = search.toLowerCase();
       return (
         part.name?.toLowerCase().includes(searchLower) ||
+        (part.code ?? "").toLowerCase().includes(searchLower) ||
+        (part.vendor?? "").toLowerCase().includes(searchLower) ||   // ✅ Added
         (part.is_active ?? "").toString().toLowerCase().includes(searchLower) ||
         (part.quantity ?? "").toString().includes(searchLower)
       );
     })
+
     .sort((a, b) => {
       const valueA = (a[sortField] ?? "").toString().toLowerCase();
       const valueB = (b[sortField] ?? "").toString().toLowerCase();
@@ -289,7 +248,7 @@ export default function App() {
       <BreadCrumb title="Spare Parts" />
 
       <Card className="border-0 shadow-sm rounded-3 p-2 px-4 mt-2 bg-white">
-        <div className="row mb-2">
+        <div className="row mb-2 form-field">
           <div className="col-md-6 d-flex align-items-center mb-2 mb-md-0">
             <label className="me-2 fw-semibold mb-0">Records Per Page:</label>
             <Form.Select
@@ -310,7 +269,7 @@ export default function App() {
           </div>
 
           <div className="col-md-6 text-md-end" style={{ fontSize: '0.8rem' }}>
-            <div className="mt-2 d-inline-block mb-2" style={{ fontSize: '0.8rem' }}>
+            <div className="mt-2 d-inline-block mb-2 form-field" style={{ fontSize: '0.8rem' }}>
               <Button variant="outline-secondary" size="sm" className="me-2" onClick={fetchSpareparts}>
                 <i className="bi bi-arrow-clockwise"></i>
               </Button>
@@ -341,7 +300,7 @@ export default function App() {
           </div>
         </div>
         <div className="table-responsive">
-          <table className="table align-middle mb-0" ref={tableRef}>
+          <table className="table align-middle mb-0 form-field" ref={tableRef}>
             <thead style={{
               backgroundColor: "#2E3A59", color: "white", fontSize: "0.82rem", height: "40px",
               verticalAlign: "middle",
@@ -353,6 +312,12 @@ export default function App() {
                   style={{ cursor: "pointer", textAlign: "center", backgroundColor: "#2E3A59", color: "white" }}
                 >
                   Spare Part Name {sortField === "name"}
+                </th>
+                <th
+                  onClick={() => handleSort("code")}
+                  style={{ cursor: "pointer", textAlign: "center", backgroundColor: "#2E3A59", color: "white" }}
+                >
+                  Code
                 </th>
                 {/* <th
                   onClick={() => handleSort("sparepart_type")}
@@ -393,9 +358,12 @@ export default function App() {
                     <td className="text-center" style={{ wordBreak: "break-word" }}>
                       {part.name}
                     </td>
-                    {/* <td className="text-center" style={{ wordBreak: "break-word" }}>
-                      {part.sparepart_type}
-                    </td> */}
+
+                    <td className="text-center" style={{ wordBreak: "break-word" }}>
+                      {part.code ?? "-"}
+                    </td>
+
+
 
 
                     <td className="text-center" style={{ width: "130px" }}>
@@ -437,7 +405,7 @@ export default function App() {
           className="custom-offcanvas"
         >
           <Offcanvas.Header className="border-bottom px-3 py-2 d-flex align-items-center">
-            <h6 className="fw-bold mb-0">
+            <h6 className="fw-bold mb-0b form-field">
               {editingPart ? "Edit Spare Part" : "Add New Spare Part"}
             </h6>
 
@@ -454,7 +422,8 @@ export default function App() {
           <Offcanvas.Body className="px-3 py-2" style={{ fontSize: "14px" }}>
             <form onSubmit={handleFormSubmit}>
               <div className="row g-2">
-                <div className="mb-2 col-12">
+
+                <div className="mb-2 col-12 form-field">
                   <Form.Label className="mb-1" style={{ fontSize: "13px", fontWeight: 500 }}>
                     Spare Part Name <span style={{ color: "red" }}>*</span>
                   </Form.Label>
@@ -472,13 +441,31 @@ export default function App() {
                     {errors.name}
                   </Form.Control.Feedback>
                 </div>
+                <div className="mb-2 col-12 form-field">
+                  <Form.Label className="mb-1" style={{ fontSize: "13px", fontWeight: 500 }}>
+                    Spare Part Code <span style={{ color: "red" }}>*</span>
+                  </Form.Label>
+                  <Form.Control
+                    type="text"
+                    name="code"
+                    value={formData.code}
+                    onChange={handleChange}
+                    className="custom-placeholder"
+                    placeholder="Enter Code"
+                    isInvalid={!!errors.code}
+                    style={{ height: "34px", fontSize: "13px" }}
+                  />
+                  <Form.Control.Feedback type="invalid" style={errorStyle}>
+                    {errors.code}
+                  </Form.Control.Feedback>
+                </div>
 
-                <div className="mb-2 col-12">
+                <div className="mb-2 col-12 form-field">
                   <Form.Label
                     className="mb-1"
                     style={{ fontSize: "13px", fontWeight: 500 }}
                   >
-                    Sparepart Type <span style={{ color: "red" }}>*</span>
+                    Spare part Type <span style={{ color: "red" }}>*</span>
                   </Form.Label>
                   <Form.Select
                     name="sparepart_type"
@@ -501,9 +488,9 @@ export default function App() {
               </div>
 
               <div className="d-flex justify-content-end gap-2 mt-3">
-                <Button className="btn-common btn-cancel" variant="light" onClick={() => setShowForm(false)}>
+                {/* <Button className="btn-common btn-cancel" variant="light" onClick={() => setShowForm(false)}>
                   Cancel
-                </Button>
+                </Button> */}
                 <Button
                   type="submit"
                   variant="success"

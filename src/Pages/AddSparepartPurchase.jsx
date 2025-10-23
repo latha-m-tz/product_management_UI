@@ -3,19 +3,28 @@ import { Button, Form, Row, Col, Card } from "react-bootstrap";
 import axios from "axios";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
-import {  toast } from "react-toastify";
+import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../api";
-
+import Swal from "sweetalert2";
+import withReactContent from "sweetalert2-react-content";
+// import { useNavigate } from "react-router-dom";
 
 export default function AddSparepartPurchase() {
   const [vendorId, setVendorId] = useState("");
   const [challanNo, setChallanNo] = useState("");
   const [challanDate, setChallanDate] = useState("");
   const [errors, setErrors] = useState({});
-const navigate = useNavigate();
-const [existingSerials, setExistingSerials] = useState([]);
+  const navigate = useNavigate();
+  const [existingSerials, setExistingSerials] = useState([]);
+  // Add at the top with other states
+  const [receivedDate, setReceivedDate] = useState("");
+  const [recipientFile, setRecipientFile] = useState(null);
+  const [challan1File, setChallan1File] = useState(null);
+  const [challan2File, setChallan2File] = useState(null);
+
+  const MySwal = withReactContent(Swal);
 
   const [spareparts, setSpareparts] = useState([
     {
@@ -52,8 +61,12 @@ const [existingSerials, setExistingSerials] = useState([]);
     const raw = s?.sparepart_type || s?.part_type || "";
     return raw.toString().toLowerCase();
   };
-
   const handleSparepartChange = (index, value) => {
+    if (!vendorId) {
+      toast.error("Please choose vendor first");
+      return;
+    }
+
     const updated = [...spareparts];
     updated[index].sparepart_id = value;
     updated[index].qty = 1;
@@ -62,44 +75,124 @@ const [existingSerials, setExistingSerials] = useState([]);
     updated[index].from_serial = "";
     updated[index].to_serial = "";
     setSpareparts(updated);
+
+    clearError("sparepart_id", index);
   };
+
+
 
   const handleInputChange = (index, field, value) => {
+    const type = sparepartTypeOf(spareparts[index].sparepart_id);
     const updated = [...spareparts];
-    updated[index][field] = value;
-    setSpareparts(updated);
 
-       setErrors((prev) => {
-      if (prev.items?.[index]?.[field]) {
-        const newItems = { ...prev.items };
-        delete newItems[index][field];
-        if (Object.keys(newItems[index]).length === 0) delete newItems[index];
-        return { ...prev, items: newItems };
+    if (type.includes("serial") && (field === "from_serial" || field === "to_serial")) {
+      const productId = updated[index].product_id;
+
+      if (!productId) {
+        toast.error("Please choose product first");
+        updated[index][field] = "";
+        setSpareparts(updated);
+        return;
       }
-      return prev;
-    });
-    
-  };
 
-  const clearError = (field, index = null) => {
-  setErrors((prev) => {
-    const newErrors = { ...prev };
+      // Keep only digits & limit to 6
+      value = value.replace(/\D/g, "").slice(0, 6);
+      updated[index][field] = value;
 
-    if (index !== null) {
-      if (newErrors.items?.[index]?.[field]) {
-        delete newErrors.items[index][field];
-        if (Object.keys(newErrors.items[index]).length === 0) {
-          delete newErrors.items[index];
+      const product = availableCategories.find(p => String(p.id) === String(productId));
+      const productPrefix = product?.name.match(/^(\d+)/)?.[1] || null;
+
+      // Validate serial matches product prefix
+      if (productPrefix && value && !value.startsWith(productPrefix)) {
+        toast.error(`Serial must start with product prefix (${productPrefix})`);
+        updated[index][field] = "";
+        setSpareparts(updated);
+        return;
+      }
+
+      const fromSerial = updated[index].from_serial;
+      const toSerial = updated[index].to_serial;
+
+      // Check both serials have same prefix
+      if (fromSerial && toSerial) {
+        const prefixFrom = fromSerial.match(/^(\d+)/)?.[1];
+        const prefixTo = toSerial.match(/^(\d+)/)?.[1];
+
+        if (prefixFrom !== prefixTo) {
+          toast.error("From Serial and To Serial must start with the same prefix");
+        }
+
+        const fromNum = parseInt(fromSerial, 10);
+        const toNum = parseInt(toSerial, 10);
+
+        if (!isNaN(fromNum) && !isNaN(toNum) && fromNum > toNum) {
+          toast.error("From Serial must be less than or equal to To Serial");
         }
       }
-    } else {
-      if (newErrors[field]) {
-        delete newErrors[field];
-      }
+
+      setSpareparts(updated);
+      return;
     }
-    return newErrors;
-  });
-};
+
+    // Other fields
+    updated[index][field] = value;
+
+    if (field === "qty") {
+      let qty = Number(value);
+      if (qty < 1) qty = 1;
+      updated[index][field] = qty;
+    }
+
+    setSpareparts(updated);
+    clearError(field, index);
+  };
+
+
+  const handleDelete = async (id) => {
+    MySwal.fire({
+      title: "Are you sure?",
+      text: "You won't be able to revert this!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#2FA64F",
+      confirmButtonText: "Yes, delete it!",
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          await axios.delete(`${API_BASE_URL}/product/${id}`);
+          toast.success("Product deleted successfully!");
+          // If you have a function to refresh the list, call it
+          await fetchProducts();
+        } catch (error) {
+          console.error(error);
+          toast.error("Failed to delete product!");
+        }
+      }
+    });
+  };
+
+
+  const clearError = (field, index = null) => {
+    setErrors((prev) => {
+      const newErrors = { ...prev };
+
+      if (index !== null) {
+        if (newErrors.items?.[index]?.[field]) {
+          delete newErrors.items[index][field];
+          if (Object.keys(newErrors.items[index]).length === 0) {
+            delete newErrors.items[index];
+          }
+        }
+      } else {
+        if (newErrors[field]) {
+          delete newErrors[field];
+        }
+      }
+
+      return newErrors;
+    });
+  };
 
 
   const addSparepart = () => {
@@ -128,14 +221,14 @@ const [existingSerials, setExistingSerials] = useState([]);
         to_serial: "",
       };
       setSpareparts(updated);
- 
+
       return;
     }
     const updated = [...spareparts];
     updated.splice(index, 1);
     setSpareparts(updated);
 
-             setErrors((prev) => {
+    setErrors((prev) => {
       if (prev.items?.[index]) {
         const newItems = { ...prev.items };
         delete newItems[index];
@@ -146,291 +239,302 @@ const [existingSerials, setExistingSerials] = useState([]);
   };
 
   const validateForm = () => {
-  const errs = {};
+    const errs = {};
 
-  if (!vendorId) errs.vendor_id = "Vendor is required";
-  if (!challanNo) errs.challan_no = "Challan No is required";
-  if (!challanDate) errs.challan_date = "Challan Date is required";
+    if (!vendorId) errs.vendor_id = "Vendor is required";
+    if (!challanNo) errs.challan_no = "Challan No is required";
+    if (!challanDate) {
+      errs.challan_date = "Challan Date is required";
+    } else {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(challanDate)) {
+        errs.challan_date = "Invalid date format (YYYY-MM-DD)";
+      } else {
+        const [year, month, day] = challanDate.split("-").map(Number);
+        if (year < 1900 || year > 2100) {
+          // errs.challan_date = "Year must be between 1900 and 2100";
+        }
+        if (month < 1 || month > 12) {
+          errs.challan_date = "Invalid month";
+        }
+        if (day < 1 || day > 31) {
+          errs.challan_date = "Invalid day";
+        }
+      }
+    }
+    const itemErrors = {};
+    spareparts.forEach((sp, idx) => {
+      const type = sparepartTypeOf(sp.sparepart_id);
+      const itemErr = {};
 
-  const itemErrors = {};
-  spareparts.forEach((sp, idx) => {
-    const type = sparepartTypeOf(sp.sparepart_id);
-    const itemErr = {};
+      if (!sp.sparepart_id) itemErr.sparepart_id = "Select sparepart";
 
-    if (!sp.sparepart_id) itemErr.sparepart_id = "Select sparepart";
-
-          // ✅ Check prefix match
       if (sp.from_serial && sp.to_serial) {
-        const prefixFrom = sp.from_serial.replace(/[0-9]+$/, ""); // take non-numeric part
+        const prefixFrom = sp.from_serial.replace(/[0-9]+$/, "");
         const prefixTo = sp.to_serial.replace(/[0-9]+$/, "");
         if (prefixFrom !== prefixTo) {
           itemErr.from_serial = "Prefix mismatch";
           itemErr.to_serial = "Prefix mismatch";
         }
       }
-    
 
-    if (type.includes("serial")) {
-      if (!sp.product_id) itemErr.product_id = "Select product";
-      if (!sp.from_serial) itemErr.from_serial = "From Serial required";
-      if (!sp.to_serial) itemErr.to_serial = "To Serial required";
-    }
+      if (type.includes("serial") && sp.from_serial && sp.to_serial) {
+        const fromNum = parseInt(sp.from_serial, 10);
+        const toNum = parseInt(sp.to_serial, 10);
 
-    if (!sp.qty || sp.qty < 1) itemErr.qty = "Quantity must be at least 1";
-    if (type.includes("warranty") && !sp.warranty_status) itemErr.warranty_status = "Select warranty status";
-
-    if (Object.keys(itemErr).length) itemErrors[idx] = itemErr;
-  });
-
-  if (Object.keys(itemErrors).length) errs.items = itemErrors;
-
-  setErrors(errs);
-  return Object.keys(errs).length === 0;
-};
-
-
-
-
- const handleSubmit = async () => {
-  if (!validateForm()) {
-    toast.error("Please fix the errors below");
-    return;
-  }
-
-   // 2️⃣ Check for overlapping serials within this purchase
-  const serialErrors = {};
-  spareparts.forEach((sp, i) => {
-    if (sp.sparepart_id && sparepartTypeOf(sp.sparepart_id).includes("serial")) {
-      const fromA = sp.from_serial;
-      const toA = sp.to_serial;
-
-      spareparts.forEach((otherSp, j) => {
-        if (i === j) return;
-        if (
-          otherSp.sparepart_id &&
-          sparepartTypeOf(otherSp.sparepart_id).includes("serial")
-        ) {
-          const fromB = otherSp.from_serial;
-          const toB = otherSp.to_serial;
-
-          if (
-            fromA && toA && fromB && toB &&
-            !(toA < fromB || fromA > toB) // check overlap
-          ) {
-            if (!serialErrors.items) serialErrors.items = {};
-            if (!serialErrors.items[i]) serialErrors.items[i] = {};
-            if (!serialErrors.items[j]) serialErrors.items[j] = {};
-
-            serialErrors.items[i].from_serial = "Overlapping serial range";
-            serialErrors.items[i].to_serial = "Overlapping serial range";
-            serialErrors.items[j].from_serial = "Overlapping serial range";
-            serialErrors.items[j].to_serial = "Overlapping serial range";
-          }
+        if (fromNum > toNum) {
+          itemErr.from_serial = "From Serial must be <= To Serial";
+          itemErr.to_serial = "From Serial must be <= To Serial";
         }
-      });
-    }
-  });
-
-  if (serialErrors.items) {
-    setErrors(serialErrors);
-    toast.error("Duplicate or overlapping serials detected within this purchase!");
-    return;
-  }
-
-  const serialProductsMap = {}; // { product_id: [indexes] }
-  spareparts.forEach((sp, idx) => {
-    const type = sparepartTypeOf(sp.sparepart_id);
-    if (type.includes("serial") && sp.product_id) {
-      if (!serialProductsMap[sp.product_id]) serialProductsMap[sp.product_id] = [];
-      serialProductsMap[sp.product_id].push(idx);
-    }
-  });
-
-  const dupErrors = {};
-  Object.entries(serialProductsMap).forEach(([productId, indexes]) => {
-    if (indexes.length > 1) {
-      indexes.forEach((i) => {
-        if (!dupErrors.items) dupErrors.items = {};
-        if (!dupErrors.items[i]) dupErrors.items[i] = {};
-        dupErrors.items[i].product_id = "Duplicate product not allowed";
-      });
-    }
-  });
-
-    if (dupErrors.items) {
-    setErrors(dupErrors);
-    toast.error("Duplicate product selected in serial-based spareparts!");
-    return;
-  }
-
-  
-  const items = spareparts
-    .map((sp) => {
-      if (!sp.sparepart_id) return null;
-      const type = sparepartTypeOf(sp.sparepart_id);
-      const qty = Number(sp.qty) || 1;
-
-      if (type.includes("serial")) {
-        return {
-          sparepart_id: sp.sparepart_id,
-          product_id: sp.product_id || null,
-          from_serial: sp.from_serial || null,
-          to_serial: sp.to_serial || null,
-          warranty_status: sp.warranty_status || null,
-          quantity: qty,
-        };
-      } else if (type.includes("warranty")) {
-        return {
-          sparepart_id: sp.sparepart_id,
-          warranty_status: sp.warranty_status || null,
-          quantity: qty,
-        };
-      } else {
-        return {
-          sparepart_id: sp.sparepart_id,
-          quantity: qty,
-        };
       }
-    })
-    .filter(Boolean);
 
-  const payload = {
-    vendor_id: vendorId || null,
-    challan_no: challanNo || null,
-    challan_date: challanDate || null,
-    items,
+      if (!sp.qty || sp.qty < 1) itemErr.qty = "Quantity must be at least 1";
+      if (type.includes("warranty") && !sp.warranty_status) itemErr.warranty_status = "Select warranty status";
+
+      if (Object.keys(itemErr).length) itemErrors[idx] = itemErr;
+    });
+
+    if (Object.keys(itemErrors).length) errs.items = itemErrors;
+
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
   };
 
-  try {
-    const res = await axios.post(
-      `${API_BASE_URL}/sparepartNew-purchases`,
-      payload
-    );
-    toast.success("Purchase saved successfully!");
-     navigate("/spare-partsPurchase");
-    console.log(res.data);
-  } catch (err) {
-  if (err.response?.data?.errors) {
-    const backendErrors = err.response.data.errors;
-    setErrors(backendErrors);
+  const handleSubmit = async () => {
+    if (!validateForm()) return;
 
-    // Loop through each field's error messages
-    Object.values(backendErrors).forEach((fieldErrors) => {
-      if (Array.isArray(fieldErrors)) {
-        fieldErrors.forEach((msg) => toast.error(msg));
-      } else if (typeof fieldErrors === "string") {
-        toast.error(fieldErrors);
-      }
+    const formData = new FormData();
+
+    formData.append("vendor_id", vendorId || "");
+    formData.append("challan_no", challanNo || "");
+
+    // Format date to dd-mm-yyyy
+    let formattedDate = challanDate;
+    if (challanDate) {
+      const [year, month, day] = challanDate.split("-");
+      formattedDate = `${day}-${month}-${year}`;
+    }
+    formData.append("challan_date", formattedDate);
+
+    if (receivedDate) {
+      const [year, month, day] = receivedDate.split("-");
+      formData.append("received_date", `${day}-${month}-${year}`);
+    }
+
+    if (recipientFile) formData.append("image_recipient", recipientFile);
+    if (challan1File) formData.append("image_challan_1", challan1File);
+    if (challan2File) formData.append("image_challan_2", challan2File);
+
+    // ✅ Append items as proper array fields
+    spareparts.forEach((sp, index) => {
+      if (!sp.sparepart_id) return;
+
+      formData.append(`items[${index}][sparepart_id]`, sp.sparepart_id);
+      if (sp.product_id) formData.append(`items[${index}][product_id]`, sp.product_id);
+      if (sp.from_serial) formData.append(`items[${index}][from_serial]`, sp.from_serial);
+      if (sp.to_serial) formData.append(`items[${index}][to_serial]`, sp.to_serial);
+      if (sp.warranty_status) formData.append(`items[${index}][warranty_status]`, sp.warranty_status);
+      formData.append(`items[${index}][quantity]`, sp.qty || 1);
     });
-  } else if (err.response?.data?.message) {
-    toast.error(err.response.data.message);
-  } else {
-    toast.error("Something went wrong!");
-  }
-}
 
-};
+    try {
+      const res = await axios.post(`${API_BASE_URL}/sparepartNew-purchases`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      toast.success("Purchase saved successfully!");
+      navigate("/spare-partsPurchase");
+    } catch (err) {
+      if (err.response?.data?.errors) {
+        const backendErrors = err.response.data.errors;
+        setErrors(backendErrors);
+        Object.values(backendErrors).forEach((fieldErrors) => {
+          if (Array.isArray(fieldErrors)) fieldErrors.forEach((msg) => toast.error(msg));
+          else if (typeof fieldErrors === "string") toast.error(fieldErrors);
+        });
+      } else if (err.response?.data?.message) {
+        toast.error(err.response.data.message);
+      } else {
+        toast.error("Something went wrong!");
+      }
+    }
+  };
+
+
 
   const feedbackStyle = { color: "red", fontSize: "0.85rem", marginTop: "4px" };
 
   return (
-    <div
-      className="container-fluid p-4"
-      style={{ background: "white", minHeight: "100vh" }}
-    >
-      <h5 className="mb-3">Add New Spareparts Purchase</h5>
+    <div className="container-fluid " style={{ background: "F4F4F8", minHeight: "100vh", position: "relative" }}>
+      <Row className="align-items-center mb-3 fixed-header">
+        <Col>
+          <h4>Add purchase Details</h4>
+        </Col>
+        <Col className="text-end">
+          <Button
+            variant="outline-secondary"
+            size="sm"
+            className="me-2"
+            onClick={() => navigate("/spare-partsPurchase")}
+          >
+            <i className="bi bi-arrow-left"></i> Back
+          </Button>
+        </Col>
+      </Row>
+
+      {/* Vendor Form */}
 
       {/* Purchase Details */}
-      <Card className="mb-3" style={{ background: "#f1f3f5", borderRadius: 6 }}>
+      <Card className="mb-3" style={{ background: "#F4F4F8", borderRadius: 6 }}>
         <Card.Body>
           <h6 className="mb-3">Purchase Details</h6>
 
           <Row className="mb-2">
             <Col md={4}>
-              <Form.Group className="mb-2">
-               <Form.Label>
-  Vendor<span style={{ color: "red" }}> *</span>
-</Form.Label>
+              <Form.Group className="mb-2 form-field">
+                <Form.Label>
+                  Vendor<span style={{ color: "red" }}> *</span>
+                </Form.Label>
 
                 <Form.Select
                   value={vendorId}
                   // onChange={(e) => setVendorId(e.target.value)}
-                    onChange={(e) => {
-    setVendorId(e.target.value);
-    clearError("vendor_id");   // clear vendor error live
-  }}
-                  
+                  onChange={(e) => {
+                    setVendorId(e.target.value);
+                    clearError("vendor_id");   // clear vendor error live
+                  }}
+
                 >
                   <option value="">Select Vendor</option>
-                  {availableVendors.map((v) =>
-                    v.contact_persons?.length > 0 ? (
-                      v.contact_persons.map((c, idx) => (
+                  {availableVendors.map((v) => {
+                    if (v.contact_persons?.length > 0) {
+                      return v.contact_persons.map((c) => (
                         <option key={`${v.id}-${c.id}`} value={v.id}>
                           {v.vendor} – {c.name}
-                          {idx === 0 ? " (Main person)" : ""}
+                          {c.is_main ? " (Main person)" : ""}
                         </option>
-                      ))
-                    ) : (
-                      <option key={v.id} value={v.id}>
-                        {v.vendor}
-                      </option>
-                    )
-                  )}
+                      ));
+                    } else {
+                      return (
+                        <option key={v.id} value={v.id}>
+                          {v.vendor}
+                        </option>
+                      );
+                    }
+                  })}
                 </Form.Select>
-    {errors.vendor_id && <div style={feedbackStyle}>{errors.vendor_id}</div>}
+                {errors.vendor_id && <div style={feedbackStyle}>{errors.vendor_id}</div>}
               </Form.Group>
             </Col>
 
             <Col md={4}>
-              <Form.Group className="mb-2">
-              <Form.Label>
-  Challan No<span style={{ color: "red" }}> *</span>
-</Form.Label>
+              <Form.Group className="mb-2 form-field">
+                <Form.Label>
+                  Challan No<span style={{ color: "red" }}> *</span>
+                </Form.Label>
 
                 <Form.Control
                   type="text"
                   value={challanNo}
                   // onChange={(e) => setChallanNo(e.target.value)}
-                    onChange={(e) => {
-    setChallanNo(e.target.value);
-    clearError("challan_no");
-  }}
+                  onChange={(e) => {
+                    setChallanNo(e.target.value);
+                    clearError("challan_no");
+                  }}
                   placeholder="Enter Challan No"
-                  
+
                 />
-                 {errors.challan_no && <div style={feedbackStyle}>{errors.challan_no}</div>}
+                {errors.challan_no && <div style={feedbackStyle}>{errors.challan_no}</div>}
 
               </Form.Group>
             </Col>
 
             <Col md={4}>
-              <Form.Group className="mb-2">
+              <Form.Group className="mb- form-field">
                 <Form.Label>
-  Challan Date<span style={{ color: "red" }}> *</span>
-</Form.Label>
-
+                  Challan Date<span style={{ color: "red" }}> *</span>
+                </Form.Label>
                 <Form.Control
                   type="date"
                   value={challanDate}
-                  // onChange={(e) => setChallanDate(e.target.value)}
-                    onChange={(e) => {
-    setChallanDate(e.target.value);
-    clearError("challan_date");
-  }}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setChallanDate(val);
+                    clearError("challan_date");
+                  }}
+                  onInput={(e) => {
+                    // Prevent typing more than 4 digits for year
+                    const val = e.target.value;
+                    const parts = val.split("-");
+                    if (parts[0]?.length > 4) {
+                      e.target.value = parts[0].slice(0, 4) + (parts[1] ? `-${parts[1]}` : "") + (parts[2] ? `-${parts[2]}` : "");
+                      setChallanDate(e.target.value);
+                    }
+                  }}
+                  onBlur={() => {
+                    // Validate year on blur
+                    if (challanDate) {
+                      const [year, month, day] = challanDate.split("-").map(Number);
+                      if (!year || year < 1900 || year > 2100) {
+                        // setErrors((prev) => ({ ...prev, challan_date: "Year must be 4 digits between 1900-2100" }));
+                      }
+                    }
+                  }}
                 />
-             {errors.challan_date && <div style={feedbackStyle}>{errors.challan_date}</div>}
-
+                {errors.challan_date && <div style={feedbackStyle}>{errors.challan_date}</div>}
               </Form.Group>
             </Col>
+            <Col md={4}>
+              <Form.Group className="mb-2 form-field">
+                <Form.Label>Received Date</Form.Label>
+                <Form.Control
+                  type="date"
+                  value={receivedDate}
+                  onChange={(e) => setReceivedDate(e.target.value)}
+                />
+              </Form.Group>
+            </Col>
+
+            <Col md={4}>
+              <Form.Group className="mb-2 form-field">
+                <Form.Label>Recipient Document</Form.Label>
+                <Form.Control
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setRecipientFile(e.target.files[0])}
+                />
+              </Form.Group>
+            </Col>
+
+            <Col md={4}>
+              <Form.Group className="mb-2 form-field">
+                <Form.Label>Challan Document 1</Form.Label>
+                <Form.Control
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setChallan1File(e.target.files[0])}
+                />
+              </Form.Group>
+            </Col>
+
+            <Col md={4}>
+              <Form.Group className="mb-2 form-field">
+                <Form.Label>Challan Document 2</Form.Label>
+                <Form.Control
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setChallan2File(e.target.files[0])}
+                />
+              </Form.Group>
+            </Col>
+
           </Row>
 
           {/* First sparepart dropdown + conditional fields */}
           <Row className="align-items-end">
             <Col md={4}>
-              <Form.Group className="mb-2">
-               <Form.Label>
-  Spareparts<span style={{ color: "red" }}> *</span>
-</Form.Label>
+              <Form.Group className="mb-2 form-field">
+                <Form.Label>
+                  Spare parts<span style={{ color: "red" }}> *</span>
+                </Form.Label>
 
                 <Form.Select
                   value={spareparts[0].sparepart_id}
@@ -438,7 +542,7 @@ const [existingSerials, setExistingSerials] = useState([]);
                     handleSparepartChange(0, e.target.value)
                   }
                 >
-                  <option value="">Select Spareparts</option>
+                  <option value="">Select Spare parts</option>
                   {availableSpareparts.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name}
@@ -446,8 +550,8 @@ const [existingSerials, setExistingSerials] = useState([]);
                   ))}
                 </Form.Select>
                 {errors.items?.[0]?.sparepart_id && (
-  <div style={{ color: "red", fontSize: "0.85rem", marginTop: "4px" }}>{errors.items[0].sparepart_id}</div>
-)}
+                  <div style={{ color: "red", fontSize: "0.85rem", marginTop: "4px" }}>{errors.items[0].sparepart_id}</div>
+                )}
               </Form.Group>
             </Col>
 
@@ -461,10 +565,10 @@ const [existingSerials, setExistingSerials] = useState([]);
                       {/* Row 1 */}
                       <Row>
                         <Col md={4}>
-                          <Form.Group className="mb-2">
-                           <Form.Label>
-  Product<span style={{ color: "red" }}> *</span>
-</Form.Label>
+                          <Form.Group className="mb-2 form-field">
+                            <Form.Label>
+                              Product<span style={{ color: "red" }}> *</span>
+                            </Form.Label>
 
                             <Form.Select
                               value={spareparts[0].product_id}
@@ -483,37 +587,30 @@ const [existingSerials, setExistingSerials] = useState([]);
                         </Col>
 
                         <Col md={4}>
-                          <Form.Group className="mb-2">
-                       <Form.Label>
-  From Serial<span style={{ color: "red" }}> *</span>
-</Form.Label>
-
+                          <Form.Group className="mb-2 form-field">
+                            <Form.Label>
+                              From Serial<span style={{ color: "red" }}> *</span>
+                            </Form.Label>
                             <Form.Control
                               type="text"
                               value={spareparts[0].from_serial}
-                              onChange={(e) =>
-                                handleInputChange(0, "from_serial", e.target.value)
-                              }
-                              
+                              maxLength={6}
+                              onChange={(e) => handleInputChange(0, "from_serial", e.target.value)}
                             />
-                            
                           </Form.Group>
                         </Col>
 
                         <Col md={4}>
-                          <Form.Group className="mb-2">
-                        <Form.Label>
-  To Serial<span style={{ color: "red" }}> *</span>
-</Form.Label>
-
+                          <Form.Group className="mb-2 form-field">
+                            <Form.Label>
+                              To Serial<span style={{ color: "red" }}> *</span>
+                            </Form.Label>
                             <Form.Control
                               type="text"
                               value={spareparts[0].to_serial}
-                              onChange={(e) =>
-                                handleInputChange(0, "to_serial", e.target.value)
-                              }
+                              maxLength={6}
+                              onChange={(e) => handleInputChange(0, "to_serial", e.target.value)}
                             />
-                            
                           </Form.Group>
                         </Col>
                       </Row>
@@ -521,7 +618,7 @@ const [existingSerials, setExistingSerials] = useState([]);
                       {/* Row 2 */}
                       <Row>
                         <Col md={4}>
-                          <Form.Group className="mb-2">
+                          <Form.Group className="mb-2 form-field">
                             <Form.Label>Quantity</Form.Label>
                             <Form.Control
                               type="number"
@@ -531,13 +628,13 @@ const [existingSerials, setExistingSerials] = useState([]);
                               }
                             />
                             {errors.items?.[0]?.qty && (
-  <div style={{ color: "red", fontSize: "0.85rem" }}>{errors.items[0].qty}</div>
-)}
+                              <div style={{ color: "red", fontSize: "0.85rem" }}>{errors.items[0].qty}</div>
+                            )}
                           </Form.Group>
                         </Col>
 
                         <Col md={4}>
-                          <Form.Group className="mb-2">
+                          <Form.Group className="mb-2 form-field">
                             <Form.Label>Warranty Status</Form.Label>
                             <Form.Select
                               value={spareparts[0].warranty_status}
@@ -549,8 +646,8 @@ const [existingSerials, setExistingSerials] = useState([]);
                               <option value="Inactive">Inactive</option>
                             </Form.Select>
                             {errors.items?.[0]?.warranty_status && (
-  <div style={{ color: "red", fontSize: "0.85rem" }}>{errors.items[0].warranty_status}</div>
-)}
+                              <div style={{ color: "red", fontSize: "0.85rem" }}>{errors.items[0].warranty_status}</div>
+                            )}
                           </Form.Group>
                         </Col>
 
@@ -561,7 +658,7 @@ const [existingSerials, setExistingSerials] = useState([]);
                   return (
                     <Row>
                       <Col md={4}>
-                        <Form.Group className="mb-2">
+                        <Form.Group className="mb-2 form-field">
                           <Form.Label>Warranty Status</Form.Label>
                           <Form.Select
                             value={spareparts[0].warranty_status}
@@ -576,7 +673,7 @@ const [existingSerials, setExistingSerials] = useState([]);
                       </Col>
 
                       <Col md={4}>
-                        <Form.Group className="mb-2">
+                        <Form.Group className="mb-2 form-field">
                           <Form.Label>Quantity</Form.Label>
                           <Form.Control
                             type="number"
@@ -594,7 +691,7 @@ const [existingSerials, setExistingSerials] = useState([]);
                 } else {
                   return (
                     <Col md={4}>
-                      <Form.Group className="mb-2">
+                      <Form.Group className="mb-2 form-field">
                         <Form.Label>Quantity</Form.Label>
                         <Form.Control
                           type="number"
@@ -621,12 +718,12 @@ const [existingSerials, setExistingSerials] = useState([]);
           <Card
             key={realIndex}
             className="mb-3"
-            style={{ background: "#f1f3f5", borderRadius: 6 }}
+            style={{ background: "#F4F4F8", borderRadius: 6 }}
           >
             <Card.Body>
               <Row className="mb-2 align-items-center">
                 <Col>
-                  <h6 className="mb-0">Spareparts Details</h6>
+                  <h6 className="mb-0">Spare Parts Details</h6>
                 </Col>
                 <Col xs="auto">
                   <Button
@@ -636,13 +733,14 @@ const [existingSerials, setExistingSerials] = useState([]);
                   >
                     <i className="bi bi-trash"></i>
                   </Button>
+
                 </Col>
               </Row>
 
               <Row className="align-items-end mb-2" key={realIndex}>
                 <Col md={4}>
                   <Form.Group className="mb-2">
-                    <Form.Label>Spareparts</Form.Label>
+                    <Form.Label>Spare parts</Form.Label>
                     <Form.Select
                       value={sp.sparepart_id}
                       onChange={(e) => handleSparepartChange(realIndex, e.target.value)}
@@ -683,17 +781,37 @@ const [existingSerials, setExistingSerials] = useState([]);
                       </Form.Group>
                     </Col>
 
-                    <Col md={4}>
-                      <Form.Group className="mb-2">
-                        <Form.Label>To Serial</Form.Label>
-                        <Form.Control
-                          type="text"
-                          value={sp.to_serial}
-                          onChange={(e) => handleInputChange(realIndex, "to_serial", e.target.value)}
-                        />
-                      </Form.Group>
+                    <Col md={4} className="d-flex align-items-end">
+                      <div className="flex-grow-1">
+                        <Form.Group className="mb-2">
+                          <Form.Label>To Serial</Form.Label>
+                          <Form.Control
+                            type="text"
+                            value={sp.to_serial}
+                            onChange={(e) => handleInputChange(realIndex, "to_serial", e.target.value)}
+                          />
+                        </Form.Group>
+                      </div>
+                      <Button
+                        variant="info"
+                        size="sm"
+                        className="ms-2 mb-2"
+                        onClick={() =>
+                          navigate("/pcb-serials", {
+                            state: {
+                              sparepart: {
+                                ...sp,
+                                product_name: availableCategories.find(
+                                  (c) => c.id === sp.product_id
+                                )?.name || ""
+                              },
+                            },
+                          })
+                        }
+                      >
+                        View
+                      </Button>
                     </Col>
-
                     <Col md={4}>
                       <Form.Group className="mb-2">
                         <Form.Label>Quantity</Form.Label>
@@ -754,6 +872,7 @@ const [existingSerials, setExistingSerials] = useState([]);
                       <Form.Label>Quantity</Form.Label>
                       <Form.Control
                         type="number"
+                        min={1}
                         value={sp.qty}
                         onChange={(e) => handleInputChange(realIndex, "qty", e.target.value)}
                       />
@@ -768,17 +887,17 @@ const [existingSerials, setExistingSerials] = useState([]);
 
       <div className="d-flex justify-content-between mt-3">
         <Button variant="success" onClick={addSparepart}>
-          <i className="bi bi-plus-lg me-1" /> Add Spareparts
+          <i className="bi bi-plus-lg me-1" /> Add Spare parts
         </Button>
 
         <div>
-        <Button 
-  variant="secondary" 
-  className="me-2" 
-  onClick={() => navigate(-1)}  // go back to previous page
->
-  Cancel
-</Button>
+          <Button
+            variant="secondary"
+            className="me-2"
+            onClick={() => navigate(-1)}  // go back to previous page
+          >
+            Cancel
+          </Button>
           <Button variant="success" onClick={handleSubmit}>
             Save
           </Button>

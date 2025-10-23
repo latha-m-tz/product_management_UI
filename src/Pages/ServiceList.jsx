@@ -113,7 +113,7 @@ export default function ServiceList() {
               </Button>
               <Button
                 size="sm"
-                onClick={() => navigate("/service/add")}
+                onClick={() => navigate("/service-product/add")}
                 style={{
                   backgroundColor: "#2FA64F",
                   borderColor: "#2FA64F",
@@ -224,9 +224,19 @@ export default function ServiceList() {
                       >
                         <i className="bi bi-trash"></i>
                       </Button>
-                      <ActionButtons
-                      onView={() => navigate(`/service/${service.id}/view`)}
-                      />
+                      <Button
+                        variant=""
+                        size="sm"
+                        onClick={() => navigate(`/service-product/${service.id}/view`)}
+                        style={{
+                          borderColor: "#2E3A59",
+                          color: "#2E3A59",
+                          backgroundColor: "transparent",
+                          marginLeft: "4px",
+                        }}
+                      >
+                        <i className="bi bi-eye"></i>
+                      </Button>
                     </td>
                   </tr>
                 ))

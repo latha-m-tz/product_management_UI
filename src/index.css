@@ -68,11 +68,12 @@ button:focus-visible {
 }
 
 .PhoneInputInput {
-  border: none !important;
-  outline: none !important;
-  box-shadow: none !important;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 14px;
+  width: 100%;
 }
-
 input:focus,
 select:focus,
 textarea:focus,
@@ -226,10 +227,13 @@ button:focus {
 .card-custom {
   background-color: #f4f4f8 !important;
 }
-/* .table thead tr {
+table.dataTable thead th {
   background-color: #2E3A59 !important;
-  color: white !important;
-} */
+  color: #ffffff !important;
+  font-size: 0.82rem;
+  height: 40px;
+  vertical-align: middle;
+}
 .search-input-wrapper {
   position: relative;
 }
@@ -251,4 +255,42 @@ button:focus {
   padding-top: 10px;
   padding-bottom: 10px;
   border-bottom: 1px solid #dee2e6; /* Optional: adds a subtle border */
+}
+/* ---- Common Form Field Alignment ---- */
+.form-field .form-label {
+  font-weight: 500;
+  margin-bottom: 6px;
+  display: block;
+}
+
+.form-field .form-control,
+.form-field .react-select__control,
+.form-field .PhoneInputInput {
+  height: 38px;
+  font-size: 0.95rem;
+  border-radius: 4px;
+}
+
+.form-field .react-select__control {
+  border: 1px solid #ced4da;
+  box-shadow: none;
+}
+
+.form-field .PhoneInput {
+  display: flex;
+  align-items: center;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  padding: 4px 8px;
+}
+
+.form-field .PhoneInputInput {
+  border: none;
+  outline: none;
+  width: 100%;
+}
+
+.form-field textarea.form-control {
+  min-height: 38px;
+  resize: none;
 }

@@ -1,27 +1,26 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
+
 
 export default function Sidebar({ collapsed }) {
   const navigate = useNavigate();
+  const location = useLocation(); // <-- get current path
 
   const menu = {
     home: [{ link: "overview", title: "Overview", icon: ["/Overviiew_G.png", "/squares.png"] }],
     purchase: [
       { link: "vendor", title: "Vendor", icon: ["/VendorG.png", "/Vendor.png"] },
       { link: "spare-parts", title: "Spare Parts", icon: ["/Purchase Order.png", "/Purchase Order 1.png"] },
-      { link: "spare-partsPurchase", title: "SpareParts Purchase", icon: ["/Purchase Order.png", "/Purchase Order 1.png"] },
+      { link: "spare-partsPurchase", title: "Spare Parts Purchase", icon: ["/Purchase Order.png", "/Purchase Order 1.png"] },
       { link: "spare-parts-by-series", title: "Spare Parts Requirements Calculation", icon: ["/Purchase Order.png", "/Purchase Order 1.png"] }, // <-- New link
-
-      // { link: "assemble", title: "Assemble", icon: ["/AssembleG.png", "/Assemble.png"] },
     ],
-    // testing: [
-    //   { link: "testing/a", title: "Testing A" },
-    //   { link: "testing/b", title: "Testing B" },
-    // ],
+
     inventory: [
       { link: "product", title: "Product", icon: ["/Product.png", "/Product.png"] },
       { link: "product-type", title: "Product Type", icon: ["/Product.png", "/Product.png"] },
+      { link: "technician", title: "Technician", icon: ["/Product.png", "/Product.png"] },
+
       { link: "assemble", title: "Assemble", icon: ["/Product.png", "/Product.png"] },
     ],
 
@@ -33,14 +32,12 @@ export default function Sidebar({ collapsed }) {
     tracking: [{ link: "tracking", title: "Tracking", icon: ["/track.png", "/track.png"] }],
   };
 
-  useEffect(() => {
-    console.log(location.pathname);
-
-    // console.log(location.pathname === `/${item.link}` ? "active-link" : "");
-  }, [location.pathname]);
-
   const handleLinkClick = (link) => navigate(`/${link}`);
 
+  const isActive = (link) => {
+    // Highlight if the current path includes the base link
+    return location.pathname === `/${link}` || location.pathname.startsWith(`/${link}/`);
+  };
   const linkStyle = {
     backgroundColor: "transparent",
     borderRadius: "8px",
@@ -100,7 +97,7 @@ export default function Sidebar({ collapsed }) {
 
       {/* Scrollable nav */}
       <nav
-        className="small px-4 flex-grow-1"
+        className="small px-2 flex-grow-1"
         style={{
           height: "100%",
           overflowY: "auto",

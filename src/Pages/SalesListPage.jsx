@@ -90,7 +90,7 @@ export default function SalesListPage() {
         <ActionButtons
           onEdit={() => navigate(`/sales/edit/${row.id}`)}
           onDelete={() => handleDelete(row)}
-          onView={() => navigate(`/sales-overview/${row.id}`)} 
+          onView={() => navigate(`/sales-order-overview/${row.id}`)} 
         />
       ),
     },
@@ -135,7 +135,7 @@ export default function SalesListPage() {
               </Button>
               <Button
                 size="sm"
-                onClick={() => navigate("/sales/add")}
+                onClick={() => navigate("/sales-order/add")}
                 style={{
                   backgroundColor: "#2FA64F",
                   borderColor: "#2FA64F",

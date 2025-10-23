@@ -8,7 +8,9 @@ import { toast } from "react-toastify";
 import { API_BASE_URL } from "../api";
 import "react-toastify/dist/ReactToastify.css";
 import { parsePhoneNumberFromString, isValidPhoneNumber } from "libphonenumber-js";
-import { useNavigate } from "react-router-dom"; // <-- import
+import { useNavigate } from "react-router-dom";
+import CountrySelect from "../components/CountrySelect";
+import CountryPhoneInput from "../components/CountryPhoneInput";
 
 export default function AddCustomer() {
   const [customer, setCustomer] = useState({
@@ -27,7 +29,7 @@ export default function AddCustomer() {
   const [cityOptions, setCityOptions] = useState([]);
   const [errors, setErrors] = useState({});
   const [countryCode, setCountryCode] = useState("");
-   const navigate = useNavigate();
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetch("https://ipapi.co/json/")
@@ -45,12 +47,10 @@ export default function AddCustomer() {
 
     // Required fields
     if (!customer.customer.trim()) errs.customer = "Customer Name is required";
-    // if (!customer.gst_no.trim()) errs.gst_no = "GST No is required";
-    // else if (customer.gst_no.length !== 15) errs.gst_no = "GST No must be 15 characters";
 
-if (customer.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email)) {
-  errs.email = "Invalid email format";
-}
+    if (customer.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email)) {
+      errs.email = "Invalid email format";
+    }
 
 
 
@@ -72,38 +72,58 @@ if (customer.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email))
     const { name, value } = e.target;
     setCustomer((prev) => ({ ...prev, [name]: value }));
 
-   if (name === "gst_no") {
-    if (value.length > 15) {
-      setErrors((prev) => ({ ...prev, gst_no: "GST No must be 15 characters" }));
-    } else {
-      setErrors((prev) => ({ ...prev, gst_no: "" }));
+    if (name === "gst_no") {
+      if (value.length > 15) {
+        setErrors((prev) => ({ ...prev, gst_no: "GST No must be 15 characters" }));
+      } else {
+        setErrors((prev) => ({ ...prev, gst_no: "" }));
+      }
     }
-  }
 
     if (name === "pincode" && value.length === 6) {
       fetchPincodeDetails(value);
     }
 
-    // clear other field errors while typing
+    if (name === "email") {
+      const emailValue = value.trim(); // remove leading/trailing spaces
+
+      // Regex: no spaces, valid email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+      if (!emailValue) {
+        setErrors((prev) => ({ ...prev, email: "Email is required" }));
+      } else if (!emailRegex.test(emailValue)) {
+        setErrors((prev) => ({ ...prev, email: "Invalid email format" }));
+      } else {
+        setErrors((prev) => ({ ...prev, email: "" }));
+      }
+
+      setCustomer((prev) => ({ ...prev, email: emailValue }));
+    }
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
     }
   };
 
-  
-  const handleMobileChange = (value) => {
-    setCustomer((prev) => ({ ...prev, mobile_no: value || "" }));
+  const handleMobileChange = (inputNumber) => {
+    let formattedNumber = inputNumber || "";
 
-    // Live validation
-    if (!value) {
+    // Auto-add +91 for 10-digit numbers without country code
+    if (formattedNumber && !formattedNumber.startsWith("+") && /^[6-9]\d{9}$/.test(formattedNumber)) {
+      formattedNumber = "+91" + formattedNumber;
+    }
+
+    setCustomer((prev) => ({ ...prev, mobile_no: formattedNumber }));
+
+    // Validation
+    if (!formattedNumber) {
       setErrors((prev) => ({ ...prev, mobile_no: "Mobile number is required" }));
       return;
     }
 
     try {
-      const phoneNumber = parsePhoneNumberFromString(value);
-      if (!phoneNumber || !isValidPhoneNumber(value)) {
-        setErrors((prev) => ({ ...prev, mobile_no: "Invalid mobile number for this country" }));
+      if (!isValidPhoneNumber(formattedNumber)) {
+        setErrors((prev) => ({ ...prev, mobile_no: "Invalid mobile number for selected country" }));
       } else {
         setErrors((prev) => ({ ...prev, mobile_no: "" }));
       }
@@ -111,6 +131,7 @@ if (customer.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email))
       setErrors((prev) => ({ ...prev, mobile_no: "Invalid mobile number" }));
     }
   };
+
 
   const fetchPincodeDetails = async (pincode) => {
     try {
@@ -121,13 +142,13 @@ if (customer.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email))
         const postOffices = data[0].PostOffice;
         const cities = postOffices.map((po) => po.Name);
 
-              setErrors((prev) => ({
-        ...prev,
-        pincode: "",
-        state: "",
-        district: "",
-        city: "",
-      }));
+        setErrors((prev) => ({
+          ...prev,
+          pincode: "",
+          state: "",
+          district: "",
+          city: "",
+        }));
 
         setCityOptions(cities);
         setCustomer((prev) => ({
@@ -168,22 +189,22 @@ if (customer.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email))
 
       const data = await response.json();
 
-    if (!response.ok) {
-      // Check for duplicate fields
-      if (data.errors) {
-        if (data.errors.email) toast.error(`Email already taken: ${data.errors.email}`);
-        if (data.errors.mobile_no) toast.error(`Mobile number already taken: ${data.errors.mobile_no}`);
-      } else if (data.message) {
-        toast.error(data.message);
-      } else {
-        toast.error("Error saving customer!");
+      if (!response.ok) {
+        // Check for duplicate fields
+        if (data.errors) {
+          if (data.errors.email) toast.error(`Email already taken: ${data.errors.email}`);
+          if (data.errors.mobile_no) toast.error(`Mobile number already taken: ${data.errors.mobile_no}`);
+        } else if (data.message) {
+          toast.error(data.message);
+        } else {
+          toast.error("Error saving customer!");
+        }
+        console.error(data);
+        return;
       }
-      console.error(data);
-      return;
-    }
 
       toast.success("Customer saved successfully!");
-       navigate("/customer");
+      navigate("/customer");
       console.log(data);
     } catch (err) {
       console.error(err);
@@ -193,20 +214,34 @@ if (customer.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email))
 
   const feedbackStyle = { color: "red", fontSize: "0.85rem", marginTop: "4px" };
   // ✅ GST regex
-const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+  const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
 
 
   return (
     <div className="container-fluid p-4" style={{ background: "white", minHeight: "100vh" }}>
-      <h5 className="mb-3">Add Customer</h5>
+      <Row className="align-items-center mb-3 fixed-header">
+        <Col>
+          <h4>Add  customer</h4>
+        </Col>
+        <Col className="text-end">
+          <Button
+            variant="outline-secondary"
+            size="sm"
+            className="me-2"
+            onClick={() => navigate("/customer")}
+          >
+            <i className="bi bi-arrow-left"></i> Back
+          </Button>
+        </Col>
+      </Row>
 
-      <div style={{ background: "#f1f3f5", padding: "20px", borderRadius: "6px", marginBottom: "20px" }}>
+      <div style={{ background: "#f4f4f8", padding: "20px", borderRadius: "6px", marginBottom: "20px" }}>
         <Row>
           <Col md={4}>
-            <Form.Group className="mb-3">
-             <Form.Label>
-  Customer Name<span style={{ color: "red" }}> *</span>
-</Form.Label>
+            <Form.Group className="mb-3 form-field">
+              <Form.Label>
+                Customer Name<span style={{ color: "red" }}> *</span>
+              </Form.Label>
 
               <Form.Control
                 type="text"
@@ -219,49 +254,70 @@ const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
             </Form.Group>
           </Col>
           <Col md={4}>
-           <Form.Group className="mb-3">
-  <Form.Label>GST No</Form.Label>
-  <Form.Control
-    type="text"
-    name="gst_no"
-    value={customer.gst_no}
-    onChange={(e) => {
-      const value = e.target.value.toUpperCase();
-      setCustomer({ ...customer, gst_no: value });
+            <Form.Group className="mb-3 form-field">
+              <Form.Label>GST No</Form.Label>
+              <Form.Control
+                type="text"
+                name="gst_no"
+                value={customer.gst_no}
+                onChange={(e) => {
+                  let value = e.target.value.toUpperCase();
 
-      if (!value.trim()) {
-        setErrors((prev) => ({ ...prev, gst_no: "GST No is required" }));
-      } else if (value.length !== 15) {
-        setErrors((prev) => ({ ...prev, gst_no: "GST No must be 15 characters" }));
-      } else if (!gstRegex.test(value)) {
-        setErrors((prev) => ({ ...prev, gst_no: "Invalid GST No format (e.g. 33ABCDE1234F1Z5)" }));
-      } else {
-        setErrors((prev) => ({ ...prev, gst_no: "" }));
-      }
-    }}
-    placeholder="Enter GST No"
-  />
-  {errors.gst_no && (
-    <div style={{ color: "red", fontSize: "0.85rem", marginTop: "4px" }}>
-      {errors.gst_no}
-    </div>
-  )}
-</Form.Group>
+                  // Block typing beyond 25 characters
+                  if (value.length > 15) value = value.slice(0, 15);
+
+                  setCustomer({ ...customer, gst_no: value });
+
+                  if (!value.trim()) {
+                    setErrors((prev) => ({ ...prev, gst_no: "GST No is required" }));
+                  } else if (!gstRegex.test(value)) {
+                    setErrors((prev) => ({ ...prev, gst_no: "Invalid GST No format" }));
+                  } else {
+                    setErrors((prev) => ({ ...prev, gst_no: "" }));
+                  }
+                }}
+                placeholder="Enter GST No"
+                maxLength={15} // block typing beyond 25 chars
+              />
+
+              {errors.gst_no && (
+                <div style={{ color: "red", fontSize: "0.85rem", marginTop: "4px" }}>
+                  {errors.gst_no}
+                </div>
+              )}
+            </Form.Group>
 
           </Col>
           <Col md={4}>
-            <Form.Group className="mb-3">
-      <Form.Label>
-  Pincode<span style={{ color: "red" }}> *</span>
-</Form.Label>
-
+            <Form.Group className="mb-3 form-field">
+              <Form.Label>
+                Pincode<span style={{ color: "red" }}> *</span>
+              </Form.Label>
               <Form.Control
                 type="text"
                 name="pincode"
                 value={customer.pincode}
-                onChange={handleChange}
+                onChange={(e) => {
+                  let value = e.target.value;
+
+                  // Allow only digits and max 6 characters
+                  value = value.replace(/\D/g, ""); // remove non-digits
+                  if (value.length > 6) value = value.slice(0, 6);
+
+                  setCustomer((prev) => ({ ...prev, pincode: value }));
+
+                  if (value.length === 6) {
+                    fetchPincodeDetails(value);
+                  }
+
+                  if (errors.pincode) {
+                    setErrors((prev) => ({ ...prev, pincode: "" }));
+                  }
+                }}
                 placeholder="Enter Pincode"
+                maxLength={6} // block typing beyond 6 digits
               />
+
               {errors.pincode && <div style={feedbackStyle}>{errors.pincode}</div>}
             </Form.Group>
           </Col>
@@ -269,10 +325,10 @@ const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
 
         <Row>
           <Col md={4}>
-            <Form.Group className="mb-3">
-           <Form.Label>
-  City<span style={{ color: "red" }}> *</span>
-</Form.Label>
+            <Form.Group className="mb-3 form-field">
+              <Form.Label>
+                City<span style={{ color: "red" }}> *</span>
+              </Form.Label>
 
               <CreatableSelect
                 isClearable
@@ -282,16 +338,16 @@ const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
                   setCustomer((prev) => ({ ...prev, city: selected ? selected.value : "" }))
                 }
                 placeholder="Select or type city"
-                  classNamePrefix="my-select"   // ✅ Add this
+                classNamePrefix="my-select"   // ✅ Add this
               />
               {errors.city && <div style={feedbackStyle}>{errors.city}</div>}
             </Form.Group>
           </Col>
           <Col md={4}>
-            <Form.Group className="mb-3">
-             <Form.Label>
-  District<span style={{ color: "red" }}> *</span>
-</Form.Label>
+            <Form.Group className="mb-3 form-field">
+              <Form.Label>
+                District<span style={{ color: "red" }}> *</span>
+              </Form.Label>
 
               <Form.Control
                 type="text"
@@ -304,10 +360,10 @@ const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
             </Form.Group>
           </Col>
           <Col md={4}>
-            <Form.Group className="mb-3">
+            <Form.Group className="mb-3 form-field">
               <Form.Label>
-  State<span style={{ color: "red" }}> *</span>
-</Form.Label>
+                State<span style={{ color: "red" }}> *</span>
+              </Form.Label>
 
               <Form.Control
                 type="text"
@@ -323,32 +379,57 @@ const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
 
         <Row>
           <Col md={4}>
-            <Form.Group className="mb-3">
+            <Form.Group className="mb-3 form-field">
               <Form.Label>Email</Form.Label>
               <Form.Control
                 type="email"
                 name="email"
                 value={customer.email}
-                onChange={handleChange}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\s/g, ""); // remove spaces
+                  setCustomer((prev) => ({ ...prev, email: value }));
+
+                  // Live validation
+                  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                  if (!value) setErrors((prev) => ({ ...prev, email: "Email is required" }));
+                  else if (!emailRegex.test(value)) setErrors((prev) => ({ ...prev, email: "Invalid email format" }));
+                  else setErrors((prev) => ({ ...prev, email: "" }));
+                }}
                 placeholder="Enter Email"
               />
+
               {/* {errors.email && <div style={feedbackStyle}>{errors.email}</div>} */}
             </Form.Group>
           </Col>
-               <Col md={4}>
-            <Form.Group className="mb-3">
-             <Form.Label>
-  Mobile No<span style={{ color: "red" }}> *</span>
-</Form.Label>
+          <Col md={4}>
+            <Form.Group className="mb-3 form-field">
+              <Form.Label>
+                Mobile No<span style={{ color: "red" }}> *</span>
+              </Form.Label>
 
-              <PhoneInput international 
-                  defaultCountry="IN" 
-              className="form-control" value={customer.mobile_no} onChange={handleMobileChange} />
-              {errors.mobile_no && <div style={feedbackStyle}>{errors.mobile_no}</div>}
+              <CountryPhoneInput
+                international
+                defaultCountry={countryCode || undefined}
+                value={customer.mobile_no}
+                onChange={handleMobileChange}
+                className="form-control"
+                placeholder="Enter mobile number"
+                countrySelectComponent={CountrySelect}
+              />
+              {errors.mobile_no && (
+                <div style={{ color: "red", fontSize: "0.85rem", marginTop: "4px" }}>
+                  {errors.mobile_no}
+                </div>
+              )}
+
+
+
+
+
             </Form.Group>
           </Col>
           <Col md={4}>
-            <Form.Group className="mb-3">
+            <Form.Group className="mb-3 form-field">
               <Form.Label>Status</Form.Label>
               <Form.Select
                 name="status"
@@ -363,11 +444,11 @@ const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
         </Row>
 
         <Row>
-          <Col md={12}>
-            <Form.Group className="mb-3">
-  <Form.Label>
-  Address<span style={{ color: "red" }}> *</span>
-</Form.Label>
+          <Col md={6}>
+            <Form.Group className="mb-3 form-field">
+              <Form.Label>
+                Address<span style={{ color: "red" }}> *</span>
+              </Form.Label>
 
               <Form.Control
                 as="textarea"
@@ -383,13 +464,13 @@ const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
       </div>
 
       <div className="d-flex justify-content-end">
-               <Button 
-         variant="secondary" 
-         className="me-2" 
-         onClick={() => navigate(-1)}  // go back to previous page
-       >
-         Cancel
-       </Button>
+        <Button
+          variant="secondary"
+          className="me-2"
+          onClick={() => navigate(-1)}  // go back to previous page
+        >
+          Cancel
+        </Button>
         <Button variant="success" onClick={saveCustomer}>
           Save
         </Button>

@@ -21,7 +21,7 @@ export default function PurchaseListPage() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
-  const [sortField, setSortField] = useState(null);
+  const [sortField, setSortField] = useState(null); 
   const [sortDirection, setSortDirection] = useState("asc");
 
   useEffect(() => {
@@ -71,11 +71,11 @@ export default function PurchaseListPage() {
     setSortDirection(direction);
   };
 
-  const filteredData = purchaseData.filter((item) => {
-    const values = Object.values(item).join(" ").toLowerCase();
-    return values.includes(search.toLowerCase());
-  });
-
+const filteredData = purchaseData.filter((item) => {
+  const vendorName = item.vendor?.name?.toLowerCase() || "";
+  const challanNo = item.challan_no?.toLowerCase() || "";
+  return vendorName.includes(search.toLowerCase()) || challanNo.includes(search.toLowerCase());
+});
   const sortedData = [...filteredData].sort((a, b) => {
     if (!sortField) return 0;
     const valA = a[sortField]?.toString().toLowerCase() || "";

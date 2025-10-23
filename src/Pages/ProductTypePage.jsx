@@ -109,16 +109,13 @@ export default function ProductTypePage() {
         p.id !== editingTypeId
     );
 
-
-
     if (duplicate) {
       errors.typeName = "Product type already exists for this product!";
     }
 
     if (Object.keys(errors).length > 0) {
+      // ✅ Only set validationErrors to show messages in UI
       setValidationErrors(errors);
-      // 🔔 Show toast for each error
-      Object.values(errors).forEach((msg) => toast.error(msg));
       return;
     }
 
@@ -148,6 +145,7 @@ export default function ProductTypePage() {
       toast.error("Failed to save product type!");
     }
   };
+
 
   const handleDelete = async (id) => {
     MySwal.fire({
@@ -435,9 +433,9 @@ export default function ProductTypePage() {
           </div>
 
           <div className="border-top pt-3 mt-2 d-flex justify-content-end gap-2">
-            <Button variant="outline-danger" onClick={handleModalClose}>
+            {/* <Button variant="outline-danger" onClick={handleModalClose}>
               Cancel
-            </Button>
+            </Button> */}
             <Button variant="success" onClick={handleSave}>
               {editingTypeId ? "Update" : "Save"}
             </Button>

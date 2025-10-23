@@ -11,16 +11,21 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-
+import { IoTrashOutline } from "react-icons/io5";
+import Swal from "sweetalert2";
+import withReactContent from "sweetalert2-react-content";
+import { format, parse } from "date-fns";
 import { API_BASE_URL } from "../api";
 const AddServicePage = () => {
-  const navigate = useNavigate();
+const navigate = useNavigate();
+const [errors, setErrors] = useState({});
 
   const [products, setProducts] = useState([]);
   const [serialNumbersByProduct, setSerialNumbersByProduct] = useState({});
-  const [alreadySoldSerials, setAlreadySoldSerials] = useState([]);
-  
-  // const [serialNumbers, setSerialNumbers] = useState([]);
+const [alreadySoldSerials, setAlreadySoldSerials] = useState([]);
+const MySwal = withReactContent(Swal);
+const [serviceDate, setServiceDate] = useState(null);
+
   const [formData, setFormData] = useState({
     challan_no: "",
     challan_date: "",
@@ -41,37 +46,56 @@ const AddServicePage = () => {
         tested_date: "",
         testing_status: "",
         issue_found: "",
-        action_taken: "", // Add this field
-        urgent: false,     // Add this field
+        action_taken: "",
+        urgent: false,
       },
     ],
   });
+  const validate = () => {
+    const newErrors = {};
+
+    // General fields
+    if (!formData.challan_no) newErrors.challan_no = "Challan No is required";
+    if (!formData.challan_date) newErrors.challan_date = "Challan Date is required";
+    if (!formData.from_place) newErrors.from_place = "From Place is required";
+    if (!formData.to_place) newErrors.to_place = "To Place is required";
+    if (!formData.sent_date) newErrors.sent_date = "Send Date is required";
+    if (!formData.received_date) newErrors.received_date = "Received Date is required";
+
+    // Items validation
+    formData.items.forEach((item, index) => {
+      if (!item.product) newErrors[`product_${index}`] = "Product is required";
+      if (!item.vci_serial_no) newErrors[`vci_serial_no_${index}`] = "Serial No is required";
+    });
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   // Fetch products from API
   useEffect(() => {
-  // Fetch products
-  const fetchProducts = async () => {
-    try {
-      const res = await axios.get(`${API_BASE_URL}/product`);
-      setProducts(res.data);
-    } catch (error) {
-      toast.error("Failed to fetch products!");
-    }
-  };
+    // Fetch products
+    const fetchProducts = async () => {
+      try {
+        const res = await axios.get(`${API_BASE_URL}/product`);
+        setProducts(res.data);
+      } catch (error) {
+        toast.error("Failed to fetch products!");
+      }
+    };
 
-  // Fetch already added serials
-  const fetchAlreadyAddedSerials = async () => {
-    try {
-      const res = await axios.get(`${API_BASE_URL}/get-serviceserials`);
-      setAlreadySoldSerials(res.data || []);
-    } catch (error) {
-      setAlreadySoldSerials([]);
-    }
-  };
+    const fetchAlreadyAddedSerials = async () => {
+      try {
+        const res = await axios.get(`${API_BASE_URL}/get-serviceserials`);
+        setAlreadySoldSerials(res.data || []);
+      } catch (error) {
+        setAlreadySoldSerials([]);
+      }
+    };
 
-  fetchProducts();
-  fetchAlreadyAddedSerials();
-}, []);
+    fetchProducts();
+    fetchAlreadyAddedSerials();
+  }, []);
 
 
 
@@ -80,37 +104,37 @@ const AddServicePage = () => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-const handleItemChange = async (index, e) => {
-  const { name, value, type, checked } = e.target;
-  const items = [...formData.items];
+  const handleItemChange = async (index, e) => {
+    const { name, value, type, checked } = e.target;
+    const items = [...formData.items];
 
-  items[index][name] = type === "checkbox" ? checked : value;
-  setFormData((prev) => ({ ...prev, items }));
+    items[index][name] = type === "checkbox" ? checked : value;
+    setFormData((prev) => ({ ...prev, items }));
 
-  if (name === "product" && value) {
-    try {
-      const res = await axios.get(`${API_BASE_URL}/sales/serials/${value}`);
-      const serials = res.data || [];
+    if (name === "product" && value) {
+      try {
+        const res = await axios.get(`${API_BASE_URL}/sales/serials/${value}`);
+        const serials = res.data || [];
 
-      // Filter out serials that are already added in services
-      const filteredSerials = serials.filter(
-        (s) => !alreadySoldSerials.includes(s.serial_no)
-      );
+        // Filter out serials that are already added in services
+        const filteredSerials = serials.filter(
+          (s) => !alreadySoldSerials.includes(s.serial_no)
+        );
 
-      setSerialNumbersByProduct((prev) => ({
-        ...prev,
-        [value]: filteredSerials,
-      }));
+        setSerialNumbersByProduct((prev) => ({
+          ...prev,
+          [value]: filteredSerials,
+        }));
 
-      // Reset selected serial for this row
-      items[index].vci_serial_no = "";
-      setFormData((prev) => ({ ...prev, items }));
-    } catch (error) {
-      console.error("Failed to fetch serials:", error);
-      toast.error("Failed to fetch serial numbers!");
+        // Reset selected serial for this row
+        items[index].vci_serial_no = "";
+        setFormData((prev) => ({ ...prev, items }));
+      } catch (error) {
+        console.error("Failed to fetch serials:", error);
+        toast.error("Failed to fetch serial numbers!");
+      }
     }
-  }
-};
+  };
 
 
 
@@ -129,22 +153,42 @@ const handleItemChange = async (index, e) => {
           testing_status: "",
           issue_found: "",
           action_taken: "",
-          urgent: false,     
+          urgent: false,
         },
       ],
     }));
   };
 
   // remove row
-  const removeRow = (index) => {
-    const items = [...formData.items];
-    items.splice(index, 1);
-    setFormData((prev) => ({ ...prev, items }));
+  const removeRow = async (index) => {
+    MySwal.fire({
+      title: "Are you sure?",
+      text: "You won't be able to revert this!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#2FA64F",
+      confirmButtonText: "Yes, delete it!",
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          const items = [...formData.items];
+          items.splice(index, 1);
+          setFormData((prev) => ({ ...prev, items }));
+          toast.success("Row deleted successfully!");
+        } catch {
+          toast.error("Failed to delete row!");
+        }
+      }
+    });
   };
+
 
   // submit form
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!validate()) return; // stop submission if validation fails
+
     try {
       await axios.post(`${API_BASE_URL}/service-vci`, formData);
       toast.success("Service added successfully!");
@@ -154,17 +198,31 @@ const handleItemChange = async (index, e) => {
     }
   };
   const RequiredLabel = ({ children }) => (
-  <Form.Label>
-    {children}<span style={{ color: "red" }}> *</span>
-  </Form.Label>
-);
+    <Form.Label>
+      {children}<span style={{ color: "red" }}> *</span>
+    </Form.Label>
+  );
 
   return (
     <Container fluid>
-      <h3 className="mb-3">Add Service</h3>
+      <Row className="align-items-center mb-3 fixed-header">
+        <Col>
+          <h4>Add Service</h4>
+        </Col>
+        <Col className="text-end">
+          <Button
+            variant="outline-secondary"
+            size="sm"
+            className="me-2"
+            onClick={() => navigate("/service-product")}
+          >
+            <i className="bi bi-arrow-left"></i> Back
+          </Button>
+        </Col>
+      </Row>
       <Form onSubmit={handleSubmit}>
         {/* Row 1 */}
-        <Row className="mb-3">
+        <Row className="mb-3 ">
           <Col md={4}>
             <Form.Group>
               <RequiredLabel>Challan No</RequiredLabel>
@@ -173,7 +231,9 @@ const handleItemChange = async (index, e) => {
                 name="challan_no"
                 value={formData.challan_no}
                 onChange={handleChange}
+                isInvalid={!!errors.challan_no}
               />
+              <Form.Control.Feedback type="invalid">{errors.challan_no}</Form.Control.Feedback>
             </Form.Group>
           </Col>
           <Col md={4}>
@@ -184,7 +244,9 @@ const handleItemChange = async (index, e) => {
                 name="challan_date"
                 value={formData.challan_date}
                 onChange={handleChange}
+                isInvalid={!!errors.challan_date}
               />
+              <Form.Control.Feedback type="invalid">{errors.challan_date}</Form.Control.Feedback>
             </Form.Group>
           </Col>
           <Col md={4}>
@@ -210,7 +272,9 @@ const handleItemChange = async (index, e) => {
                 name="from_place"
                 value={formData.from_place}
                 onChange={handleChange}
+                isInvalid={!!errors.from_place}
               />
+              <Form.Control.Feedback type="invalid">{errors.from_place}</Form.Control.Feedback>
             </Form.Group>
           </Col>
           <Col md={4}>
@@ -221,7 +285,9 @@ const handleItemChange = async (index, e) => {
                 name="to_place"
                 value={formData.to_place}
                 onChange={handleChange}
+                isInvalid={!!errors.to_place}
               />
+              <Form.Control.Feedback type="invalid">{errors.to_place}</Form.Control.Feedback>
             </Form.Group>
           </Col>
           {/* <Col md={4}>
@@ -273,7 +339,9 @@ const handleItemChange = async (index, e) => {
                 name="received_date"
                 value={formData.received_date}
                 onChange={handleChange}
+                isInvalid={!!errors.received_date}
               />
+              <Form.Control.Feedback type="invalid">{errors.received_date}</Form.Control.Feedback>
             </Form.Group>
           </Col>
         </Row>
@@ -320,6 +388,7 @@ const handleItemChange = async (index, e) => {
                     name="product"
                     value={item.product}
                     onChange={(e) => handleItemChange(index, e)}
+                    isInvalid={!!errors[`product_${index}`]}
                   >
                     <option value="">Select Product</option>
                     {products.map((p) => (
@@ -328,25 +397,28 @@ const handleItemChange = async (index, e) => {
                       </option>
                     ))}
                   </Form.Control>
+                  <Form.Control.Feedback type="invalid">
+                    {errors[`product_${index}`]} {/* show error message */}
+                  </Form.Control.Feedback>
                 </td>
                 <td>
-                <Form.Control
-                  as="select"
-                  name="vci_serial_no"
-                  value={item.vci_serial_no || ""}
-                  onChange={(e) => handleItemChange(index, e)}
-                >
-                  <option value="">Select Serial No</option>
-                  {(serialNumbersByProduct[item.product] || []).map((s) => (
-                    <option key={s.id || s.serial_no} value={s.serial_no}>
-                      {s.serial_no}
-                    </option>
-                  ))}
-                </Form.Control>
-
-
-
-
+                  <Form.Control
+                    as="select"
+                    name="vci_serial_no"
+                    value={item.vci_serial_no || ""}
+                    onChange={(e) => handleItemChange(index, e)}
+                    isInvalid={!!errors[`vci_serial_no_${index}`]} // ✅ must be a prop
+                  >
+                    <option value="">Select Serial No</option>
+                    {(serialNumbersByProduct[item.product] || []).map((s) => (
+                      <option key={s.id || s.serial_no} value={s.serial_no}>
+                        {s.serial_no}
+                      </option>
+                    ))}
+                  </Form.Control>
+                  <Form.Control.Feedback type="invalid">
+                    {errors[`vci_serial_no_${index}`]} {/* show error message */}
+                  </Form.Control.Feedback>
 
                 </td>
                 <td>
@@ -355,11 +427,15 @@ const handleItemChange = async (index, e) => {
                     name="warranty_status"
                     value={item.warranty_status || item.status}
                     onChange={(e) => handleItemChange(index, e)}
+                    isInvalid={!!errors[`warranty_status_${index}`]} // ✅ must be a prop
                   >
                     <option value="">Select</option>
                     <option value="active">Active</option>
                     <option value="in_active">In Active</option>
                   </Form.Control>
+                  <Form.Control.Feedback type="invalid">
+                    {errors[`warranty_status_${index}`]} {/* show error message */}
+                  </Form.Control.Feedback>
                 </td>
                 <td>
                   <Form.Control
@@ -370,12 +446,45 @@ const handleItemChange = async (index, e) => {
                   />
                 </td>
                 <td>
-                  <Form.Control
-                    type="date"
-                    name="tested_date"
-                    value={item.tested_date}
-                    onChange={(e) => handleItemChange(index, e)}
-                  />
+                  {/* <DatePicker
+                    selected={
+                      item.tested_date
+                        ? parse(item.tested_date, "dd-MM-yyyy", new Date())
+                        : null
+                    }
+                    onChange={(date) => {
+                      const formattedDate = date ? format(date, "dd-MM-yyyy") : "";
+                      handleItemChange(index, {
+                        target: { name: "tested_date", value: formattedDate },
+                      });
+                    }}
+                    dateFormat="dd-MM-yyyy"
+                    placeholderText="DD-MM-YYYY"
+                    className="form-control"
+                    onChangeRaw={(e) => {
+                      let value = e.target.value;
+
+                      // Remove non-numeric/dash characters
+                      value = value.replace(/[^0-9-]/g, "");
+
+                      // Auto-insert dash after day and month
+                      if (value.length === 2 && !value.includes("-")) value = value + "-";
+                      if (value.length === 5 && value.split("-").length < 3) value = value + "-";
+
+                      // Split into parts
+                      const parts = value.split("-");
+                      // Limit year to 4 digits
+                      if (parts[2] && parts[2].length > 4) parts[2] = parts[2].slice(0, 4);
+
+                      // Recombine and limit total length
+                      value = parts.filter(Boolean).join("-");
+                      if (value.length > 10) value = value.slice(0, 10);
+
+                      // Update state
+                      handleItemChange(index, { target: { name: "tested_date", value } });
+                    }}
+                  /> */}
+
                 </td>
                 <td>
                   <Form.Control
@@ -416,19 +525,20 @@ const handleItemChange = async (index, e) => {
                 </td>
                 <td>
                   <Button
-                    variant="danger"
+                    variant="outline-danger"
                     size="sm"
                     onClick={() => removeRow(index)}
                   >
-                    Remove
+                    <IoTrashOutline />
                   </Button>
+
                 </td>
               </tr>
             ))}
           </tbody>
         </Table>
 
-        <Button variant="success" onClick={addRow}>
+        <Button variant="success" onClick={addRow} disabled={formData.quantity <= formData.items.length}>
           + Add Row
         </Button>
 
@@ -440,7 +550,7 @@ const handleItemChange = async (index, e) => {
           >
             Cancel
           </Button>
-          <Button type="submit" variant="primary">
+          <Button type="submit" variant="success">
             Save
           </Button>
         </div>

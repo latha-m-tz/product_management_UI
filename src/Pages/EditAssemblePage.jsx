@@ -25,6 +25,8 @@ import "datatables.net-dt/css/dataTables.dataTables.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import DatePicker from "../components/DatePicker";
 import QrScannerPage from "./QrScannerPage";
+import Swal from "sweetalert2";
+import withReactContent from "sweetalert2-react-content";
 
 
 export default function EditAssemblePage() {
@@ -48,6 +50,7 @@ export default function EditAssemblePage() {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+const MySwal = withReactContent(Swal);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [deleteFrom, setDeleteFrom] = useState("");
@@ -106,25 +109,38 @@ export default function EditAssemblePage() {
       padding: "20px",
     },
   };
-  const handleDeleteBySerial = (serial_no) => {
-    const updated = products.filter((p) => p.serial_no !== serial_no);
+const handleDeleteBySerial = (serial_no) => {
+  MySwal.fire({
+    title: "Are you sure?",
+    text: "You won't be able to revert this!",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonColor: "#d33",
+    cancelButtonColor: "#2FA64F",
+    confirmButtonText: "Yes, delete it!",
+  }).then((result) => {
+    if (result.isConfirmed) {
+      const updated = products.filter((p) => p.serial_no !== serial_no);
 
-    // Recalculate range
-    if (updated.length > 0) {
-      const serials = updated.map((p) => p.serial_no).sort();
-      setForm((prev) => ({
-        ...prev,
-        fromSerial: serials[0],
-        toSerial: serials[serials.length - 1],
-        quantity: updated.length,
-      }));
-    } else {
-      setForm((prev) => ({ ...prev, fromSerial: "", toSerial: "", quantity: 0 }));
+      // Recalculate range
+      if (updated.length > 0) {
+        const serials = updated.map((p) => p.serial_no).sort();
+        setForm((prev) => ({
+          ...prev,
+          fromSerial: serials[0],
+          toSerial: serials[serials.length - 1],
+          quantity: updated.length,
+        }));
+      } else {
+        setForm((prev) => ({ ...prev, fromSerial: "", toSerial: "", quantity: 0 }));
+      }
+
+      setProducts(updated);
+      toast.success(`Serial ${serial_no} deleted successfully!`);
     }
+  });
+};
 
-    setProducts(updated);
-    toast.info(`Deleted serial ${serial_no} from list.`);
-  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -142,23 +158,23 @@ export default function EditAssemblePage() {
 
         const data = rangeRes.data;
 
-      const formattedDate =
-  data.tested_date
-    ? new Date(data.tested_date).toISOString().split("T")[0]
-    : data.items[0]?.tested_date
-    ? new Date(data.items[0].tested_date).toISOString().split("T")[0]
-    : "";
+        const formattedDate =
+          data.tested_date
+            ? new Date(data.tested_date).toISOString().split("T")[0]
+            : data.items[0]?.tested_date
+              ? new Date(data.items[0].tested_date).toISOString().split("T")[0]
+              : "";
 
-setForm({
-  productType: data.product_type?.id || "",
-  product_id: data.product?.id || "",
-  firmwareVersion: data.firmware_version || "",
-  testedBy: data.tested_by || data.items[0]?.tested_by || "",
-  quantity: data.quantity || "",
-  fromSerial: data.from_serial,
-  toSerial: data.to_serial,
-  testedDate: formattedDate, // ✅ formatted for the date input
-});
+        setForm({
+          productType: data.product_type?.id || "",
+          product_id: data.product?.id || "",
+          firmwareVersion: data.firmware_version || "",
+          testedBy: data.tested_by || data.items[0]?.tested_by || "",
+          quantity: data.quantity || "",
+          fromSerial: data.from_serial,
+          toSerial: data.to_serial,
+          testedDate: formattedDate, // ✅ formatted for the date input
+        });
 
         const itemsWithRange = data.items.map((item) => ({
           ...item,
@@ -208,13 +224,10 @@ setForm({
   };
   const handleRowChange = (index, field, value) => {
     const updated = [...products];
-
-    if (field === "tested_status") {
-      updated[indexOfFirst + index][field] = value; // Store as string
-    } else {
-      updated[indexOfFirst + index][field] = value;
-    }
+    updated[index][field] = value;
+    setProducts(updated);
   };
+
 
   const handleDelete = (index) => {
     const updated = products.filter((_, i) => i !== index);
@@ -310,29 +323,37 @@ setForm({
 
     return true;
   };
-  const handleDeleteSelected = () => {
-    // Get all serials currently visible in the filtered table that are checked
-    const serialsToDelete = currentItems
-      .filter(p => selectedSerials[p.serial_no])
-      .map(p => p.serial_no);
+const handleDeleteSelected = () => {
+  const serialsToDelete = currentItems
+    .filter(p => selectedSerials[p.serial_no])
+    .map(p => p.serial_no);
 
-    if (serialsToDelete.length === 0) {
-      toast.info("No serials selected for deletion.");
-      return;
+  if (serialsToDelete.length === 0) {
+    toast.info("No serials selected for deletion.");
+    return;
+  }
+
+  MySwal.fire({
+    title: "Are you sure?",
+    text: `You are about to delete ${serialsToDelete.length} serial(s)!`,
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonColor: "#d33",
+    cancelButtonColor: "#2FA64F",
+    confirmButtonText: "Yes, delete them!",
+  }).then((result) => {
+    if (result.isConfirmed) {
+      const updatedProducts = products.filter(p => !serialsToDelete.includes(p.serial_no));
+      setProducts(updatedProducts);
+
+      const newSelected = { ...selectedSerials };
+      serialsToDelete.forEach(sn => delete newSelected[sn]);
+      setSelectedSerials(newSelected);
+
+      toast.success(`${serialsToDelete.length} product(s) deleted successfully!`);
     }
-
-    const updatedProducts = products.filter(p => !serialsToDelete.includes(p.serial_no));
-
-    setProducts(updatedProducts);
-
-    // Reset selection for only deleted items
-    const newSelected = { ...selectedSerials };
-    serialsToDelete.forEach(sn => delete newSelected[sn]);
-    setSelectedSerials(newSelected);
-
-    toast.success(`Deleted ${serialsToDelete.length} product(s).`);
-  };
-
+  });
+};
 
 
 
@@ -512,25 +533,25 @@ setForm({
 
   return (
     <Container className="main-container">
- 
 
-      <Row className="align-items-center mb-3">
-        <Col>
-          <h4>Edit Inventory Range</h4>
-        </Col>
-        <Col className="text-end">
-          <Button
-            variant="outline-secondary"
-            size="sm"
-            className="me-2"
-            onClick={() => navigate("/assemble")}
-          >
-            <i className="bi bi-arrow-left"></i> Back
-          </Button>
-        </Col>
-      </Row>
 
-      <Card className="p-4 mb-3" style={{ position: "relative" }}>
+     <Row className="align-items-center mb-3 fixed-header">
+                  <Col>
+                      <h4>Edit New Inventory</h4>
+                  </Col>
+                  <Col className="text-end">
+                      <Button
+                          variant="outline-secondary"
+                          size="sm"
+                          className="me-2"
+                          onClick={() => navigate("/assemble")}
+                      >
+                          <i className="bi bi-arrow-left"></i> Back
+                      </Button>
+                  </Col>
+              </Row>
+
+      <Card className="p-4 mb-3" style={{ position: "relative", backgroundColor: "rgb(244, 244, 248)" }}>
         <h5 className="mb-4">Product Details</h5>
 
         <div className="qr-scanner-button" onClick={() => setShowQrScanner(true)}>
@@ -588,6 +609,7 @@ setForm({
               <Form.Control
                 name="fromSerial"
                 value={form.fromSerial}
+                readOnly
                 onChange={handleChange}
                 isInvalid={!!errors.fromSerial}
               />
@@ -600,6 +622,7 @@ setForm({
               <Form.Control
                 name="toSerial"
                 value={form.toSerial}
+                readOnly
                 onChange={handleChange}
                 isInvalid={!!errors.toSerial}
               />
@@ -633,9 +656,9 @@ setForm({
             </Form.Group>
           </Col>
           <Col md={2} className="d-flex align-items-end">
-            <Button variant="success" onClick={handleAddProductRange} className="w-100">
+            {/* <Button variant="success" onClick={handleAddProductRange} className="w-100">
               Add product
-            </Button>
+            </Button> */}
           </Col>
         </Row>
       </Card>
@@ -739,100 +762,98 @@ setForm({
             </thead>
             <tbody>
               {currentItems.length > 0 ? (
-                currentItems.map((product, index) => (
-                  <tr key={index}>
-                    {/* Checkbox for selecting row for deletion */}
-                    <td className="text-center">
-                      {(searchTerm || deleteFrom || deleteTo) ? (
+                currentItems.map((product, idx) => {
+                  const absoluteIndex = indexOfFirst + idx; // absolute index in products
+                  return (
+                    <tr key={product.serial_no}>
+                      <td className="text-center">
                         <Form.Check
                           type="checkbox"
                           checked={!!selectedSerials[product.serial_no]}
-                          onChange={(e) => {
+                          className="custom-checkbox-color"
+
+                          onChange={(e) =>
                             setSelectedSerials((prev) => ({
                               ...prev,
                               [product.serial_no]: e.target.checked,
-                            }));
-                          }}
+                            }))
+                          }
                         />
+                      </td>
 
-                      ) : null}
-                    </td>
+                      <td>
+                        <Form.Control
+                          type="text"
+                          value={product.serial_no || ""}
+                          className="custom-checkbox-color"
 
-                    {/* Serial Number */}
-                    <td>
-                      <Form.Control
-                        type="text"
-                        value={product.serial_no || ""}
-                        onChange={(e) =>
-                          handleRowChange(indexOfFirst + index, "serial_no", e.target.value)
-                        }
-                      />
-                    </td>
+                          onChange={(e) =>
+                            handleRowChange(absoluteIndex, "serial_no", e.target.value)
+                          }
+                        />
+                      </td>
 
-                    {/* Tested By */}
-                    <td>
-                      <Form.Control
-                        type="text"
-                        value={product.tested_by || ""}
-                        onChange={(e) =>
-                          handleRowChange(indexOfFirst + index, "tested_by", e.target.value)
-                        }
-                      />
-                    </td>
-                    
+                      <td>
+                        <Form.Control
+                          type="text"
+                          value={product.tested_by || ""}
+                          onChange={(e) =>
+                            handleRowChange(absoluteIndex, "tested_by", e.target.value)
+                          }
+                        />
+                      </td>
 
-                    {/* Test Status (Pass/Fail checkboxes) */}
-                    <td>
-                      <div className="custom-checkbox-color">
+                      <td>
                         <Form.Check
                           inline
                           label="Pass"
                           type="checkbox"
-                          name={`status-pass-${indexOfFirst + index}`}
-                          id={`pass-${indexOfFirst + index}`}
-                          value="PASS"
-                          checked={product.tested_status?.includes("PASS") || false}
+                          checked={product.tested_status?.includes("PASS")}
+                          className="custom-checkbox-color"
                           onChange={(e) => {
-                            const updatedStatus = e.target.checked ? "PASS" : "PENDING";
-                            handleRowChange(indexOfFirst + index, "tested_status", updatedStatus);
+                            handleRowChange(
+                              absoluteIndex,
+                              "tested_status",
+                              e.target.checked ? ["PASS"] : ["PENDING"]
+                            );
                           }}
                         />
                         <Form.Check
                           inline
                           label="Fail"
                           type="checkbox"
-                          name={`status-fail-${indexOfFirst + index}`}
-                          id={`fail-${indexOfFirst + index}`}
-                          value="FAIL"
-                          checked={product.tested_status?.includes("FAIL") || false}
+                          checked={product.tested_status?.includes("FAIL")}
+                          className="custom-checkbox-color"
+
                           onChange={(e) => {
-                            const updatedStatus = e.target.checked ? "FAIL" : "PENDING";
-                            handleRowChange(indexOfFirst + index, "tested_status", updatedStatus);
+                            handleRowChange(
+                              absoluteIndex,
+                              "tested_status",
+                              e.target.checked ? ["FAIL"] : ["PENDING"]
+                            );
                           }}
                         />
-                      </div>
-                    </td>
+                      </td>
 
-                    {/* Test Remarks */}
-                    <td>
-                      <Form.Control
-                        type="text"
-                        value={product.test_remarks || ""}
-                        onChange={(e) =>
-                          handleRowChange(indexOfFirst + index, "test_remarks", e.target.value)
-                        }
-                      />
-                    </td>
+                      <td>
+                        <Form.Control
+                          type="text"
+                          value={product.test_remarks || ""}
+                          onChange={(e) =>
+                            handleRowChange(absoluteIndex, "test_remarks", e.target.value)
+                          }
+                        />
+                      </td>
 
-                    {/* Action: Delete single row */}
-                    <td className="text-center">
-                      <IoTrashOutline
-                        style={headerStyle.actionIcon}
-                        onClick={() => handleDeleteBySerial(product.serial_no)}
-                      />
-                    </td>
-                  </tr>
-                ))
+                      <td className="text-center">
+                        <IoTrashOutline
+                          style={headerStyle.actionIcon}
+                          onClick={() => handleDeleteBySerial(product.serial_no)}
+                        />
+                      </td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
                   <td colSpan="6" className="text-center">

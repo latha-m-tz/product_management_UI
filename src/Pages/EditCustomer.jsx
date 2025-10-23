@@ -9,12 +9,14 @@ import "react-toastify/dist/ReactToastify.css";
 import { useParams, useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../api";
 import { parsePhoneNumberFromString, isValidPhoneNumber } from "libphonenumber-js";
+import CountrySelect from "../components/CountrySelect";
+import CountryPhoneInput from "../components/CountryPhoneInput";
 
 export default function EditCustomer() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [mobile, setMobile] = useState("");
-const [mobileError, setMobileError] = useState("");
+  const [mobileError, setMobileError] = useState("");
 
 
   const [customer, setCustomer] = useState({
@@ -54,19 +56,19 @@ const [mobileError, setMobileError] = useState("");
         const data = await res.json();
         if (res.ok && data.status === "success") {
           // setCustomer(data.customer); 
-                 setCustomer({
-          ...data.customer,
-          customer: data.customer.customer ?? "",
-          gst_no: data.customer.gst_no ?? "",
-          email: data.customer.email ?? "",
-          pincode: data.customer.pincode ?? "",
-          city: data.customer.city ?? "",
-          state: data.customer.state ?? "",
-          district: data.customer.district ?? "",
-          address: data.customer.address ?? "",
-          mobile_no: data.customer.mobile_no ?? "",
-          status: data.customer.status ?? "active",
-        });
+          setCustomer({
+            ...data.customer,
+            customer: data.customer.customer ?? "",
+            gst_no: data.customer.gst_no ?? "",
+            email: data.customer.email ?? "",
+            pincode: data.customer.pincode ?? "",
+            city: data.customer.city ?? "",
+            state: data.customer.state ?? "",
+            district: data.customer.district ?? "",
+            address: data.customer.address ?? "",
+            mobile_no: data.customer.mobile_no ?? "",
+            status: data.customer.status ?? "active",
+          });
           if (data.customer.pincode) {
             fetchPincodeDetails(data.customer.pincode);
           }
@@ -100,11 +102,11 @@ const [mobileError, setMobileError] = useState("");
     // else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email))
     //   errs.email = "Invalid email format";
 
- if (!customer.mobile_no) {
-  errs.mobile_no = "Mobile number is required";
-} else if (!isValidPhoneNumber(customer.mobile_no)) {
-  errs.mobile_no = "Invalid mobile number";
-}
+    if (!customer.mobile_no) {
+      errs.mobile_no = "Mobile number is required";
+    } else if (!isValidPhoneNumber(customer.mobile_no)) {
+      errs.mobile_no = "Invalid mobile number";
+    }
 
 
     if (!customer.pincode.trim()) errs.pincode = "Pincode is required";
@@ -144,26 +146,26 @@ const [mobileError, setMobileError] = useState("");
     }
   };
 
-   const handleMobileChange = (value) => {
-  const val = value || "";
-  setMobile(val);
-  setCustomer((prev) => ({ ...prev, mobile_no: val }));
+  const handleMobileChange = (value) => {
+    const val = value || "";
+    setMobile(val);
+    setCustomer((prev) => ({ ...prev, mobile_no: val }));
 
-  if (!val) {
-    setMobileError("Mobile number is required");
-    return;
-  }
-
-  try {
-    if (!isValidPhoneNumber(val)) {
-      setMobileError("Invalid mobile number");
-    } else {
-      setMobileError("");
+    if (!val) {
+      setMobileError("Mobile number is required");
+      return;
     }
-  } catch {
-    setMobileError("Invalid mobile number");
-  }
-};
+
+    try {
+      if (!isValidPhoneNumber(val)) {
+        setMobileError("Invalid mobile number");
+      } else {
+        setMobileError("");
+      }
+    } catch {
+      setMobileError("Invalid mobile number");
+    }
+  };
 
 
   const fetchPincodeDetails = async (pincode) => {
@@ -182,7 +184,7 @@ const [mobileError, setMobileError] = useState("");
           city: cities.includes(prev.city) ? prev.city : cities[0],
         }));
 
-        
+
       } else {
         setCityOptions([]);
         toast.error("Could not fetch cities, enter manually");
@@ -239,11 +241,24 @@ const [mobileError, setMobileError] = useState("");
       className="container-fluid p-4"
       style={{ background: "white", minHeight: "100vh" }}
     >
-      <h5 className="mb-3">Edit Customer</h5>
-
+      <Row className="align-items-center mb-3 fixed-header">
+        <Col>
+          <h4>Edit  customer</h4>
+        </Col>
+        <Col className="text-end">
+          <Button
+            variant="outline-secondary"
+            size="sm"
+            className="me-2"
+            onClick={() => navigate("/customer")}
+          >
+            <i className="bi bi-arrow-left"></i> Back
+          </Button>
+        </Col>
+      </Row>
       <div
         style={{
-          background: "#f1f3f5",
+          background: "#f4f4f8",
           padding: "20px",
           borderRadius: "6px",
           marginBottom: "20px",
@@ -251,10 +266,10 @@ const [mobileError, setMobileError] = useState("");
       >
         <Row>
           <Col md={4}>
-            <Form.Group className="mb-3">
-            <Form.Label>
-  Customer Name<span style={{ color: "red" }}> *</span>
-</Form.Label>
+            <Form.Group className="mb-3 form-field">
+              <Form.Label>
+                Customer Name<span style={{ color: "red" }}> *</span>
+              </Form.Label>
 
               <Form.Control
                 type="text"
@@ -269,33 +284,73 @@ const [mobileError, setMobileError] = useState("");
             </Form.Group>
           </Col>
           <Col md={4}>
-            <Form.Group className="mb-3">
+            <Form.Group className="mb-3 form-field">
               <Form.Label>GST No</Form.Label>
               <Form.Control
                 type="text"
                 name="gst_no"
                 value={customer.gst_no ?? ""}
-                onChange={handleChange}
+                onChange={(e) => {
+                  let value = e.target.value.toUpperCase();
+
+                  // Block typing beyond 15 characters
+                  if (value.length > 15) value = value.slice(0, 15);
+
+                  setCustomer((prev) => ({ ...prev, gst_no: value }));
+
+                  // Validation
+                  const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+                  if (!value.trim()) {
+                    setErrors((prev) => ({ ...prev, gst_no: "GST No is required" }));
+                  } else if (!gstRegex.test(value)) {
+                    setErrors((prev) => ({ ...prev, gst_no: "Invalid GST No format" }));
+                  } else {
+                    setErrors((prev) => ({ ...prev, gst_no: "" }));
+                  }
+                }}
                 placeholder="Enter GST No"
+                maxLength={15} // Block typing beyond 15 characters
               />
+
               {errors.gst_no && (
                 <div style={feedbackStyle}>{errors.gst_no}</div>
               )}
             </Form.Group>
           </Col>
           <Col md={4}>
-            <Form.Group className="mb-3">
-           <Form.Label>
-  Pincode<span style={{ color: "red" }}> *</span>
-</Form.Label>
+            <Form.Group className="mb-3 form-field">
+              <Form.Label>
+                Pincode<span style={{ color: "red" }}> *</span>
+              </Form.Label>
 
               <Form.Control
                 type="text"
                 name="pincode"
                 value={customer.pincode}
-                onChange={handleChange}
+                onChange={(e) => {
+                  let value = e.target.value;
+
+                  // Allow only digits
+                  value = value.replace(/\D/g, "");
+
+                  // Block typing beyond 6 digits
+                  if (value.length > 6) value = value.slice(0, 6);
+
+                  setCustomer((prev) => ({ ...prev, pincode: value }));
+
+                  // Fetch details if 6 digits
+                  if (value.length === 6) {
+                    fetchPincodeDetails(value);
+                  }
+
+                  if (errors.pincode) {
+                    setErrors((prev) => ({ ...prev, pincode: "" }));
+                  }
+                }}
                 placeholder="Enter Pincode"
+                maxLength={6} 
               />
+
               {errors.pincode && (
                 <div style={feedbackStyle}>{errors.pincode}</div>
               )}
@@ -305,10 +360,10 @@ const [mobileError, setMobileError] = useState("");
 
         <Row>
           <Col md={4}>
-            <Form.Group className="mb-3">
-             <Form.Label>
-  City<span style={{ color: "red" }}> *</span>
-</Form.Label>
+            <Form.Group className="mb-3 form-field">
+              <Form.Label>
+                City<span style={{ color: "red" }}> *</span>
+              </Form.Label>
 
               <CreatableSelect
                 isClearable
@@ -325,7 +380,7 @@ const [mobileError, setMobileError] = useState("");
                   }))
                 }
                 placeholder="Select or type city"
-                  classNamePrefix="my-select"   // ✅ Add this
+                classNamePrefix="my-select"   // ✅ Add this
               />
               {errors.city && (
                 <div style={feedbackStyle}>{errors.city}</div>
@@ -333,10 +388,10 @@ const [mobileError, setMobileError] = useState("");
             </Form.Group>
           </Col>
           <Col md={4}>
-            <Form.Group className="mb-3">
+            <Form.Group className="mb-3 form-field">
               <Form.Label>
-  District<span style={{ color: "red" }}> *</span>
-</Form.Label>
+                District<span style={{ color: "red" }}> *</span>
+              </Form.Label>
 
               <Form.Control
                 type="text"
@@ -351,10 +406,10 @@ const [mobileError, setMobileError] = useState("");
             </Form.Group>
           </Col>
           <Col md={4}>
-            <Form.Group className="mb-3">
-            <Form.Label>
-  State<span style={{ color: "red" }}> *</span>
-</Form.Label>
+            <Form.Group className="mb-3 form-field">
+              <Form.Label>
+                State<span style={{ color: "red" }}> *</span>
+              </Form.Label>
 
               <Form.Control
                 type="text"
@@ -372,7 +427,7 @@ const [mobileError, setMobileError] = useState("");
 
         <Row>
           <Col md={4}>
-            <Form.Group className="mb-3">
+            <Form.Group className="mb-3 form-field">
               <Form.Label>Email</Form.Label>
               <Form.Control
                 type="email"
@@ -387,25 +442,59 @@ const [mobileError, setMobileError] = useState("");
             </Form.Group>
           </Col>
           <Col md={4}>
-            <Form.Group className="mb-3">
+            <Form.Group className="mb-3 form-field">
               <Form.Label>
-  Mobile No<span style={{ color: "red" }}> *</span>
-</Form.Label>
+                Mobile No<span style={{ color: "red" }}> *</span>
+              </Form.Label>
 
-              <PhoneInput
+              <CountryPhoneInput
                 international
-                defaultCountry="IN"
+                defaultCountry={countryCode ? countryCode.replace("+", "") : undefined}
+                value={customer.mobile_no}
+                onChange={(inputNumber) => {
+                  let formattedNumber = inputNumber || "";
+
+                  // Auto-add +91 for 10-digit numbers without country code
+                  if (
+                    formattedNumber &&
+                    !formattedNumber.startsWith("+") &&
+                    /^[6-9]\d{9}$/.test(formattedNumber)
+                  ) {
+                    formattedNumber = "+91" + formattedNumber;
+                  }
+
+                  setCustomer((prev) => ({ ...prev, mobile_no: formattedNumber }));
+
+                  // Live validation
+                  if (!formattedNumber) {
+                    setErrors((prev) => ({ ...prev, mobile_no: "Mobile number is required" }));
+                  } else {
+                    try {
+                      if (!isValidPhoneNumber(formattedNumber)) {
+                        setErrors((prev) => ({ ...prev, mobile_no: "Invalid mobile number" }));
+                      } else {
+                        setErrors((prev) => ({ ...prev, mobile_no: "" }));
+                      }
+                    } catch {
+                      setErrors((prev) => ({ ...prev, mobile_no: "Invalid mobile number" }));
+                    }
+                  }
+                }}
                 className="form-control"
-                value={customer.mobile_no ?? ""}
-                onChange={handleMobileChange}
+                placeholder="Enter mobile number"
+                countrySelectComponent={CountrySelect}
               />
+
               {errors.mobile_no && (
-                <div style={feedbackStyle}>{errors.mobile_no}</div>
+                <div style={{ color: "red", fontSize: "0.85rem", marginTop: "4px" }}>
+                  {errors.mobile_no}
+                </div>
               )}
             </Form.Group>
           </Col>
+
           <Col md={4}>
-            <Form.Group className="mb-3">
+            <Form.Group className="mb-3 form-field">
               <Form.Label>Status</Form.Label>
               <Form.Select
                 name="status"
@@ -420,11 +509,11 @@ const [mobileError, setMobileError] = useState("");
         </Row>
 
         <Row>
-          <Col md={12}>
-            <Form.Group className="mb-3">
-             <Form.Label>
-  Address<span style={{ color: "red" }}> *</span>
-</Form.Label>
+          <Col md={6}>
+            <Form.Group className="mb-3 form-field">
+              <Form.Label>
+                Address<span style={{ color: "red" }}> *</span>
+              </Form.Label>
 
               <Form.Control
                 as="textarea"
@@ -440,13 +529,13 @@ const [mobileError, setMobileError] = useState("");
       </div>
 
       <div className="d-flex justify-content-end">
-               <Button 
-         variant="secondary" 
-         className="me-2" 
-         onClick={() => navigate(-1)}  // go back to previous page
-       >
-         Cancel
-       </Button>
+        <Button
+          variant="secondary"
+          className="me-2"
+          onClick={() => navigate(-1)}  // go back to previous page
+        >
+          Cancel
+        </Button>
         <Button variant="success" onClick={updateCustomer}>
           Update
         </Button>

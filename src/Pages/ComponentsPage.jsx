@@ -11,7 +11,6 @@ import PageWrapper from "../components/PageWrapper";
 import Pagination from "../components/Pagination";
 import Search from "../components/Search";
 import SweetAlert from "../components/SweetAlert";
-// import Toaster from "../components/Toaster";
 
 export default function ComponentsPage() {
   const [showLoader, setShowLoader] = useState(false);
