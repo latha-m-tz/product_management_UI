@@ -24,8 +24,8 @@ export default function EditSparepartPurchase({ purchaseId }) {
   const [availableVendors, setAvailableVendors] = useState([]);
   const [availableCategories, setAvailableCategories] = useState([]);
   const [showModal, setShowModal] = useState(false);
-  // const [serialOptions, setSerialOptions] = useState([]);
   const [selectedSerials, setSelectedSerials] = useState([]);
+  const [selectedProduct, setSelectedProduct] = useState(null);
 
   const [initialItems, setInitialItems] = useState([]);
 
@@ -67,25 +67,32 @@ export default function EditSparepartPurchase({ purchaseId }) {
     return `${prefix}${nStr}`;
   };
 
-  const validateSerialForProduct = (serial, product_id) => {
-    if (!serial || !product_id) return null;
+  const validateSerialPrefix = (serial, productId) => {
+    if (!serial || !productId) return null;
 
-    const productData = availableCategories.find(c => c.id === product_id);
-    let series = (productData?.seriesPrefix || productData?.series || "").toString().trim();
+    const product = availableCategories.find(c => c.id === productId);
+    if (!product) return null;
+
+    let series = (product.seriesPrefix || product.series || "").toString().trim();
     series = series.replace(/[-\s]/g, "").toLowerCase();
 
-    const numericPrefix = series.match(/^\d+/)?.[0] || null;
     const parsed = parseSerial(serial);
 
+    const numericPrefix = series.match(/^\d+/)?.[0] || null;
+
     if (numericPrefix) {
-      if (!String(parsed.num || "").startsWith(numericPrefix)) return `Serial does not match numeric product series (${series})`;
+      if (!String(parsed.num || "").startsWith(numericPrefix)) {
+        toast.error(`Serial ${serial} does not match numeric product series (${series})`);
+        return false;
+      }
     } else {
-      if (!parsed.prefix.toLowerCase().startsWith(series)) return `Serial does not match alphabetic product series (${series})`;
+      if (!parsed.prefix.toLowerCase().startsWith(series.toLowerCase())) {
+        toast.error(`Serial ${serial} does not match product prefix (${series})`);
+        return false;
+      }
     }
 
-    if (!/^\d{6}$/.test(String(parsed.num))) return "Serial numeric part must be exactly 6 digits";
-
-    return null; // valid
+    return true;
   };
 
   const isSerialMatchingProduct = (serial, productSeries) => {
@@ -459,7 +466,7 @@ export default function EditSparepartPurchase({ purchaseId }) {
       return `Serial does not match product series (${productSeries})`;
     }
 
-    if (m2.num < m1.num) return "From Serial cannot be greater than To Serial";
+    // if (m2.num < m1.num) return "From Serial cannot be greater than To Serial";
 
     if (!/^\d{6}$/.test(String(m1.num)) || !/^\d{6}$/.test(String(m2.num))) {
       return "Serial numeric part must be 6 digits";
@@ -469,83 +476,66 @@ export default function EditSparepartPurchase({ purchaseId }) {
   };
 
   const handleInputChange = (index, field, value) => {
+    const type = sparepartTypeOf(spareparts[index].sparepart_id);
     const updated = [...spareparts];
-    const sp = { ...updated[index] };
 
-    // 🧩 Handle product change
-    if (field === "product_id") {
-      sp.product_id = value;
+    if (type.includes("serial") && (field === "from_serial" || field === "to_serial")) {
+      const productId = updated[index].product_id;
 
-      // Reset serials and qty when changing product
-      sp.from_serial = "";
-      sp.to_serial = "";
-      sp.qty = 0;
-      sp.serials = [];
+      if (!productId) {
+        toast.error("Please choose product first");
+        updated[index][field] = "";
+        setSpareparts(updated);
+        return;
+      }
 
-      updated[index] = sp;
+      const product = availableCategories.find(p => String(p.id) === String(productId));
+      const seriesPrefix = (product?.seriesPrefix || product?.series || "").replace(/[-\s]/g, "");
+
+      // Only keep prefix + numeric digits
+      if (!value.startsWith(seriesPrefix)) {
+        toast.error(`Serial must start with product prefix (${seriesPrefix})`);
+        return; // Block typing invalid prefix
+      }
+
+      let numericPart = value.slice(seriesPrefix.length).replace(/\D/g, "").slice(0, 6);
+      updated[index][field] = seriesPrefix + numericPart;
+
+      const fromSerial = updated[index].from_serial;
+      const toSerial = updated[index].to_serial;
+
+      if (fromSerial && toSerial) {
+        const prefixFrom = fromSerial.slice(0, seriesPrefix.length);
+        const prefixTo = toSerial.slice(0, seriesPrefix.length);
+
+        if (prefixFrom !== prefixTo) {
+          toast.error("From Serial and To Serial must start with the same prefix");
+        }
+
+        // const fromNum = parseInt(fromSerial.slice(seriesPrefix.length), 10);
+        // const toNum = parseInt(toSerial.slice(seriesPrefix.length), 10);
+
+        // if (!isNaN(fromNum) && !isNaN(toNum) && fromNum > toNum) {
+        //   toast.error("From Serial must be less than or equal to To Serial");
+        // }
+      }
+
       setSpareparts(updated);
       return;
     }
 
-    // 🧩 Handle serial range inputs
-    if (field === "from_serial" || field === "to_serial") {
-      const match = value.match(/^(.*?)(\d*)$/);
-      let prefix = match?.[1] || "";
-      let numStr = match?.[2] || "";
-
-      if (numStr.length > 6) numStr = numStr.slice(0, 6);
-      const inputSerial = prefix + numStr;
-
-      // ✅ Always allow typing (don’t block)
-      sp[field] = inputSerial;
-
-      // ✅ Validate after full input (when 6 digits)
-      if (numStr.length === 6 && sp.product_id) {
-        const product = availableCategories.find(c => c.id === sp.product_id);
-        if (product) {
-          let series = (product.seriesPrefix || product.series || "").toString().trim();
-          series = series.replace(/[-\s]/g, "").toLowerCase();
-          const parsed = parseSerial(inputSerial);
-          const numericPrefix = series.match(/^\d+/)?.[0] || null;
-
-          if (numericPrefix) {
-            if (!String(parsed.num || "").startsWith(numericPrefix)) {
-              toast.warning("Serial prefix does not match selected product");
-            }
-          } else {
-            if (!parsed.prefix.toLowerCase().startsWith(series.toLowerCase())) {
-              toast.warning("Serial prefix does not match selected product");
-            }
-          }
-        }
-      }
-
-      // Auto qty calculation
-      const from = field === "from_serial" ? sp[field] : sp.from_serial;
-      const to = field === "to_serial" ? sp[field] : sp.to_serial;
-
-      if (from && to) {
-        const m1 = parseSerial(from);
-        const m2 = parseSerial(to);
-
-        if (m1.prefix === m2.prefix && m1.num && m2.num && m2.num >= m1.num) {
-          sp.qty = m2.num - m1.num + 1;
-        } else {
-          sp.qty = 0;
-        }
-      } else {
-        sp.qty = 0;
-      }
-
-      updated[index] = sp;
-      setSpareparts(updated);
-      return;
+    // Other fields
+    updated[index][field] = value;
+    if (field === "qty") {
+      let qty = Number(value);
+      if (qty < 1) qty = 1;
+      updated[index][field] = qty;
     }
-
-    sp[field] = value;
-    updated[index] = sp;
     setSpareparts(updated);
+    clearError(field, index);
   };
+
+
 
 
 
@@ -623,120 +613,61 @@ export default function EditSparepartPurchase({ purchaseId }) {
 
 
 
-  const validateForm = () => {
-    const errs = {};
+ const validateForm = () => {
+  const errs = {};
 
-    if (!vendorId) {
-      errs.vendor_id = "Vendor is required";
-      toast.error(errs.vendor_id);
-    }
+  if (!vendorId) errs.vendor_id = "Vendor is required";
+  if (!challanNo) errs.challan_no = "Challan No is required";
+  if (!challanDate) errs.challan_date = "Challan Date is required";
 
-    if (!challanNo) {
-      errs.challan_no = "Challan No is required";
-      toast.error(errs.challan_no);
-    } else if (challanNo.length > 50) {
-      errs.challan_no = "Challan No cannot exceed 50 characters";
-      toast.error(errs.challan_no);
-    }
+  const itemErrors = {};
 
-    // Challan Date
-    if (!challanDate) {
-      errs.challan_date = "Challan Date is required";
-      toast.error(errs.challan_date);
-    } else if (!/^\d{4}-\d{2}-\d{2}$/.test(challanDate)) {
-      errs.challan_date = "Challan date must be in format YYYY-MM-DD";
-      toast.error(errs.challan_date);
-    } else {
-      const year = parseInt(challanDate.split("-")[0], 10);
-      if (year < 1000 || year > 9999) {
-        errs.challan_date = "Year must be 4 digits";
-        toast.error(errs.challan_date);
-      }
-    }
+  spareparts.forEach((sp, idx) => {
+    const type = sparepartTypeOf(sp.sparepart_id);
+    const itemErr = {};
 
-    const itemErrors = {};
+    if (!sp.sparepart_id) itemErr.sparepart_id = "Select sparepart";
 
-    spareparts.forEach((sp, idx) => {
-      const type = sparepartTypeOf(sp.sparepart_id);
-      const itemErr = {};
+    if (type.includes("serial")) {
+      if (!sp.product_id) itemErr.product_id = "Select product";
+      if (!sp.from_serial) itemErr.from_serial = "From Serial required";
+      if (!sp.to_serial) itemErr.to_serial = "To Serial required";
 
-      if (!sp.sparepart_id) itemErr.sparepart_id = "Select sparepart";
+      if (sp.from_serial && sp.to_serial) {
+        const m1 = parseSerial(sp.from_serial);
+        const m2 = parseSerial(sp.to_serial);
 
-      if (type.includes("serial")) {
-        if (!sp.product_id) itemErr.product_id = "Select product";
-        if (!sp.from_serial) itemErr.from_serial = "From Serial required";
-        if (!sp.to_serial) itemErr.to_serial = "To Serial required";
+        if (m2.num < m1.num) {
+          itemErr.from_serial = "From Serial must be less than or equal to To Serial";
+          itemErr.to_serial = "From Serial must be less than or equal to To Serial";
+        }
 
-        if (sp.from_serial && sp.to_serial && sp.product_id) {
-          const m1 = parseSerial(sp.from_serial);
-          const m2 = parseSerial(sp.to_serial);
+        if (!/^\d{6}$/.test(String(m1.num)) || !/^\d{6}$/.test(String(m2.num))) {
+          itemErr.from_serial = "From Serial must have exactly 6 digits after prefix";
+          itemErr.to_serial = "To Serial must have exactly 6 digits after prefix";
+        }
 
-          const productData = availableCategories.find((c) => c.id === sp.product_id);
-          let series = (productData?.seriesPrefix || productData?.series || "").toString().trim();
-
-          // normalize — remove "-series", spaces, etc.
-          series = series.replace(/[-\s]/g, "").toLowerCase();
-
-          // extract numeric prefix if exists (e.g. "9series" → "9")
-          const numericPrefix = series.match(/^\d+/)?.[0] || null;
-
-          const matchesSeries = (serial) => {
-            const parsed = parseSerial(serial);
-            if (numericPrefix) {
-              // numeric series → match beginning digits of serial’s number
-              return String(parsed.num || "").startsWith(numericPrefix);
-            }
-            // alphabetic series → match prefix letters
-            return parsed.prefix.toLowerCase().startsWith(series);
-          };
-
-          if (!matchesSeries(m1.orig) || !matchesSeries(m2.orig)) {
-            itemErr.from_serial = "Product is not matched for serial range";
-            itemErr.to_serial = "Product is not matched for serial range";
-            toast.error("Product is not matched for serial range");
-          }
-
-          if (m1.prefix !== m2.prefix) {
-            itemErr.from_serial = "Serial prefix mismatch";
-            itemErr.to_serial = "Serial prefix mismatch";
-            toast.error("Serial prefix mismatch");
-          }
-
-          if (m2.num < m1.num) {
-            itemErr.from_serial = "From Serial cannot be greater than To Serial";
-            toast.error("From Serial cannot be greater than To Serial");
-          }
-
-          if (
-            !/^\d{6}$/.test(String(m1.num)) ||
-            !/^\d{6}$/.test(String(m2.num))
-          ) {
-            itemErr.from_serial = "From Serial must have exactly 6 digits after prefix";
-            itemErr.to_serial = "To Serial must have exactly 6 digits after prefix";
-            toast.error("From/To Serial must have exactly 6 digits after prefix");
-          }
+        const productData = availableCategories.find(c => c.id === sp.product_id);
+        const prefix = (productData?.seriesPrefix || productData?.series || "").replace(/[-\s]/g, "");
+        if (!sp.from_serial.startsWith(prefix) || !sp.to_serial.startsWith(prefix)) {
+          itemErr.from_serial = `Serial must start with product prefix (${prefix})`;
+          itemErr.to_serial = `Serial must start with product prefix (${prefix})`;
         }
       }
+    }
 
+    if (!sp.qty || Number(sp.qty) < 1) itemErr.qty = "Quantity must be at least 1";
 
-      if (!sp.qty || Number(sp.qty) < 1) {
-        itemErr.qty = "Quantity must be at least 1";
-        toast.error(itemErr.qty);
-      }
+    if (type.includes("warranty") && !sp.warranty_status) itemErr.warranty_status = "Select warranty status";
 
-      if (type.includes("warranty") && !sp.warranty_status) {
-        itemErr.warranty_status = "Select warranty status";
-        toast.error(itemErr.warranty_status);
-      }
+    if (Object.keys(itemErr).length) itemErrors[idx] = itemErr;
+  });
 
-      if (Object.keys(itemErr).length) itemErrors[idx] = itemErr;
-    });
+  if (Object.keys(itemErrors).length) errs.items = itemErrors;
 
-    if (Object.keys(itemErrors).length) errs.items = itemErrors;
-
-    setErrors(errs);
-    return Object.keys(errs).length === 0;
-  };
+  setErrors(errs);
+  return Object.keys(errs).length === 0;
+};
 
 
 
@@ -746,76 +677,42 @@ export default function EditSparepartPurchase({ purchaseId }) {
       return;
     }
 
-    const [year, month, day] = challanDate.split("-");
-    const formattedDate = `${day}-${month}-${year}`;
-
-    const productIds = new Set();
-    for (let sp of spareparts) {
-      const type = sparepartTypeOf(sp.sparepart_id);
-      if (type.includes("serial") && sp.product_id) {
-        const key = `${sp.sparepart_id}_${sp.product_id}`;
-        if (productIds.has(key)) {
-          toast.error(`Product already selected for another row: ${sp.product_id}`);
-          return;
-        }
-        productIds.add(key);
-      }
-    }
-
-
-
-    const items = spareparts.map((sp) => {
-      const serials = (sp.serials || []).filter(Boolean);
-      return {
+    const payload = {
+      vendor_id: vendorId,
+      challan_no: challanNo,
+      challan_date: challanDate,
+      received_date: receivedDate,
+      items: spareparts.map(sp => ({
         id: sp.id,
         sparepart_id: sp.sparepart_id,
         product_id: sp.product_id || null,
-        from_serial: serials.length > 0 ? sp.from_serial : null,
-        to_serial: serials.length > 0 ? sp.to_serial : null,
-        serials,
+        from_serial: sp.serials?.length ? sp.from_serial : null,
+        to_serial: sp.serials?.length ? sp.to_serial : null,
+        serials: sp.serials?.filter(Boolean) || [],
         warranty_status: sp.warranty_status || null,
-        quantity: serials.length > 0 ? serials.length : Number(sp.qty) || 0,
-      };
-    });
-
-    const deleted_ids = initialItems
-      .map(i => i.id)
-      .filter(Boolean)
-      .filter(id => !items.some(it => it.id === id) && !deletedSparepartIds.includes(id));
-
-    const formData = new FormData();
-    formData.append("vendor_id", vendorId);
-    formData.append("challan_no", challanNo);
-    formData.append("challan_date", challanDate);
-    formData.append("received_date", receivedDate);
-
-    // Attach uploaded files if any
-    if (documentRecipientFile) formData.append("document_recipient", documentRecipientFile);
-    if (documentChallan1File) formData.append("document_challan_1", documentChallan1File);
-    if (documentChallan2File) formData.append("document_challan_2", documentChallan2File);
-
-    // Items as JSON string
-    formData.append("items", JSON.stringify(items));
-    formData.append("deleted_ids", JSON.stringify(deleted_ids));
-    formData.append("deleted_sparepart_ids", JSON.stringify(deletedSparepartIds));
-    formData.append("deleted_item_ids", JSON.stringify(deletedItemIds));
-
-    await axios.put(`${API_BASE_URL}/purchaseUpdate/${purchaseKey}`, formData, {
-      headers: { "Content-Type": "multipart/form-data" }
-    });
+        quantity: sp.serials?.length ? sp.serials.length : Number(sp.qty) || 0
+      })),
+      deleted_ids: initialItems.map(i => i.id).filter(Boolean).filter(id => !spareparts.some(it => it.id === id) && !deletedSparepartIds.includes(id)),
+      deleted_sparepart_ids: deletedSparepartIds,
+      deleted_item_ids: deletedItemIds
+    };
 
     try {
-      const res = await axios.put(
-        `${API_BASE_URL}/purchaseUpdate/${purchaseKey}`,
-        payload
-      );
+      const res = await axios.put(`${API_BASE_URL}/purchaseUpdate/${purchaseKey}`, payload);
       toast.success("Purchase updated successfully!");
       navigate("/spare-partsPurchase");
     } catch (err) {
       console.error(err);
-      toast.error("Something went wrong!");
+
+      const backendError =
+        err.response?.data?.errors?.items?.[0] ||  // Laravel validation-style error
+        err.response?.data?.message ||            // Custom message
+        "Failed to update purchase";              // Default fallback
+
+      toast.error(backendError);
     }
-  };
+  }
+
 
 
   const feedbackStyle = { color: "red", fontSize: "0.85rem", marginTop: "4px" };
@@ -933,7 +830,6 @@ export default function EditSparepartPurchase({ purchaseId }) {
 
 
 
-            {/* Document Challan 1 */}
             {/* Document Challan 1 */}
             <Col md={4}>
               <Form.Group className="mb-2">

@@ -21,6 +21,7 @@
     "html5-qrcode": "^2.3.8",
     "i18n-iso-countries": "^7.14.0",
     "jsqr": "^1.4.0",
+    "libphonenumber-js": "^1.12.25",
     "react": "^19.1.1",
     "react-bootstrap": "^2.10.10",
     "react-bootstrap-icons": "^1.11.6",

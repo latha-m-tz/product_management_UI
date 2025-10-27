@@ -12,6 +12,7 @@ import { API_BASE_URL } from "../api";
 import CountryPhoneInput from "../components/CountryPhoneInput";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
+import { parsePhoneNumberFromString } from "libphonenumber-js";
 
 export default function AddVendor() {
   const navigate = useNavigate();
@@ -25,6 +26,7 @@ export default function AddVendor() {
     district: "",
     address: "",
     mobile_no: "",
+    country_code: "",
   });
 
   const [cityOptions, setCityOptions] = useState([]);
@@ -35,6 +37,7 @@ export default function AddVendor() {
   const [vendorErrors, setVendorErrors] = useState({});
   const MySwal = withReactContent(Swal);
   const [panelKey, setPanelKey] = useState(0);
+  const [contactCountry, setContactCountry] = useState("IN");
 
   const [contact, setContact] = useState({
     name: "",
@@ -44,27 +47,51 @@ export default function AddVendor() {
     status: "Active",
     isMain: false,
   });
+  const formatMobileNumber = (number, defaultCountry = "IN") => {
+    if (!number) return "N/A";
 
-  const handleVendorMobileChange = (inputNumber) => {
-    let formattedNumber = inputNumber || "";
-    if (
-      formattedNumber &&
-      !formattedNumber.startsWith("+") &&
-      /^[6-9]\d{9}$/.test(formattedNumber)
-    ) {
-      formattedNumber = "+91" + formattedNumber;
+    try {
+      // If number doesn't have "+", prepend default country code
+      const fullNumber = number.startsWith("+")
+        ? number
+        : `+${getCountryCallingCode(defaultCountry)}${number}`;
+
+      const phoneNumber = parsePhoneNumberFromString(fullNumber);
+
+      if (!phoneNumber) return number;
+
+      // ✅ Only one space between country code and full mobile number
+      return `+${phoneNumber.countryCallingCode} ${phoneNumber.nationalNumber}`;
+    } catch {
+      return number;
     }
-    setVendor(prev => ({ ...prev, mobile_no: formattedNumber }));
+  };
 
-    if (!formattedNumber) {
+  const handleVendorMobileChange = (value) => {
+    if (!value) {
+      setVendor(prev => ({ ...prev, mobile_no: "", country_code: "" }));
       setVendorErrors(prev => ({ ...prev, mobile_no: "Mobile number is required" }));
       return;
     }
-    setVendorErrors(prev => ({
-      ...prev,
-      mobile_no: isValidPhoneNumber(formattedNumber) ? "" : "Invalid mobile number for selected country"
-    }));
+
+    try {
+      const phone = parsePhoneNumberFromString(value);
+
+      if (phone && phone.isValid()) {
+        setVendor(prev => ({
+          ...prev,
+          mobile_no: phone.number, // store in E.164 format
+          country_code: phone.countryCallingCode,
+        }));
+        setVendorErrors(prev => ({ ...prev, mobile_no: "" }));
+      } else {
+        setVendorErrors(prev => ({ ...prev, mobile_no: "Invalid mobile number" }));
+      }
+    } catch {
+      setVendorErrors(prev => ({ ...prev, mobile_no: "Invalid mobile number" }));
+    }
   };
+
 
   const validateVendor = () => {
     const errors = {};
@@ -233,10 +260,25 @@ export default function AddVendor() {
 
   const editContact = (index) => {
     const c = contactPersons[index];
-    setContact({ ...c });
+    let mobileValue = c.mobile_no || "";
+
+    try {
+      const phoneNumber = parsePhoneNumberFromString(mobileValue);
+      if (phoneNumber && phoneNumber.isValid()) {
+        mobileValue = phoneNumber.number; // ✅ Always E.164 format (+91xxxx)
+      }
+    } catch { }
+
+    setContact({
+      ...c,
+      mobile_no: mobileValue,
+      isMain: !!c.isMain,
+    });
+
     setEditingIndex(index);
     setShowPanel(true);
   };
+
 
   const deleteContact = (index) => {
     const contactName = contactPersons[index].name;
@@ -246,7 +288,7 @@ export default function AddVendor() {
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#d33",
-      cancelButtonColor: "#3085d6",
+      cancelButtonColor: "#2FA64F",
       confirmButtonText: "Yes, delete it!",
     }).then((result) => {
       if (result.isConfirmed) {
@@ -257,25 +299,38 @@ export default function AddVendor() {
       }
     });
   };
-  const handleContactMobileChange = (inputNumber) => {
-    let formattedNumber = inputNumber || "";
-    if (
-      formattedNumber &&
-      !formattedNumber.startsWith("+") &&
-      /^[6-9]\d{9}$/.test(formattedNumber)
-    ) {
-      formattedNumber = "+91" + formattedNumber;
-    }
-    setContact((prev) => ({ ...prev, mobile_no: formattedNumber }));
+  const handleContactMobileChange = (value) => {
+    setContact(prev => ({ ...prev, mobile_no: value }));
 
-    if (!formattedNumber) {
-      setContactErrors((prev) => ({ ...prev, mobile_no: "Mobile number is required" }));
+    if (!value) {
+      setContactErrors(prev => ({ ...prev, mobile_no: "Mobile number is required" }));
       return;
     }
-    setContactErrors((prev) => ({
-      ...prev,
-      mobile_no: isValidPhoneNumber(formattedNumber) ? "" : "Invalid mobile number"
-    }));
+
+    try {
+      const phone = parsePhoneNumberFromString(value);
+
+      if (!phone) {
+        setContactErrors(prev => ({ ...prev, mobile_no: "Invalid mobile number" }));
+        return;
+      }
+
+      if (!phone.isValid()) {
+        setContactErrors(prev => ({ ...prev, mobile_no: "Invalid mobile number" }));
+        return;
+      }
+
+      // ✅ Valid number: store E.164 format
+      setContact(prev => ({
+        ...prev,
+        mobile_no: phone.number,           // +91XXXXXXXXXX
+        country_code: phone.countryCallingCode
+      }));
+
+      setContactErrors(prev => ({ ...prev, mobile_no: "" }));
+    } catch (error) {
+      setContactErrors(prev => ({ ...prev, mobile_no: "Invalid mobile number" }));
+    }
   };
 
   const validateContact = () => {
@@ -283,45 +338,30 @@ export default function AddVendor() {
 
     if (!contact.name.trim()) errors.name = "Name is required";
 
-    let mobileToValidate = contact.mobile_no;
-    if (
-      mobileToValidate &&
-      !mobileToValidate.startsWith("+") &&
-      /^[6-9]\d{9}$/.test(mobileToValidate)
-    ) {
-      mobileToValidate = "+91" + mobileToValidate;
-    }
+    // Use the value directly from CountryPhoneInput
+    const mobileToValidate = contact.mobile_no;
 
     if (!mobileToValidate) {
       errors.mobile_no = "Mobile number is required";
     } else if (!isValidPhoneNumber(mobileToValidate)) {
-      errors.mobile_no = "Invalid mobile number";
+      errors.mobile_no = "Invalid mobile number for selected country";
     }
 
-    // Email validation: allow spaces before/after, but not inside
+    // Email validation
     if (contact.email) {
       const emailCleaned = contact.email.trim();
-      if (/\s/.test(emailCleaned.replace(/^\s+|\s+$/g, ""))) {
+      if (/\s/.test(emailCleaned)) {
         errors.email = "Email cannot contain spaces inside";
-      }
-      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailCleaned)) {
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailCleaned)) {
         errors.email = "Invalid email format";
-      }
-      else if (
-        vendor.email &&
-        emailCleaned.toLowerCase() === vendor.email.trim().toLowerCase()
-      ) {
+      } else if (vendor.email && emailCleaned.toLowerCase() === vendor.email.trim().toLowerCase()) {
         errors.email = "Contact email cannot be the same as company email";
-      }
-      else {
-        contact.email = emailCleaned;
       }
     }
 
     setContactErrors(errors);
     return Object.keys(errors).length === 0;
   };
-
   const saveVendor = async () => {
     if (!validateVendor()) {
       return;
@@ -338,7 +378,7 @@ export default function AddVendor() {
         },
         body: JSON.stringify({
           ...vendor,
-          contacts: contactPersons,
+          contact_persons: contactPersons,
         }),
       });
       const data = await response.json();
@@ -537,11 +577,14 @@ export default function AddVendor() {
               <Form.Group className="mb-3 form-field">
                 <CountryPhoneInput
                   label="Mobile No"
-                  value={vendor.mobile_no}
-                  onChange={handleVendorMobileChange}
-                  defaultCountry="IN"
-                  error={vendorErrors.mobile_no}
+                  value={vendor.mobile_no} // ✅ vendor's mobile
+                  onChange={handleVendorMobileChange} // ✅ correct handler
+                  country={contactCountry}
+                  onCountryChange={setContactCountry}
+                  error={vendorErrors.mobile_no} // ✅ vendor errors
                 />
+
+
               </Form.Group>
             </Col>
             <Col md={4}>
@@ -571,12 +614,19 @@ export default function AddVendor() {
               "district",
             ];
 
-            const emptyField = requiredFields.find((field) => !vendor[field].trim());
+            const emptyField = requiredFields.find((field) => {
+              const value = vendor[field];
+              if (value === undefined || value === null) return true;
+              if (typeof value === "string" && value.trim() === "") return true;
+              if (typeof value === "number" && value === 0) return true;
+              return false;
+            });
 
             if (emptyField) {
               toast.error("Please fill the company details first!");
               return;
             }
+
 
             setContact({
               name: "",
@@ -594,6 +644,7 @@ export default function AddVendor() {
         >
           + Add Contact Person
         </Button>
+
 
         <div style={{ marginTop: "20px", background: "#fff", borderRadius: "6px", padding: "20px" }}>
           <table className="table table-bordered table-hover">
@@ -655,7 +706,7 @@ export default function AddVendor() {
                     <td className="text-center">{index + 1}</td>
                     <td>{c.name}{c.isMain ? " (Main)" : ""}</td>
                     <td>{c.designation}</td>
-                    <td>{c.mobile_no}</td>
+                    <td>{formatMobileNumber(c.mobile_no, " ")}</td>
                     <td>{c.email}</td>
                     <td>
                       <span className={`badge ${c.status === "Active" ? "bg-success" : "bg-danger"}`}>
@@ -775,6 +826,8 @@ export default function AddVendor() {
                       defaultCountry="IN"
                       error={contactErrors.mobile_no}
                     />
+
+
                   </Form.Group>
                 </Col>
               </Row>

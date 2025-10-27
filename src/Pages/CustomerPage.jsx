@@ -12,6 +12,9 @@ import Pagination from "../components/Pagination.jsx";
 import "datatables.net-dt/css/dataTables.dataTables.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import ActionButton from "../components/ActionButton";
+import { parsePhoneNumberFromString } from "libphonenumber-js";
+import metadata from "libphonenumber-js/metadata.full.json";
+
 const MySwal = withReactContent(Swal);
 
 export default function CustomerListPage() {
@@ -23,6 +26,16 @@ export default function CustomerListPage() {
   const [perPage, setPerPage] = useState(10);
   const [sortField, setSortField] = useState(null);
   const [sortDirection, setSortDirection] = useState("asc");
+const formatMobileNumber = (number, defaultCountry = "IN") => {
+  if (!number) return "-";
+  try {
+    const phone = parsePhoneNumberFromString(number, metadata);
+    if (!phone) return number;
+    return `+${phone.countryCallingCode} ${phone.nationalNumber}`;
+  } catch {
+    return number;
+  }
+};
 
   useEffect(() => {
     fetchCustomers();
@@ -215,11 +228,11 @@ export default function CustomerListPage() {
                     <td className="text-center">
                       {(page - 1) * perPage + index + 1}
                     </td>
-                    <td>{c.customer}</td>
-                    <td>{c.email}</td>
-                    <td>{c.mobile_no}</td>
-                    <td>{c.gst_no}</td>
-                    <td>{c.city}</td>
+                    <td>{c.customer || "N/A"}</td>
+                    <td>{c.email || "N/A"}</td>
+<td>{formatMobileNumber(c.mobile_no || "N/A")}</td>
+                    <td>{c.gst_no || "N/A"}</td>
+                    <td>{c.city || "N/A"}</td>
                     <td>
                       <span
                         className={`badge ${c.status === "active" ? "bg-success" : "bg-danger"

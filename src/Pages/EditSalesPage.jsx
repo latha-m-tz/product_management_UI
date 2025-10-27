@@ -212,6 +212,24 @@ export default function EditSalesPage() {
       return updated;
     });
   };
+const handleDeleteItem = (index) => {
+  MySwal.fire({
+    title: "Are you sure?",
+    text: "You won't be able to revert this!",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonColor: "#d33",
+    cancelButtonColor: "#2FA64F",
+    confirmButtonText: "Yes, delete it!",
+  }).then((result) => {
+    if (result.isConfirmed) {
+      const deletedItem = items[index];
+      const newItems = items.filter((_, i) => i !== index);
+      setItems(newItems);
+      toast.success(`Product ${deletedItem.serialNo} removed successfully!`);
+    }
+  });
+};
 
   return (
     <div className="container-fluid px-4 py-4 bg-light min-vh-100">
@@ -402,13 +420,14 @@ export default function EditSalesPage() {
                             </Form.Control.Feedback>
                           </td> */}
                           <td>
-                            <Button
-                              variant="outline-danger"
-                              size="sm"
-                              onClick={() => removeItem(startIndex + index)}
-                            >
-                              <IoTrashOutline />
-                            </Button>
+                      <Button
+  variant="outline-danger"
+  size="sm"
+  onClick={() => handleDeleteItem(startIndex + index)}
+>
+  <IoTrashOutline />
+</Button>
+
                           </td>
                         </tr>
                       ))}

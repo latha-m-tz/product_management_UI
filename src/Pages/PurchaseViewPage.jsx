@@ -96,7 +96,7 @@ export default function PurchaseViewPage() {
             <InfoRow label="Total Quantity" value={purchase.total_quantity} />
 
             <InfoRow
-              label="Recipient Document"
+              label="Receipt Document"
               value={
                 purchase.document_recipient ? (
                   <a

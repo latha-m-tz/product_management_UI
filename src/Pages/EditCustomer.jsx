@@ -485,11 +485,11 @@ export default function EditCustomer() {
                 countrySelectComponent={CountrySelect}
               />
 
-              {errors.mobile_no && (
+              {/* {errors.mobile_no && (
                 <div style={{ color: "red", fontSize: "0.85rem", marginTop: "4px" }}>
                   {errors.mobile_no}
                 </div>
-              )}
+              )} */}
             </Form.Group>
           </Col>
 

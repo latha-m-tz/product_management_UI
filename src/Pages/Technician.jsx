@@ -26,7 +26,7 @@ export default function TechnicianPage() {
   const [perPage, setPerPage] = useState(10);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const [sortField, setSortField] = useState("name");
+  const [sortField, setSortField] = useState("");
   const [sortDirection, setSortDirection] = useState("asc");
 
   function initialFormState() {
@@ -207,7 +207,14 @@ export default function TechnicianPage() {
                     <td>{t.employee_id}</td>
                     <td>{t.name}</td>
                     <td className="text-center">
-                      <Button size="sm" className="me-1" onClick={() => handleEdit(t)} style={{ borderColor: "#2E3A59", color: "#2E3A59" }}><i className="bi bi-pencil-square"></i></Button>
+                      <Button
+                        size="sm"
+                        className="me-1"
+                        onClick={() => handleEdit(t)}
+                        style={{ borderColor: "#2E3A59", backgroundColor: "transparent" }}
+                      >
+                        <i className="bi bi-pencil-square" style={{ color: "#2E3A59" }}></i>
+                      </Button>
                       <Button size="sm" onClick={() => handleDelete(t.id)} style={{ borderColor: "#2E3A59", color: "#2E3A59", backgroundColor: "transparent" }}><i className="bi bi-trash"></i></Button>
                     </td>
                   </tr>
@@ -231,12 +238,15 @@ export default function TechnicianPage() {
         <Offcanvas.Body className="d-flex flex-column justify-content-between" style={{ fontSize: "0.85rem" }}>
           <form onSubmit={handleFormSubmit}>
             <Form.Group className="mb-3">
-              <Form.Label>Employee ID *</Form.Label>
-              <Form.Control type="text" name="employee_id" value={formData.employee_id} onChange={handleChange} isInvalid={!!errors.employee_id} />
+              <Form.Label>
+                Employee ID <span style={{ color: "#dc3545" }}>*</span>
+              </Form.Label>              <Form.Control type="text" name="employee_id" value={formData.employee_id} onChange={handleChange} isInvalid={!!errors.employee_id} />
               {errors.employee_id && <Form.Control.Feedback type="invalid" className="d-block">{errors.employee_id}</Form.Control.Feedback>}
             </Form.Group>
             <Form.Group className="mb-3">
-              <Form.Label>Name *</Form.Label>
+              <Form.Label>
+                Name <span style={{ color: "#dc3545" }}>*</span>
+              </Form.Label>
               <Form.Control type="text" name="name" value={formData.name} onChange={handleChange} isInvalid={!!errors.name} />
               {errors.name && <Form.Control.Feedback type="invalid" className="d-block">{errors.name}</Form.Control.Feedback>}
             </Form.Group>

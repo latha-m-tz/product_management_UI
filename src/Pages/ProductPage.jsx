@@ -28,6 +28,7 @@ export default function ProductPage() {
 
   const MySwal = withReactContent(Swal);
 
+
   useEffect(() => {
     fetchProducts();
   }, []);
@@ -86,20 +87,30 @@ export default function ProductPage() {
     const payload = { name: productName.trim() };
 
     try {
+      const payload = { name: productName.trim() };
+
       if (editingProductId) {
         await axios.put(`${API_BASE_URL}/product/${editingProductId}`, payload);
         toast.success("Product updated successfully!");
+
+        // Update product in-place
+        setProducts((prev) =>
+          prev.map((p) => (p.id === editingProductId ? { ...p, ...payload } : p))
+        );
       } else {
-        await axios.post(`${API_BASE_URL}/product`, payload);
+        const res = await axios.post(`${API_BASE_URL}/product`, payload);
         toast.success("Product added successfully!");
+
+        // Add new product at end or start
+        const newProduct = { id: res.data.id, ...payload };
+        setProducts((prev) => [newProduct, ...prev]);
       }
-      await fetchProducts();
+
       handleModalClose();
     } catch {
       toast.error("Failed to save product!");
     }
-  };
-
+  }
   const handleDelete = async (id) => {
     MySwal.fire({
       title: "Are you sure?",
@@ -321,10 +332,10 @@ export default function ProductPage() {
           </Button>
         </Offcanvas.Header>
 
-<Offcanvas.Body 
-  className="d-flex flex-column justify-content-between" 
-  style={{ fontSize: "0.85rem" }}
->
+        <Offcanvas.Body
+          className="d-flex flex-column justify-content-between"
+          style={{ fontSize: "0.85rem" }}
+        >
           <div>
             <Form.Group className="mb-3">
               <Form.Label>Product Name</Form.Label>

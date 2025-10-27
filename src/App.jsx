@@ -7,7 +7,7 @@ import LoginPage from "./Pages/LoginPage";
 import AppLayout from "./Layout/AppLayout";
 
 // Pages
-import Overview from "./Overview/Overview";
+// import Overview from "./Overview/Overview";
 import ComponentsPage from "./Pages/ComponentsPage";
 import SalesListPage from "./Pages/SalesListPage";
 import SalesOverviewPage from "./Pages/SalesOverviewPage";
@@ -44,6 +44,8 @@ import DatePicker from "react-datepicker";
 import ComponentsRequirement from "./Pages/Componentsrequirement";
 import "country-flag-icons/3x2/flags.css";
 import TechnicianPage from "./Pages/Technician";
+import RegisterPage from "./Pages/RegisterPage";
+import ServiceItemsPage from "./Pages/ServiceItemsPage"; // adjust path if needed
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem("authToken"));
 
@@ -75,7 +77,10 @@ export default function App() {
             isLoggedIn ? <Navigate to="/overview" replace /> : <LoginPage onLogin={handleLogin} />
           }
         />
-
+        <Route
+          path="/register"
+          element={isLoggedIn ? <Navigate to="/overview" replace /> : <RegisterPage />}
+        />
         {/* Protected Routes */}
         <Route
           path="/"
@@ -84,10 +89,10 @@ export default function App() {
           }
         >
           {/* Default redirect */}
-          <Route index element={<Navigate to="overview" replace />} />
+          {/* <Route index element={<Navigate to="overview" replace />} /> */}
 
           {/* Pages */}
-          <Route path="overview" element={<Overview />} />
+          {/* <Route path="overview" element={<Overview />} /> */}
           <Route path="sales-order" element={<SalesListPage />} />
           <Route path="sales-order/add" element={<AddSalesPage />} />
           <Route path="sales/edit/:id" element={<EditSalesPage />} />
@@ -127,7 +132,7 @@ export default function App() {
           <Route path="/technician" element={<TechnicianPage />} />
           {/* Actual route with series param */}
           <Route path="/spare-parts-by-series/:series" element={<ComponentsRequirement />} />
-
+  <Route path="/service-items" element={<ServiceItemsPage />} />
         </Route>
       </Routes>
     </Router>

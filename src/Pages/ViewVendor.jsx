@@ -2,30 +2,48 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, Row, Col, Button, Spinner } from "react-bootstrap";
 import { API_BASE_URL } from "../api";
+import { getCountryCallingCode } from "react-phone-number-input";
+import { parsePhoneNumberFromString } from "libphonenumber-js";
+import metadata from "libphonenumber-js/metadata.full.json";
 
 export default function ViewVendor() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [vendor, setVendor] = useState(null);
   const [loading, setLoading] = useState(true);
+  const formatMobileNumber = (number, defaultCountry = "IN") => {
+    if (!number) return "-";
 
- useEffect(() => {
-  setLoading(true);
-  fetch(`${API_BASE_URL}/vendors/get/${id}`)
-    .then(res => res.json())
-.then(data => {
-  setVendor({
-    ...data,
-    contact_persons: data.contact_persons ?? []
-  });
-})
+    try {
+      const fullNumber = number.startsWith("+")
+        ? number
+        : `+${getCountryCallingCode(defaultCountry)}${number}`;
 
-    .catch(err => {
-      console.error("Error fetching vendor:", err);
-      setVendor(null);
-    })
-    .finally(() => setLoading(false));
-}, [id]);
+      const phone = parsePhoneNumberFromString(fullNumber, metadata);
+      if (!phone) return number;
+
+      return `+${phone.countryCallingCode} ${phone.nationalNumber}`;
+    } catch {
+      return number;
+    }
+  };
+
+  useEffect(() => {
+    setLoading(true);
+    fetch(`${API_BASE_URL}/vendors/get/${id}`)
+      .then(res => res.json())
+      .then(data => {
+        setVendor({
+          ...data,
+          contact_persons: data.contact_persons ?? []
+        });
+      })
+      .catch(err => {
+        console.error("Error fetching vendor:", err);
+        setVendor(null);
+      })
+      .finally(() => setLoading(false));
+  }, [id]);
 
   if (loading) {
     return (
@@ -48,6 +66,8 @@ export default function ViewVendor() {
 
   const firstContact = vendor.contact_persons[0] ?? null;
   const otherContacts = vendor.contact_persons.slice(1);
+
+
 
   const InfoRow = ({ label, value }) => (
     <Row className="mb-2">
@@ -94,7 +114,7 @@ export default function ViewVendor() {
           </Col>
           <Col md={6}>
             <InfoRow label="District" value={vendor.district} />
-            <InfoRow label="Mobile no" value={vendor.mobile_no} />
+            <InfoRow label="Mobile no" value={formatMobileNumber(vendor.mobile_no)} />
             <InfoRow label="Address" value={vendor.address} />
           </Col>
         </Row>
@@ -105,11 +125,10 @@ export default function ViewVendor() {
         <SectionCard title="Contact Person Details">
           <Row>
             <Col md={6}>
-            <InfoRow 
-  label="Name" 
-  value={`${firstContact.name}${firstContact.is_main ? " (Main person)" : ""}`} 
-/>
-
+              <InfoRow
+                label="Name"
+                value={`${firstContact.name}${firstContact.is_main ? " (Main person)" : ""}`}
+              />
               <InfoRow label="Designation" value={firstContact.designation} />
               <InfoRow
                 label="Status"
@@ -117,10 +136,7 @@ export default function ViewVendor() {
                   firstContact.status ? (
                     <span
                       style={{
-                        color:
-                          firstContact.status === "Active"
-                            ? "green"
-                            : "red",
+                        color: firstContact.status === "Active" ? "green" : "red",
                       }}
                     >
                       {firstContact.status}
@@ -133,8 +149,7 @@ export default function ViewVendor() {
             </Col>
             <Col md={6}>
               <InfoRow label="Email ID" value={firstContact.email} />
-              <InfoRow label="Mobile No" value={firstContact.mobile_no} />
-              {/* <InfoRow label="Alt Mobile No" value={firstContact.alt_mobile_no} /> */}
+              <InfoRow label="Mobile No" value={formatMobileNumber(firstContact.mobile_no)} />
             </Col>
           </Row>
         </SectionCard>
@@ -146,12 +161,10 @@ export default function ViewVendor() {
           <SectionCard key={idx} title={`Contact Person (${idx + 1})`}>
             <Row>
               <Col md={6}>
-            <InfoRow 
-  label="Name" 
- value={`${person.name}${(person.is_main || person.isMain) ? " (Main person)" : ""}`}
-
-/>
-
+                <InfoRow
+                  label="Name"
+                  value={`${person.name}${(person.is_main || person.isMain) ? " (Main person)" : ""}`}
+                />
                 <InfoRow label="Designation" value={person.designation} />
                 <InfoRow
                   label="Status"
@@ -172,8 +185,7 @@ export default function ViewVendor() {
               </Col>
               <Col md={6}>
                 <InfoRow label="Email ID" value={person.email} />
-                <InfoRow label="Mobile No" value={person.mobile_no} />
-                {/* <InfoRow label="Alt Mobile No" value={person.alt_mobile_no} /> */}
+                <InfoRow label="Mobile No" value={formatMobileNumber(person.mobile_no)} />
               </Col>
             </Row>
           </SectionCard>

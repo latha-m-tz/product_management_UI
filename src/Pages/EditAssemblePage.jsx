@@ -50,7 +50,18 @@ export default function EditAssemblePage() {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
-const MySwal = withReactContent(Swal);
+  const MySwal = withReactContent(Swal);
+  const [editingSerials, setEditingSerials] = useState({});
+  const getProductPrefix = (productName) => {
+    // Assumes product name starts with series number, e.g., "5-series"
+    const match = productName.match(/^(\d+)/);
+    return match ? match[1] : "";
+  };
+  const validateSerialMatchesProduct = (serial, productName) => {
+    const prefix = getProductPrefix(productName);
+    return serial.startsWith(prefix);
+  };
+
 
   const [searchTerm, setSearchTerm] = useState("");
   const [deleteFrom, setDeleteFrom] = useState("");
@@ -109,37 +120,37 @@ const MySwal = withReactContent(Swal);
       padding: "20px",
     },
   };
-const handleDeleteBySerial = (serial_no) => {
-  MySwal.fire({
-    title: "Are you sure?",
-    text: "You won't be able to revert this!",
-    icon: "warning",
-    showCancelButton: true,
-    confirmButtonColor: "#d33",
-    cancelButtonColor: "#2FA64F",
-    confirmButtonText: "Yes, delete it!",
-  }).then((result) => {
-    if (result.isConfirmed) {
-      const updated = products.filter((p) => p.serial_no !== serial_no);
+  const handleDeleteBySerial = (serial_no) => {
+    MySwal.fire({
+      title: "Are you sure?",
+      text: "You won't be able to revert this!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#2FA64F",
+      confirmButtonText: "Yes, delete it!",
+    }).then((result) => {
+      if (result.isConfirmed) {
+        const updated = products.filter((p) => p.serial_no !== serial_no);
 
-      // Recalculate range
-      if (updated.length > 0) {
-        const serials = updated.map((p) => p.serial_no).sort();
-        setForm((prev) => ({
-          ...prev,
-          fromSerial: serials[0],
-          toSerial: serials[serials.length - 1],
-          quantity: updated.length,
-        }));
-      } else {
-        setForm((prev) => ({ ...prev, fromSerial: "", toSerial: "", quantity: 0 }));
+        // Recalculate range
+        if (updated.length > 0) {
+          const serials = updated.map((p) => p.serial_no).sort();
+          setForm((prev) => ({
+            ...prev,
+            fromSerial: serials[0],
+            toSerial: serials[serials.length - 1],
+            quantity: updated.length,
+          }));
+        } else {
+          setForm((prev) => ({ ...prev, fromSerial: "", toSerial: "", quantity: 0 }));
+        }
+
+        setProducts(updated);
+        toast.success(`Serial ${serial_no} deleted successfully!`);
       }
-
-      setProducts(updated);
-      toast.success(`Serial ${serial_no} deleted successfully!`);
-    }
-  });
-};
+    });
+  };
 
 
   useEffect(() => {
@@ -148,9 +159,7 @@ const handleDeleteBySerial = (serial_no) => {
         const [typesRes, productsRes, rangeRes] = await Promise.all([
           axios.get(`${API_BASE_URL}/product-types`),
           axios.get(`${API_BASE_URL}/product`),
-          axios.get(
-            `${API_BASE_URL}/inventory/serialrange/${routeFromSerial}/${routeToSerial}`
-          ),
+          axios.get(`${API_BASE_URL}/inventory/serialrange/${routeFromSerial}/${routeToSerial}`),
         ]);
 
         setProductTypes(typesRes.data);
@@ -158,6 +167,14 @@ const handleDeleteBySerial = (serial_no) => {
 
         const data = rangeRes.data;
 
+        // Check if serials match product
+        const productName = data.product?.name || "";
+        if (!validateSerialMatchesProduct(data.from_serial, productName) ||
+          !validateSerialMatchesProduct(data.to_serial, productName)) {
+          toast.warning(`Serial numbers do not match the product series (${productName})!`);
+        }
+
+        // Continue as usual
         const formattedDate =
           data.tested_date
             ? new Date(data.tested_date).toISOString().split("T")[0]
@@ -173,7 +190,7 @@ const handleDeleteBySerial = (serial_no) => {
           quantity: data.quantity || "",
           fromSerial: data.from_serial,
           toSerial: data.to_serial,
-          testedDate: formattedDate, // ✅ formatted for the date input
+          testedDate: formattedDate,
         });
 
         const itemsWithRange = data.items.map((item) => ({
@@ -323,94 +340,36 @@ const handleDeleteBySerial = (serial_no) => {
 
     return true;
   };
-const handleDeleteSelected = () => {
-  const serialsToDelete = currentItems
-    .filter(p => selectedSerials[p.serial_no])
-    .map(p => p.serial_no);
+  const handleDeleteSelected = () => {
+    const serialsToDelete = currentItems
+      .filter(p => selectedSerials[p.serial_no])
+      .map(p => p.serial_no);
 
-  if (serialsToDelete.length === 0) {
-    toast.info("No serials selected for deletion.");
-    return;
-  }
-
-  MySwal.fire({
-    title: "Are you sure?",
-    text: `You are about to delete ${serialsToDelete.length} serial(s)!`,
-    icon: "warning",
-    showCancelButton: true,
-    confirmButtonColor: "#d33",
-    cancelButtonColor: "#2FA64F",
-    confirmButtonText: "Yes, delete them!",
-  }).then((result) => {
-    if (result.isConfirmed) {
-      const updatedProducts = products.filter(p => !serialsToDelete.includes(p.serial_no));
-      setProducts(updatedProducts);
-
-      const newSelected = { ...selectedSerials };
-      serialsToDelete.forEach(sn => delete newSelected[sn]);
-      setSelectedSerials(newSelected);
-
-      toast.success(`${serialsToDelete.length} product(s) deleted successfully!`);
-    }
-  });
-};
-
-
-
-  const handleAddProductRange = () => {
-    const { fromSerial, toSerial } = form; // remove testedBy
-    let newErrors = {};
-
-    if (!fromSerial) newErrors.fromSerial = "From Serial is required.";
-    if (!toSerial) newErrors.toSerial = "To Serial is required.";
-
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      toast.error("Please fill in all required serial fields.");
+    if (serialsToDelete.length === 0) {
+      toast.info("No serials selected for deletion.");
       return;
     }
 
-    if (!validateSerialRange(fromSerial, toSerial)) {
-      setErrors({ fromSerial: "Invalid serial range", toSerial: "Invalid serial range" });
-      toast.error("Invalid serial range. Check prefixes and numbers.");
-      return;
-    }
+    MySwal.fire({
+      title: "Are you sure?",
+      text: `You are about to delete ${serialsToDelete.length} serial(s)!`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#2FA64F",
+      confirmButtonText: "Yes, delete them!",
+    }).then((result) => {
+      if (result.isConfirmed) {
+        const updatedProducts = products.filter(p => !serialsToDelete.includes(p.serial_no));
+        setProducts(updatedProducts);
 
-    const prefix = fromSerial.match(/[^\d]+/)?.[0] || "";
-    const start = parseInt(fromSerial.match(/\d+/)?.[0], 10);
-    const end = parseInt(toSerial.match(/\d+/)?.[0], 10);
+        const newSelected = { ...selectedSerials };
+        serialsToDelete.forEach(sn => delete newSelected[sn]);
+        setSelectedSerials(newSelected);
 
-    const newProducts = [];
-    for (let i = start; i <= end; i++) {
-      const serial = `${prefix}${i
-        .toString()
-        .padStart(fromSerial.length - prefix.length, "0")}`;
-      if (!products.find((p) => p.serial_no === serial)) {
-        newProducts.push({
-          serial_no: String(i),
-          tested_by: form.testedBy || "",        // allow empty
-          tested_status: ["PENDING"],            // default PENDING if empty
-          test_remarks: "",
-          from_serial: fromSerial,
-          to_serial: toSerial,
-          quantity: 1,
-        });
+        toast.success(`${serialsToDelete.length} product(s) deleted successfully!`);
       }
-    }
-
-    const updatedProducts = [...products, ...newProducts].sort((a, b) =>
-      a.serial_no.localeCompare(b.serial_no)
-    );
-    setProducts(updatedProducts);
-
-    setForm((prev) => ({
-      ...prev,
-      fromSerial: updatedProducts[0].serial_no,
-      toSerial: updatedProducts[updatedProducts.length - 1].serial_no,
-      quantity: updatedProducts.length,
-    }));
-    setErrors({});
-    toast.success(`${newProducts.length} new serial numbers added from range.`);
+    });
   };
 
 
@@ -535,21 +494,21 @@ const handleDeleteSelected = () => {
     <Container className="main-container">
 
 
-     <Row className="align-items-center mb-3 fixed-header">
-                  <Col>
-                      <h4>Edit New Inventory</h4>
-                  </Col>
-                  <Col className="text-end">
-                      <Button
-                          variant="outline-secondary"
-                          size="sm"
-                          className="me-2"
-                          onClick={() => navigate("/assemble")}
-                      >
-                          <i className="bi bi-arrow-left"></i> Back
-                      </Button>
-                  </Col>
-              </Row>
+      <Row className="align-items-center mb-3 fixed-header">
+        <Col>
+          <h4>Edit New Inventory</h4>
+        </Col>
+        <Col className="text-end">
+          <Button
+            variant="outline-secondary"
+            size="sm"
+            className="me-2"
+            onClick={() => navigate("/assemble")}
+          >
+            <i className="bi bi-arrow-left"></i> Back
+          </Button>
+        </Col>
+      </Row>
 
       <Card className="p-4 mb-3" style={{ position: "relative", backgroundColor: "rgb(244, 244, 248)" }}>
         <h5 className="mb-4">Product Details</h5>
@@ -784,12 +743,29 @@ const handleDeleteSelected = () => {
                       <td>
                         <Form.Control
                           type="text"
-                          value={product.serial_no || ""}
-                          className="custom-checkbox-color"
-
+                          value={editingSerials[product.serial_no] ?? product.serial_no}
                           onChange={(e) =>
-                            handleRowChange(absoluteIndex, "serial_no", e.target.value)
+                            setEditingSerials((prev) => ({
+                              ...prev,
+                              [product.serial_no]: e.target.value,
+                            }))
                           }
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              // Save changes to products array
+                              const newSerial = editingSerials[product.serial_no];
+                              handleRowChange(absoluteIndex, "serial_no", newSerial);
+
+                              // Optional: clear temporary state
+                              setEditingSerials((prev) => {
+                                const updated = { ...prev };
+                                delete updated[product.serial_no];
+                                return updated;
+                              });
+
+                              toast.success(`Serial updated to ${newSerial}`);
+                            }
+                          }}
                         />
                       </td>
 

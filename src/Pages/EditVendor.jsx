@@ -22,6 +22,19 @@ export default function EditVendor() {
   const [countryCode, setCountryCode] = useState("IN");
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(5);
+  const formatPhoneNumber = (phone) => {
+    if (!phone || !phone.startsWith("+")) return phone;
+
+    // Extract country code (1–3 digits after +)
+    const match = phone.match(/^\+(\d{1,3})(\d+)$/);
+    if (!match) return phone;
+
+    const countryCode = match[1];
+    const number = match[2];
+
+    return `+${countryCode} ${number}`;
+  };
+
 
   const [panelKey, setPanelKey] = useState(0);
 
@@ -451,7 +464,7 @@ export default function EditVendor() {
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#d33",
-      cancelButtonColor: "#6c757d",
+      cancelButtonColor: "#2FA64F",
       confirmButtonText: "Yes, delete it!",
       cancelButtonText: "Cancel",
     }).then((result) => {
@@ -697,11 +710,11 @@ export default function EditVendor() {
                 defaultCountry={countryCode}
                 className="form-control"
               />
-              {vendorErrors.mobile_no && (
+              {/* {vendorErrors.mobile_no && (
                 <div style={{ color: "red", fontSize: "0.85rem", marginTop: "4px" }}>
                   {vendorErrors.mobile_no}
                 </div>
-              )}
+              )} */}
 
             </Form.Group>
           </Col>
@@ -817,7 +830,7 @@ export default function EditVendor() {
                     <td className="text-center">{index + 1}</td>
                     <td>{c.name}{c.isMain ? " (Main)" : ""}</td>
                     <td>{c.designation}</td>
-                    <td>{c.mobile_no}</td>
+                    <td>{formatPhoneNumber(c.mobile_no)}</td>
                     <td>{c.email}</td>
                     <td>
                       <span className={`badge ${c.status === "Active" ? "bg-success" : "bg-danger"}`}>
@@ -941,11 +954,11 @@ export default function EditVendor() {
                   defaultCountry={countryCode}
                   className="form-control"
                 />
-                {contactErrors.mobile_no && (
+                {/* {contactErrors.mobile_no && (
                   <div className="invalid-feedback" style={{ display: "block" }}>
                     {contactErrors.mobile_no}
                   </div>
-                )}
+                )} */}
 
               </Form.Group>
             </Col>
