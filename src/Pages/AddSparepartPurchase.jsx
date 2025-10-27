@@ -18,11 +18,12 @@ export default function AddSparepartPurchase() {
   const [errors, setErrors] = useState({});
   const navigate = useNavigate();
   const [existingSerials, setExistingSerials] = useState([]);
-  // Add at the top with other states
+  const [serialErrors, setSerialErrors] = useState({});
   const [receivedDate, setReceivedDate] = useState("");
   const [recipientFile, setRecipientFile] = useState(null);
   const [challan1File, setChallan1File] = useState(null);
   const [challan2File, setChallan2File] = useState(null);
+  const [serialErrorShown, setSerialErrorShown] = useState(false);
 
   const MySwal = withReactContent(Swal);
 
@@ -85,6 +86,7 @@ export default function AddSparepartPurchase() {
     const type = sparepartTypeOf(spareparts[index].sparepart_id);
     const updated = [...spareparts];
 
+    // Serial type fields
     if (type.includes("serial") && (field === "from_serial" || field === "to_serial")) {
       const productId = updated[index].product_id;
 
@@ -95,40 +97,56 @@ export default function AddSparepartPurchase() {
         return;
       }
 
-      // Keep only digits & limit to 6
+      // Keep only digits & max 6
       value = value.replace(/\D/g, "").slice(0, 6);
       updated[index][field] = value;
 
       const product = availableCategories.find(p => String(p.id) === String(productId));
       const productPrefix = product?.name.match(/^(\d+)/)?.[1] || null;
 
-      // Validate serial matches product prefix
+      // Check prefix match
       if (productPrefix && value && !value.startsWith(productPrefix)) {
-        toast.error(`Serial must start with product prefix (${productPrefix})`);
+        if (!serialErrorShown[index]?.prefixMismatch) {
+          toast.error(`Serial must start with product prefix (${productPrefix})`);
+          setSerialErrorShown(prev => ({
+            ...prev,
+            [index]: { ...prev[index], prefixMismatch: true }
+          }));
+        }
         updated[index][field] = "";
         setSpareparts(updated);
         return;
+      } else {
+        // Reset prefixMismatch flag if correct
+        setSerialErrorShown(prev => ({
+          ...prev,
+          [index]: { ...prev[index], prefixMismatch: false }
+        }));
       }
 
-      const fromSerial = updated[index].from_serial;
-      const toSerial = updated[index].to_serial;
+      // Range check
+  const fromNum = parseInt(updated[index].from_serial, 10);
+const toNum = parseInt(updated[index].to_serial, 10);
 
-      // Check both serials have same prefix
-      if (fromSerial && toSerial) {
-        const prefixFrom = fromSerial.match(/^(\d+)/)?.[1];
-        const prefixTo = toSerial.match(/^(\d+)/)?.[1];
-
-        if (prefixFrom !== prefixTo) {
-          toast.error("From Serial and To Serial must start with the same prefix");
-        }
-
-        const fromNum = parseInt(fromSerial, 10);
-        const toNum = parseInt(toSerial, 10);
-
-        if (!isNaN(fromNum) && !isNaN(toNum) && fromNum > toNum) {
-          toast.error("From Serial must be less than or equal to To Serial");
-        }
-      }
+if (!isNaN(fromNum) && !isNaN(toNum)) {
+  if (fromNum > toNum) {
+    if (!serialErrorShown[index]?.rangeError) {
+      // Don't toast repeatedly
+      setSerialErrorShown(prev => ({
+        ...prev,
+        [index]: { ...prev[index], rangeError: true }
+      }));
+    }
+    updated[index].qty = 1; // reset qty if invalid
+  } else {
+    // Valid range → auto calculate quantity
+    updated[index].qty = toNum - fromNum + 1;
+    setSerialErrorShown(prev => ({
+      ...prev,
+      [index]: { ...prev[index], rangeError: false }
+    }));
+  }
+}
 
       setSpareparts(updated);
       return;
@@ -148,7 +166,8 @@ export default function AddSparepartPurchase() {
   };
 
 
-  const handleDelete = async (id) => {
+
+  const handleDeleteSparepart = (index) => {
     MySwal.fire({
       title: "Are you sure?",
       text: "You won't be able to revert this!",
@@ -157,20 +176,14 @@ export default function AddSparepartPurchase() {
       confirmButtonColor: "#d33",
       cancelButtonColor: "#2FA64F",
       confirmButtonText: "Yes, delete it!",
-    }).then(async (result) => {
+    }).then((result) => {
       if (result.isConfirmed) {
-        try {
-          await axios.delete(`${API_BASE_URL}/product/${id}`);
-          toast.success("Product deleted successfully!");
-          // If you have a function to refresh the list, call it
-          await fetchProducts();
-        } catch (error) {
-          console.error(error);
-          toast.error("Failed to delete product!");
-        }
+        removeSparepart(index); // Use your existing removeSparepart function
+        toast.success("Spare part deleted successfully!");
       }
     });
   };
+
 
 
   const clearError = (field, index = null) => {
@@ -241,39 +254,39 @@ export default function AddSparepartPurchase() {
   const validateForm = () => {
     const errs = {};
 
-    if (!vendorId) errs.vendor_id = "Vendor is required";
-    if (!challanNo) errs.challan_no = "Challan No is required";
+    if (!vendorId) {
+      errs.vendor_id = "Vendor is required";
+      toast.error("Vendor is required");
+    }
+
+    if (!challanNo) {
+      errs.challan_no = "Challan No is required";
+      toast.error("Challan No is required");
+    }
+
     if (!challanDate) {
       errs.challan_date = "Challan Date is required";
-    } else {
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(challanDate)) {
-        errs.challan_date = "Invalid date format (YYYY-MM-DD)";
-      } else {
-        const [year, month, day] = challanDate.split("-").map(Number);
-        if (year < 1900 || year > 2100) {
-          // errs.challan_date = "Year must be between 1900 and 2100";
-        }
-        if (month < 1 || month > 12) {
-          errs.challan_date = "Invalid month";
-        }
-        if (day < 1 || day > 31) {
-          errs.challan_date = "Invalid day";
-        }
-      }
+      toast.error("Challan Date is required");
     }
+
     const itemErrors = {};
     spareparts.forEach((sp, idx) => {
       const type = sparepartTypeOf(sp.sparepart_id);
       const itemErr = {};
 
-      if (!sp.sparepart_id) itemErr.sparepart_id = "Select sparepart";
+      if (!sp.sparepart_id) {
+        itemErr.sparepart_id = "Select sparepart";
+        toast.error(`Sparepart is required for item ${idx + 1}`);
+      }
 
+      // Prefix mismatch
       if (sp.from_serial && sp.to_serial) {
         const prefixFrom = sp.from_serial.replace(/[0-9]+$/, "");
         const prefixTo = sp.to_serial.replace(/[0-9]+$/, "");
         if (prefixFrom !== prefixTo) {
           itemErr.from_serial = "Prefix mismatch";
           itemErr.to_serial = "Prefix mismatch";
+          toast.error(`Prefix mismatch for item ${idx + 1}`);
         }
       }
 
@@ -281,14 +294,20 @@ export default function AddSparepartPurchase() {
         const fromNum = parseInt(sp.from_serial, 10);
         const toNum = parseInt(sp.to_serial, 10);
 
-        if (fromNum > toNum) {
-          itemErr.from_serial = "From Serial must be <= To Serial";
-          itemErr.to_serial = "From Serial must be <= To Serial";
+        if (!isNaN(fromNum) && !isNaN(toNum) && fromNum > toNum) {
+          itemErr.from_serial = "From Serial must be less than or equal to To Serial";
+          itemErr.to_serial = "From Serial must be less than or equal to To Serial";
         }
       }
+      if (!sp.qty || sp.qty < 1) {
+        itemErr.qty = "Quantity must be at least 1";
+        toast.error(`Quantity must be at least 1 for item ${idx + 1}`);
+      }
 
-      if (!sp.qty || sp.qty < 1) itemErr.qty = "Quantity must be at least 1";
-      if (type.includes("warranty") && !sp.warranty_status) itemErr.warranty_status = "Select warranty status";
+      if (type.includes("warranty") && !sp.warranty_status) {
+        itemErr.warranty_status = "Select warranty status";
+        toast.error(`Select warranty status for item ${idx + 1}`);
+      }
 
       if (Object.keys(itemErr).length) itemErrors[idx] = itemErr;
     });
@@ -298,6 +317,7 @@ export default function AddSparepartPurchase() {
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
+
 
   const handleSubmit = async () => {
     if (!validateForm()) return;
@@ -495,7 +515,7 @@ export default function AddSparepartPurchase() {
 
             <Col md={4}>
               <Form.Group className="mb-2 form-field">
-                <Form.Label>Recipient Document</Form.Label>
+                <Form.Label>Receipt Document</Form.Label>
                 <Form.Control
                   type="file"
                   accept="image/*"
@@ -597,6 +617,13 @@ export default function AddSparepartPurchase() {
                               maxLength={6}
                               onChange={(e) => handleInputChange(0, "from_serial", e.target.value)}
                             />
+                            {errors.items?.[0]?.from_serial && (
+                              <div style={{ color: "red", fontSize: "0.85rem", marginTop: "4px" }}>
+                                {errors.items[0].from_serial}
+                              </div>
+                            )}
+
+
                           </Form.Group>
                         </Col>
 
@@ -611,6 +638,13 @@ export default function AddSparepartPurchase() {
                               maxLength={6}
                               onChange={(e) => handleInputChange(0, "to_serial", e.target.value)}
                             />
+                            {errors.items?.[0]?.to_serial && (
+                              <div style={{ color: "red", fontSize: "0.85rem", marginTop: "4px" }}>
+                                {errors.items[0].to_serial}
+                              </div>
+                            )}
+
+
                           </Form.Group>
                         </Col>
                       </Row>
@@ -729,10 +763,11 @@ export default function AddSparepartPurchase() {
                   <Button
                     variant="danger"
                     size="sm"
-                    onClick={() => removeSparepart(realIndex)}
+                    onClick={() => handleDeleteSparepart(realIndex)}
                   >
                     <i className="bi bi-trash"></i>
                   </Button>
+
 
                 </Col>
               </Row>
@@ -792,7 +827,7 @@ export default function AddSparepartPurchase() {
                           />
                         </Form.Group>
                       </div>
-                      <Button
+                      {/* <Button
                         variant="info"
                         size="sm"
                         className="ms-2 mb-2"
@@ -810,7 +845,7 @@ export default function AddSparepartPurchase() {
                         }
                       >
                         View
-                      </Button>
+                      </Button> */}
                     </Col>
                     <Col md={4}>
                       <Form.Group className="mb-2">

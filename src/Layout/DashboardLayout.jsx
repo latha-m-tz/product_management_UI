@@ -17,16 +17,20 @@ export default function DashboardLayout({ onLogout }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredSuggestions, setFilteredSuggestions] = useState([]);
 
-  // Load user info
+  // Load user info from localStorage
   useEffect(() => {
     const email = localStorage.getItem("authEmail");
-    const name = localStorage.getItem("authName");
+    const name = localStorage.getItem("authName"); // make sure this is set as username during login/registration
     if (email) setUserEmail(email);
     if (name) setUserName(name);
   }, []);
 
   const getInitial = () =>
-    userName ? userName.charAt(0).toUpperCase() : userEmail ? userEmail.charAt(0).toUpperCase() : "M";
+    userName
+      ? userName.charAt(0).toUpperCase()
+      : userEmail
+      ? userEmail.charAt(0).toUpperCase()
+      : "U";
 
   const handleLogout = () => {
     localStorage.removeItem("authToken");
@@ -35,7 +39,7 @@ export default function DashboardLayout({ onLogout }) {
     onLogout?.();
   };
 
-  // Hide logout dropdown if clicked outside
+  // Close logout dropdown when clicked outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (logoutRef.current && !logoutRef.current.contains(event.target)) {
@@ -119,13 +123,10 @@ export default function DashboardLayout({ onLogout }) {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onFocus={handleInputFocus}
                 onBlur={handleInputBlur}
-                style={{
-                  border: "none",
-                  backgroundColor: "#F4F4F8",
-                  boxShadow: "none",
-                }}
+                style={{ border: "none", backgroundColor: "#F4F4F8", boxShadow: "none" }}
               />
             </InputGroup>
+
             {filteredSuggestions.length > 0 && (
               <div
                 style={{

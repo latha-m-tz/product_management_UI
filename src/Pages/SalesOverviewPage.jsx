@@ -128,21 +128,15 @@ export default function SalesOverviewPage() {
               >
                 <ArrowClockwise />
               </Button>
-              <Button
-                size="sm"
-                onClick={() => navigate("/sales-order")}
-                style={{
-                  backgroundColor: "#2FA64F",
-                  borderColor: "#2FA64F",
-                  color: "#fff",
-                  padding: "0.25rem 0.5rem",
-                  fontSize: "0.8rem",
-                  minWidth: "90px",
-                  height: "28px",
-                }}
-              >
-                ← Back
-              </Button>
+  {/* <h5 className="mb-0">Sale Overview</h5> */}
+  <Button
+    variant="outline-secondary"
+    size="sm"
+    onClick={() => navigate(-1)} // Go back to previous page
+  >
+    ← Back
+  </Button>
+
             </div>
 
             <div

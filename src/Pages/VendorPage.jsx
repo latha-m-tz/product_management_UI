@@ -5,7 +5,6 @@ import axios from "axios";
 import { toast } from "react-toastify";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
-//import ActionButtons from "./components/ActionButtons";
 import { API_BASE_URL } from "../api";
 import ActionButton from "../components/ActionButton";
 import BreadCrumb from "../components/BreadCrumb";
@@ -15,8 +14,15 @@ import Pagination from "../components/Pagination.jsx";
 import "datatables.net-dt/css/dataTables.dataTables.css";
 import "datatables.net";
 import "bootstrap/dist/css/bootstrap.min.css";
+import { parsePhoneNumberFromString } from "libphonenumber-js";
+
+import { getCountries, getCountryCallingCode } from "react-phone-number-input";
+import metadata from "libphonenumber-js/metadata.full.json";
+import countries from "i18n-iso-countries";
+import enLocale from "i18n-iso-countries/langs/en.json";
 
 const MySwal = withReactContent(Swal);
+countries.registerLocale(enLocale);
 
 export default function VendorPage() {
   const navigate = useNavigate();
@@ -28,28 +34,67 @@ export default function VendorPage() {
   const [sortField, setSortField] = useState(null);
   const [sortDirection, setSortDirection] = useState("asc");
 
+  // Create country code map
+  const countryCodeMap = {};
+  getCountries(metadata).forEach((code) => {
+    const name = countries.getName(code, "en") || code;
+    const callingCode = getCountryCallingCode(code, metadata);
+    countryCodeMap[`+${callingCode}`] = {
+      countryCode: code,
+      countryName: name,
+      flagUrl: `https://purecatamphetamine.github.io/country-flag-icons/3x2/${code}.svg`,
+    };
+  });
+
+  const formatMobileNumber = (number, defaultCountry = "IN") => {
+    if (!number) return "N/A";
+
+    let phoneNumber;
+    try {
+      const fullNumber = number.startsWith("+")
+        ? number
+        : `+${getCountryCallingCode(defaultCountry)}${number}`;
+      phoneNumber = parsePhoneNumberFromString(fullNumber);
+    } catch {
+      return number;
+    }
+
+    if (!phoneNumber) return number;
+
+    const countryCode = `+${phoneNumber.countryCallingCode}`;
+    const localNumber = phoneNumber.nationalNumber;
+
+    // Keep the local number together
+    return `${countryCode} ${localNumber}`;
+  };
+
+
+
+
+
+
+
   useEffect(() => {
     fetchVendors();
   }, []);
 
- const fetchVendors = async () => {
-  setLoading(true);
-  try {
-    const res = await axios.get(`${API_BASE_URL}/vendorsget`); 
-    if (Array.isArray(res.data)) {
-      setVendors(res.data);
-    } else if (Array.isArray(res.data.data)) {
-      setVendors(res.data.data);
-    } else {
-      setVendors([]);
+  const fetchVendors = async () => {
+    setLoading(true);
+    try {
+      const res = await axios.get(`${API_BASE_URL}/vendorsget`);
+      if (Array.isArray(res.data)) {
+        setVendors(res.data);
+      } else if (Array.isArray(res.data.data)) {
+        setVendors(res.data.data);
+      } else {
+        setVendors([]);
+      }
+    } catch {
+      toast.error("Failed to fetch vendor data.");
+    } finally {
+      setLoading(false);
     }
-  } catch {
-    toast.error("Failed to fetch vendor data.");
-  } finally {
-    setLoading(false);
-  }
-};
-
+  };
 
   const handleDelete = async (id) => {
     const result = await MySwal.fire({
@@ -68,7 +113,6 @@ export default function VendorPage() {
       await axios.delete(`${API_BASE_URL}/vendors/${id}`);
       toast.success("Vendor deleted successfully!");
       fetchVendors();
-      // setVendors(vendors.filter((v) => v.id !== id));
     } catch {
       toast.error("Failed to delete vendor.");
     }
@@ -80,11 +124,6 @@ export default function VendorPage() {
     setSortField(field);
     setSortDirection(direction);
   };
-
-  
-// const handleView = (vendorId) => {
-//   navigate(`/vendors/view/${vendorId}`);
-// };
 
   const filteredData = vendors.filter((vendor) =>
     Object.values(vendor)
@@ -139,7 +178,7 @@ export default function VendorPage() {
             </Button>
             <Button
               size="sm"
-                 className="me-2 mb-2"
+              className="me-2 mb-2"
               style={{
                 backgroundColor: "#2FA64F",
                 borderColor: "#2FA64F",
@@ -147,12 +186,11 @@ export default function VendorPage() {
                 minWidth: "90px",
                 height: "28px",
               }}
-                onClick={() => navigate("/vendor/add")}
+              onClick={() => navigate("/vendor/add")}
             >
               + Add Vendor
             </Button>
-            {/* <Search search={search} setSearch={setSearch} /> */}
-             <Search
+            <Search
               search={search}
               setSearch={setSearch}
               perPage={perPage}
@@ -164,50 +202,50 @@ export default function VendorPage() {
 
         <div className="table-responsive">
           <table className="table custom-table align-middle mb-0">
-           <thead>
-  <tr>
-    <th
-      style={{
-        width: "70px",
-        textAlign: "center",
-        cursor: "pointer",
-        backgroundColor: "#2E3A59",
-        color: "white",
-      }}
-    >
-      S.No
-    </th>
-    {[
-      { label: "Vendor", field: "vendor" },
-      { label: "GST No", field: "gst_no" },
-      { label: "Email", field: "email" },
-      { label: "Mobile No", field: "mobile_no" },
-      { label: "Status", field: "status" },
-    ].map(({ label, field }) => (
-      <th
-        key={field}
-        onClick={() => handleSort(field)}
-        style={{
-          cursor: "pointer",
-          backgroundColor: "#2E3A59",
-          color: "white",
-        }}
-      >
-        {label} {sortField === field && (sortDirection === "asc" ? "▲" : "▼")}
-      </th>
-    ))}
-    <th
-      style={{
-        textAlign: "center",
-        cursor: "pointer",
-        backgroundColor: "#2E3A59",
-        color: "white",
-      }}
-    >
-      Action
-    </th>
-  </tr>
-</thead>
+            <thead>
+              <tr>
+                <th
+                  style={{
+                    width: "70px",
+                    textAlign: "center",
+                    cursor: "pointer",
+                    backgroundColor: "#2E3A59",
+                    color: "white",
+                  }}
+                >
+                  S.No
+                </th>
+                {[
+                  { label: "Vendor", field: "vendor" },
+                  { label: "GST No", field: "gst_no" },
+                  { label: "Email", field: "email" },
+                  { label: "Mobile No", field: "mobile_no" },
+                  { label: "Status", field: "status" },
+                ].map(({ label, field }) => (
+                  <th
+                    key={field}
+                    onClick={() => handleSort(field)}
+                    style={{
+                      cursor: "pointer",
+                      backgroundColor: "#2E3A59",
+                      color: "white",
+                    }}
+                  >
+                    {label} {sortField === field && (sortDirection === "asc" ? "▲" : "▼")}
+                  </th>
+                ))}
+                <th
+                  style={{
+                    textAlign: "center",
+                    cursor: "pointer",
+                    backgroundColor: "#2E3A59",
+                    color: "white",
+                  }}
+                >
+                  Action
+                </th>
+              </tr>
+            </thead>
 
             <tbody>
               {loading ? (
@@ -233,10 +271,8 @@ export default function VendorPage() {
                     <td>{vendor.vendor || "N/A"}</td>
                     <td>{vendor.gst_no || "N/A"}</td>
                     <td>{vendor.email || "N/A"}</td>
-                    <td>{vendor.mobile_no || "N/A"}</td>
-                    
-                    {/* <td>{vendor.status}</td> */}
-                           <td>
+                    <td>{formatMobileNumber(vendor.mobile_no, "IN")}</td>
+                    <td>
                       <span
                         className={`badge ${vendor.status === "Active" ? "bg-success" : "bg-danger"
                           }`}
@@ -246,16 +282,11 @@ export default function VendorPage() {
                     </td>
                     <td className="text-center">
                       <ActionButton
-                           onEdit={() => navigate(`/vendor/edit/${vendor.id}`)}
+                        onEdit={() => navigate(`/vendor/edit/${vendor.id}`)}
                         onDelete={() => handleDelete(vendor.id)}
-             onView={() => navigate(`/vendors/view/${vendor.id}`)}  
+                        onView={() => navigate(`/vendors/view/${vendor.id}`)}
                       />
                     </td>
-{/* 
-                    <td className="text-center">
-  <ViewButton onClick={() => handleView(vendor.id)} />
-</td> */}
-
                   </tr>
                 ))
               )}

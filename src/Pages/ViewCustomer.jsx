@@ -5,6 +5,8 @@ import axios from "axios";
 import { toast } from "react-toastify";
 import BreadCrumb from "../components/BreadCrumb";
 import { API_BASE_URL } from "../api";
+import { parsePhoneNumberFromString } from "libphonenumber-js";
+import metadata from "libphonenumber-js/metadata.full.json";
 
 export default function ViewCustomerPage() {
   const { id } = useParams();
@@ -12,25 +14,35 @@ export default function ViewCustomerPage() {
   const [customer, setCustomer] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const formatMobileNumber = (number, defaultCountry = "IN") => {
+    if (!number) return "-";
+    try {
+      const phone = parsePhoneNumberFromString(number, metadata);
+      if (!phone) return number;
+      return `+${phone.countryCallingCode} ${phone.nationalNumber}`;
+    } catch {
+      return number;
+    }
+  };
+
   useEffect(() => {
     const fetchCustomer = async () => {
       setLoading(true);
-    try {
-  const res = await axios.get(`${API_BASE_URL}/customers/${id}`);
-  if (res.data && res.data.status === "success") {
-    setCustomer(res.data.customer); // <-- only the customer object
-  } else {
-    toast.error("Customer not found");
-    navigate("/customers");
-  }
-} catch (err) {
-  console.error(err);
-  toast.error("Error fetching customer");
-  navigate("/customers");
-} finally {
-  setLoading(false);
-}
-
+      try {
+        const res = await axios.get(`${API_BASE_URL}/customers/${id}`);
+        if (res.data && res.data.status === "success") {
+          setCustomer(res.data.customer);
+        } else {
+          toast.error("Customer not found");
+          navigate("/customers");
+        }
+      } catch (err) {
+        console.error(err);
+        toast.error("Error fetching customer");
+        navigate("/customers");
+      } finally {
+        setLoading(false);
+      }
     };
 
     fetchCustomer();
@@ -51,7 +63,13 @@ export default function ViewCustomerPage() {
       <BreadCrumb title="View Customer" />
 
       <Card className="border-0 shadow-sm rounded-3 p-4 mt-2 bg-white">
-        <h5 className="mb-4">Customer Details</h5>
+        {/* Header with Back button */}
+        <div className="d-flex justify-content-between align-items-center mb-4">
+          <h5 className="mb-0">Customer Details</h5>
+          <Button variant="outline-secondary" size="sm" onClick={() => navigate(-1)}>
+            ← Back
+          </Button>
+        </div>
 
         <Row className="mb-3">
           <Col md={4}><strong>Name:</strong> {customer.customer}</Col>
@@ -60,7 +78,9 @@ export default function ViewCustomerPage() {
         </Row>
 
         <Row className="mb-3">
-          <Col md={4}><strong>Mobile:</strong> {customer.mobile_no}</Col>
+          <Col md={4}>
+            <strong>Mobile:</strong> {formatMobileNumber(customer.mobile_no)}
+          </Col>
           <Col md={4}><strong>Pincode:</strong> {customer.pincode}</Col>
           <Col md={4}><strong>City:</strong> {customer.city}</Col>
         </Row>
@@ -82,12 +102,6 @@ export default function ViewCustomerPage() {
             <p>{customer.address}</p>
           </Col>
         </Row>
-
-        <div className="d-flex justify-content-end">
-          <Button variant="secondary" onClick={() => navigate(-1)}>
-            Back
-          </Button>
-        </div>
       </Card>
     </div>
   );

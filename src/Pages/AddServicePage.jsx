@@ -14,17 +14,15 @@ import "react-toastify/dist/ReactToastify.css";
 import { IoTrashOutline } from "react-icons/io5";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
-import { format, parse } from "date-fns";
 import { API_BASE_URL } from "../api";
-const AddServicePage = () => {
-const navigate = useNavigate();
-const [errors, setErrors] = useState({});
 
+const AddServicePage = () => {
+  const navigate = useNavigate();
+  const [errors, setErrors] = useState({});
   const [products, setProducts] = useState([]);
   const [serialNumbersByProduct, setSerialNumbersByProduct] = useState({});
-const [alreadySoldSerials, setAlreadySoldSerials] = useState([]);
-const MySwal = withReactContent(Swal);
-const [serviceDate, setServiceDate] = useState(null);
+  const [alreadySoldSerials, setAlreadySoldSerials] = useState([]);
+  const MySwal = withReactContent(Swal);
 
   const [formData, setFormData] = useState({
     challan_no: "",
@@ -32,14 +30,17 @@ const [serviceDate, setServiceDate] = useState(null);
     courier_name: "",
     from_place: "",
     to_place: "",
-    tester_name: "",
+    tracking_number: "",
     quantity: "",
     sent_date: "",
     received_date: "",
     remarks: "",
+    challan_1: null,
+    challan_2: null,
+    receipt_upload: null,
     items: [
       {
-        product: "",
+        product_id: "",
         vci_serial_no: "",
         warranty_status: "",
         testing_assigned_to: "",
@@ -48,23 +49,29 @@ const [serviceDate, setServiceDate] = useState(null);
         issue_found: "",
         action_taken: "",
         urgent: false,
+        upload_image: null,
       },
     ],
   });
+
+  // ✅ Validation
   const validate = () => {
     const newErrors = {};
 
-    // General fields
     if (!formData.challan_no) newErrors.challan_no = "Challan No is required";
     if (!formData.challan_date) newErrors.challan_date = "Challan Date is required";
-    if (!formData.from_place) newErrors.from_place = "From Place is required";
-    if (!formData.to_place) newErrors.to_place = "To Place is required";
+    if (!formData.from_place) newErrors.from_place = "From is required";
+    if (!formData.to_place) newErrors.to_place = "To is required";
     if (!formData.sent_date) newErrors.sent_date = "Send Date is required";
     if (!formData.received_date) newErrors.received_date = "Received Date is required";
+    if (!formData.quantity) {
+      newErrors.quantity = "Quantity is required";
+    } else if (isNaN(formData.quantity) || Number(formData.quantity) <= 0) {
+      newErrors.quantity = "Quantity must be positive";
+    }
 
-    // Items validation
     formData.items.forEach((item, index) => {
-      if (!item.product) newErrors[`product_${index}`] = "Product is required";
+      if (!item.product_id) newErrors[`product_id_${index}`] = "Product is required";
       if (!item.vci_serial_no) newErrors[`vci_serial_no_${index}`] = "Serial No is required";
     });
 
@@ -72,23 +79,21 @@ const [serviceDate, setServiceDate] = useState(null);
     return Object.keys(newErrors).length === 0;
   };
 
-  // Fetch products from API
+  // ✅ Fetch products and serials
   useEffect(() => {
-    // Fetch products
     const fetchProducts = async () => {
       try {
         const res = await axios.get(`${API_BASE_URL}/product`);
         setProducts(res.data);
-      } catch (error) {
+      } catch {
         toast.error("Failed to fetch products!");
       }
     };
-
     const fetchAlreadyAddedSerials = async () => {
       try {
         const res = await axios.get(`${API_BASE_URL}/get-serviceserials`);
         setAlreadySoldSerials(res.data || []);
-      } catch (error) {
+      } catch {
         setAlreadySoldSerials([]);
       }
     };
@@ -97,55 +102,57 @@ const [serviceDate, setServiceDate] = useState(null);
     fetchAlreadyAddedSerials();
   }, []);
 
-
-
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    const { name, value, files } = e.target;
+    if (files) {
+      setFormData((prev) => ({ ...prev, [name]: files[0] }));
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    }
+
+    setErrors((prev) => {
+      const newErrors = { ...prev };
+      delete newErrors[name];
+      return newErrors;
+    });
   };
 
   const handleItemChange = async (index, e) => {
-    const { name, value, type, checked } = e.target;
+    const { name, value, type, checked, files } = e.target;
     const items = [...formData.items];
+    items[index][name] = files ? files[0] : type === "checkbox" ? checked : value;
 
-    items[index][name] = type === "checkbox" ? checked : value;
     setFormData((prev) => ({ ...prev, items }));
 
-    if (name === "product" && value) {
-      try {
-        const res = await axios.get(`${API_BASE_URL}/sales/serials/${value}`);
-        const serials = res.data || [];
+   if (name === "product_id" && value) {
+  try {
+    const res = await axios.get(`${API_BASE_URL}/sales/serials/${value}`);
+    const serials = res.data || [];
 
-        // Filter out serials that are already added in services
-        const filteredSerials = serials.filter(
-          (s) => !alreadySoldSerials.includes(s.serial_no)
-        );
+    const filteredSerials = serials.filter(
+      (s) => !alreadySoldSerials.includes(s.serial_no)
+    );
 
-        setSerialNumbersByProduct((prev) => ({
-          ...prev,
-          [value]: filteredSerials,
-        }));
+    setSerialNumbersByProduct((prev) => ({
+      ...prev,
+      [value]: filteredSerials,
+    }));
 
-        // Reset selected serial for this row
-        items[index].vci_serial_no = "";
-        setFormData((prev) => ({ ...prev, items }));
-      } catch (error) {
-        console.error("Failed to fetch serials:", error);
-        toast.error("Failed to fetch serial numbers!");
-      }
-    }
-  };
-
-
-
-  // add new row
+    items[index].vci_serial_no = "";
+    setFormData((prev) => ({ ...prev, items }));
+  } catch (error) {
+    console.error("Failed to fetch serials:", error);
+    toast.error("Failed to fetch serial numbers!");
+  }
+}
+  }
   const addRow = () => {
     setFormData((prev) => ({
       ...prev,
       items: [
         ...prev.items,
         {
-          product: "",
+          product_id: "",
           vci_serial_no: "",
           warranty_status: "",
           testing_assigned_to: "",
@@ -154,13 +161,14 @@ const [serviceDate, setServiceDate] = useState(null);
           issue_found: "",
           action_taken: "",
           urgent: false,
+          upload_image: null,
         },
       ],
     }));
   };
 
-  // remove row
-  const removeRow = async (index) => {
+  // ✅ Remove row
+  const removeRow = (index) => {
     MySwal.fire({
       title: "Are you sure?",
       text: "You won't be able to revert this!",
@@ -169,37 +177,67 @@ const [serviceDate, setServiceDate] = useState(null);
       confirmButtonColor: "#d33",
       cancelButtonColor: "#2FA64F",
       confirmButtonText: "Yes, delete it!",
-    }).then(async (result) => {
+    }).then((result) => {
       if (result.isConfirmed) {
-        try {
-          const items = [...formData.items];
-          items.splice(index, 1);
-          setFormData((prev) => ({ ...prev, items }));
-          toast.success("Row deleted successfully!");
-        } catch {
-          toast.error("Failed to delete row!");
-        }
+        const items = [...formData.items];
+        items.splice(index, 1);
+        setFormData((prev) => ({ ...prev, items }));
+        toast.success("Row deleted successfully!");
       }
     });
   };
 
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  if (!validate()) return;
 
-  // submit form
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!validate()) return; // stop submission if validation fails
+  const payload = new FormData();
 
-    try {
-      await axios.post(`${API_BASE_URL}/service-vci`, formData);
-      toast.success("Service added successfully!");
-      navigate("/service-Product");
-    } catch (error) {
+  // Top-level fields
+  for (const key in formData) {
+    if (key === "items") continue; // handle later
+
+    // If file, append file object
+    if (formData[key] instanceof File) {
+      payload.append(key, formData[key]);
+    } else {
+      payload.append(key, formData[key] || "");
+    }
+  }
+
+  // Items
+  formData.items.forEach((item, index) => {
+    for (const field in item) {
+      if (item[field] instanceof File) {
+        payload.append(`items[${index}][${field}]`, item[field]);
+      } else {
+        payload.append(`items[${index}][${field}]`, item[field] || "");
+      }
+    }
+  });
+
+  try {
+    await axios.post(`${API_BASE_URL}/service-vci`, payload, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    toast.success("Service added successfully!");
+    navigate("/service-product");
+  } catch (error) {
+    console.error(error);
+    if (error.response?.data?.errors) {
+      setErrors(error.response.data.errors);
+      toast.error("Validation errors occurred!");
+    } else {
       toast.error("Failed to add service!");
     }
-  };
+  }
+};
+
+
   const RequiredLabel = ({ children }) => (
     <Form.Label>
-      {children}<span style={{ color: "red" }}> *</span>
+      {children}
+      <span style={{ color: "red" }}> *</span>
     </Form.Label>
   );
 
@@ -220,9 +258,10 @@ const [serviceDate, setServiceDate] = useState(null);
           </Button>
         </Col>
       </Row>
-      <Form onSubmit={handleSubmit}>
+
+      <Form onSubmit={handleSubmit} encType="multipart/form-data">
         {/* Row 1 */}
-        <Row className="mb-3 ">
+        <Row className="mb-3">
           <Col md={4}>
             <Form.Group>
               <RequiredLabel>Challan No</RequiredLabel>
@@ -233,9 +272,12 @@ const [serviceDate, setServiceDate] = useState(null);
                 onChange={handleChange}
                 isInvalid={!!errors.challan_no}
               />
-              <Form.Control.Feedback type="invalid">{errors.challan_no}</Form.Control.Feedback>
+              <Form.Control.Feedback type="invalid">
+                {errors.challan_no}
+              </Form.Control.Feedback>
             </Form.Group>
           </Col>
+
           <Col md={4}>
             <Form.Group>
               <RequiredLabel>Challan Date</RequiredLabel>
@@ -246,9 +288,12 @@ const [serviceDate, setServiceDate] = useState(null);
                 onChange={handleChange}
                 isInvalid={!!errors.challan_date}
               />
-              <Form.Control.Feedback type="invalid">{errors.challan_date}</Form.Control.Feedback>
+              <Form.Control.Feedback type="invalid">
+                {errors.challan_date}
+              </Form.Control.Feedback>
             </Form.Group>
           </Col>
+
           <Col md={4}>
             <Form.Group>
               <Form.Label>Courier Name</Form.Label>
@@ -265,100 +310,109 @@ const [serviceDate, setServiceDate] = useState(null);
         {/* Row 2 */}
         <Row className="mb-3">
           <Col md={4}>
-            <Form.Group>
-              <RequiredLabel>From Place</RequiredLabel>
-              <Form.Control
-                type="text"
-                name="from_place"
-                value={formData.from_place}
-                onChange={handleChange}
-                isInvalid={!!errors.from_place}
-              />
-              <Form.Control.Feedback type="invalid">{errors.from_place}</Form.Control.Feedback>
-            </Form.Group>
+            <RequiredLabel>From</RequiredLabel>
+            <Form.Control
+              type="text"
+              name="from_place"
+              value={formData.from_place}
+              onChange={handleChange}
+              isInvalid={!!errors.from_place}
+            />
+            <Form.Control.Feedback type="invalid">
+              {errors.from_place}
+            </Form.Control.Feedback>
           </Col>
+
+          <Col md={4}>
+            <RequiredLabel>To</RequiredLabel>
+            <Form.Control
+              type="text"
+              name="to_place"
+              value={formData.to_place}
+              onChange={handleChange}
+              isInvalid={!!errors.to_place}
+            />
+            <Form.Control.Feedback type="invalid">
+              {errors.to_place}
+            </Form.Control.Feedback>
+          </Col>
+
           <Col md={4}>
             <Form.Group>
-              <RequiredLabel>To Place</RequiredLabel>
+              <Form.Label>Tracking Number</Form.Label>
               <Form.Control
                 type="text"
-                name="to_place"
-                value={formData.to_place}
+                name="tracking_number"
+                value={formData.tracking_number}
                 onChange={handleChange}
-                isInvalid={!!errors.to_place}
               />
-              <Form.Control.Feedback type="invalid">{errors.to_place}</Form.Control.Feedback>
             </Form.Group>
           </Col>
-          {/* <Col md={4}>
-            <Form.Group>
-              <Form.Label>Tester Name</Form.Label>
-              <Form.Control
-                as="select"
-                name="tester_name"
-                value={formData.tester_name}
-                onChange={handleChange}
-              >
-                <option value="">Select Tester</option>
-                <option value="tester1">Tester 1</option>
-                <option value="tester2">Tester 2</option>
-              </Form.Control>
-            </Form.Group>
-          </Col> */}
         </Row>
 
         {/* Row 3 */}
         <Row className="mb-3">
           <Col md={4}>
-            <Form.Group>
-              <Form.Label>Quantity</Form.Label>
-              <Form.Control
-                type="text"
-                name="quantity"
-                value={formData.quantity}
-                onChange={handleChange}
-              />
-            </Form.Group>
+            <RequiredLabel>Quantity</RequiredLabel>
+            <Form.Control
+              type="number"
+              name="quantity"
+              value={formData.quantity}
+              onChange={handleChange}
+              isInvalid={!!errors.quantity}
+            />
+            <Form.Control.Feedback type="invalid">
+              {errors.quantity}
+            </Form.Control.Feedback>
           </Col>
           <Col md={4}>
-            <Form.Group>
-              <RequiredLabel>Send Date</RequiredLabel>
-              <Form.Control
-                type="date"
-                name="sent_date"
-                value={formData.sent_date}
-                onChange={handleChange}
-              />
-            </Form.Group>
+            <RequiredLabel>Send Date</RequiredLabel>
+            <Form.Control
+              type="date"
+              name="sent_date"
+              value={formData.sent_date}
+              onChange={handleChange}
+            />
           </Col>
           <Col md={4}>
-            <Form.Group>
-              <RequiredLabel>Received Date</RequiredLabel>
-              <Form.Control
-                type="date"
-                name="received_date"
-                value={formData.received_date}
-                onChange={handleChange}
-                isInvalid={!!errors.received_date}
-              />
-              <Form.Control.Feedback type="invalid">{errors.received_date}</Form.Control.Feedback>
-            </Form.Group>
+            <RequiredLabel>Received Date</RequiredLabel>
+            <Form.Control
+              type="date"
+              name="received_date"
+              value={formData.received_date}
+              onChange={handleChange}
+              isInvalid={!!errors.received_date}
+            />
+          </Col>
+        </Row>
+
+        {/* Uploads */}
+        <Row className="mb-3">
+          <Col md={4}>
+            <Form.Label>Challan 1 Upload</Form.Label>
+            <Form.Control type="file" name="challan_1" onChange={handleChange} />
+          </Col>
+          <Col md={4}>
+            <Form.Label>Challan 2 Upload</Form.Label>
+            <Form.Control type="file" name="challan_2" onChange={handleChange} />
+          </Col>
+          <Col md={4}>
+            <Form.Label>Receipt Upload</Form.Label>
+            <Form.Control type="file" name="receipt_upload" onChange={handleChange} />
           </Col>
         </Row>
 
         {/* Remarks */}
         <Row className="mb-3">
-          <Col md={12}>
-            <Form.Group>
-              <Form.Label>Remarks</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={3}
-                name="remarks"
-                value={formData.remarks}
-                onChange={handleChange}
-              />
-            </Form.Group>
+          <Col>
+            <Form.Label>Remarks</Form.Label>
+            <Form.Control
+              as="textarea"
+              rows={3}
+              name="remarks"
+              value={formData.remarks}
+              onChange={handleChange}
+            />
           </Col>
         </Row>
 
@@ -374,7 +428,7 @@ const [serviceDate, setServiceDate] = useState(null);
               <th>Tested Date</th>
               <th>Test Status</th>
               <th>Issue Found</th>
-              <th>Action Taken</th>
+              <th>Upload Image</th>
               <th>Urgent</th>
               <th>Action</th>
             </tr>
@@ -385,10 +439,10 @@ const [serviceDate, setServiceDate] = useState(null);
                 <td>
                   <Form.Control
                     as="select"
-                    name="product"
-                    value={item.product}
+                    name="product_id" // ← changed
+                    value={item.product_id}
                     onChange={(e) => handleItemChange(index, e)}
-                    isInvalid={!!errors[`product_${index}`]}
+                    isInvalid={!!errors[`product_id_${index}`]}
                   >
                     <option value="">Select Product</option>
                     {products.map((p) => (
@@ -398,7 +452,7 @@ const [serviceDate, setServiceDate] = useState(null);
                     ))}
                   </Form.Control>
                   <Form.Control.Feedback type="invalid">
-                    {errors[`product_${index}`]} {/* show error message */}
+                    {errors[`product_id_${index}`]}
                   </Form.Control.Feedback>
                 </td>
                 <td>
@@ -407,35 +461,31 @@ const [serviceDate, setServiceDate] = useState(null);
                     name="vci_serial_no"
                     value={item.vci_serial_no || ""}
                     onChange={(e) => handleItemChange(index, e)}
-                    isInvalid={!!errors[`vci_serial_no_${index}`]} // ✅ must be a prop
+                    isInvalid={!!errors[`vci_serial_no_${index}`]}
                   >
                     <option value="">Select Serial No</option>
-                    {(serialNumbersByProduct[item.product] || []).map((s) => (
+                    {(serialNumbersByProduct[item.product_id] || []).map((s) => (
                       <option key={s.id || s.serial_no} value={s.serial_no}>
                         {s.serial_no}
                       </option>
                     ))}
                   </Form.Control>
                   <Form.Control.Feedback type="invalid">
-                    {errors[`vci_serial_no_${index}`]} {/* show error message */}
+                    {errors[`vci_serial_no_${index}`]}
                   </Form.Control.Feedback>
-
                 </td>
+
                 <td>
                   <Form.Control
                     as="select"
                     name="warranty_status"
-                    value={item.warranty_status || item.status}
+                    value={item.warranty_status}
                     onChange={(e) => handleItemChange(index, e)}
-                    isInvalid={!!errors[`warranty_status_${index}`]} // ✅ must be a prop
                   >
                     <option value="">Select</option>
                     <option value="active">Active</option>
-                    <option value="in_active">In Active</option>
+                    <option value="inactive">Inactive</option>
                   </Form.Control>
-                  <Form.Control.Feedback type="invalid">
-                    {errors[`warranty_status_${index}`]} {/* show error message */}
-                  </Form.Control.Feedback>
                 </td>
                 <td>
                   <Form.Control
@@ -446,45 +496,12 @@ const [serviceDate, setServiceDate] = useState(null);
                   />
                 </td>
                 <td>
-                  {/* <DatePicker
-                    selected={
-                      item.tested_date
-                        ? parse(item.tested_date, "dd-MM-yyyy", new Date())
-                        : null
-                    }
-                    onChange={(date) => {
-                      const formattedDate = date ? format(date, "dd-MM-yyyy") : "";
-                      handleItemChange(index, {
-                        target: { name: "tested_date", value: formattedDate },
-                      });
-                    }}
-                    dateFormat="dd-MM-yyyy"
-                    placeholderText="DD-MM-YYYY"
-                    className="form-control"
-                    onChangeRaw={(e) => {
-                      let value = e.target.value;
-
-                      // Remove non-numeric/dash characters
-                      value = value.replace(/[^0-9-]/g, "");
-
-                      // Auto-insert dash after day and month
-                      if (value.length === 2 && !value.includes("-")) value = value + "-";
-                      if (value.length === 5 && value.split("-").length < 3) value = value + "-";
-
-                      // Split into parts
-                      const parts = value.split("-");
-                      // Limit year to 4 digits
-                      if (parts[2] && parts[2].length > 4) parts[2] = parts[2].slice(0, 4);
-
-                      // Recombine and limit total length
-                      value = parts.filter(Boolean).join("-");
-                      if (value.length > 10) value = value.slice(0, 10);
-
-                      // Update state
-                      handleItemChange(index, { target: { name: "tested_date", value } });
-                    }}
-                  /> */}
-
+                  <Form.Control
+                    type="date"
+                    name="tested_date"
+                    value={item.tested_date}
+                    onChange={(e) => handleItemChange(index, e)}
+                  />
                 </td>
                 <td>
                   <Form.Control
@@ -509,9 +526,8 @@ const [serviceDate, setServiceDate] = useState(null);
                 </td>
                 <td>
                   <Form.Control
-                    type="text"
-                    name="action_taken"
-                    value={item.action_taken}
+                    type="file"
+                    name="upload_image"
                     onChange={(e) => handleItemChange(index, e)}
                   />
                 </td>
@@ -531,14 +547,17 @@ const [serviceDate, setServiceDate] = useState(null);
                   >
                     <IoTrashOutline />
                   </Button>
-
                 </td>
               </tr>
             ))}
           </tbody>
         </Table>
 
-        <Button variant="success" onClick={addRow} disabled={formData.quantity <= formData.items.length}>
+        <Button
+          variant="success"
+          onClick={addRow}
+          disabled={formData.quantity <= formData.items.length}
+        >
           + Add Row
         </Button>
 

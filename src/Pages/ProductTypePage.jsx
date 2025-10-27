@@ -132,20 +132,28 @@ export default function ProductTypePage() {
         );
         if (res.status === 200) {
           toast.success("Product type updated successfully!");
+
+          // Update in-place
+          setProductTypes((prev) =>
+            prev.map((p) => (p.id === editingTypeId ? { ...p, ...payload } : p))
+          );
         }
       } else {
         const res = await axios.post(`${API_BASE_URL}/product-types`, payload);
         if (res.status === 201) {
           toast.success("Product type added successfully!");
+
+          // Add new type at the end or start
+          const newType = { id: res.data.id, ...payload };
+          setProductTypes((prev) => [newType, ...prev]);
         }
       }
-      await fetchProductTypes();
+
       handleModalClose();
     } catch {
       toast.error("Failed to save product type!");
     }
   };
-
 
   const handleDelete = async (id) => {
     MySwal.fire({

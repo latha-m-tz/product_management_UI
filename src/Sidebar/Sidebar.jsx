@@ -8,7 +8,7 @@ export default function Sidebar({ collapsed }) {
   const location = useLocation(); // <-- get current path
 
   const menu = {
-    home: [{ link: "overview", title: "Overview", icon: ["/Overviiew_G.png", "/squares.png"] }],
+    // home: [{ link: "overview", title: "Overview", icon: ["/Overviiew_G.png", "/squares.png"] }],
     purchase: [
       { link: "vendor", title: "Vendor", icon: ["/VendorG.png", "/Vendor.png"] },
       { link: "spare-parts", title: "Spare Parts", icon: ["/Purchase Order.png", "/Purchase Order 1.png"] },
@@ -28,7 +28,11 @@ export default function Sidebar({ collapsed }) {
       { link: "customer", title: "Customer", icon: ["/CustomerG.png", "/Customer.png"] },
       { link: "sales-order", title: "Sales", icon: ["/Sale 1.png", "/Sale 1.png"] },
     ],
-    service: [{ link: "service-product", title: "Service Product", icon: ["/Service VCI.png", "/Service VCI.png"] }],
+   service: [
+  { link: "service-product", title: "Service Product", icon: ["/Service VCI.png", "/Service VCI.png"] },
+  { link: "service-items", title: "Service Items", icon: ["/Service VCI.png", "/Service VCI.png"] } // <-- new
+],
+
     tracking: [{ link: "tracking", title: "Tracking", icon: ["/track.png", "/track.png"] }],
   };
 
@@ -136,7 +140,7 @@ export default function Sidebar({ collapsed }) {
     `}
         </style>
 
-        {/* Home */}
+        {/* Home
         <div className="mb-1 sidebar-link-titles">{!collapsed && "Home"}</div>
         {menu.home.map((item) => (
           <a
@@ -152,7 +156,7 @@ export default function Sidebar({ collapsed }) {
             <img src={item.icon ? item.icon[1] : ""} alt={item.title} style={iconStyle} />
             {!collapsed && <span>{item.title}</span>}
           </a>
-        ))}
+        ))} */}
 
         {/* Purchase */}
         <div className="sidebar-link-titles">{!collapsed && "Purchase"}</div>

@@ -13,110 +13,140 @@ const EditService = () => {
 
   const [products, setProducts] = useState([]);
   const [serialNumbersByProduct, setSerialNumbersByProduct] = useState({});
+  const [alreadySoldSerials, setAlreadySoldSerials] = useState([]);
+
   const [formData, setFormData] = useState({
     challan_no: "",
     challan_date: "",
     courier_name: "",
     from_place: "",
     to_place: "",
-    tester_name: "",
+    tracking_number: "",
     quantity: "",
     sent_date: "",
     received_date: "",
     remarks: "",
+    challan_1: null,
+    challan_2: null,
+    receipt_upload: null,
     items: [
       {
-        product: "",
+        product_id: "",
         vci_serial_no: "",
         warranty_status: "",
         testing_assigned_to: "",
         tested_date: "",
         testing_status: "",
         issue_found: "",
+        action_taken: "",
+        urgent: false,
+        upload_image: null,
       },
     ],
   });
 
-  // Fetch products and service sequentially
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch products
+        // Fetch all products
         const productRes = await axios.get(`${API_BASE_URL}/product`);
-        const productList = productRes.data?.data || productRes.data || [];
-        setProducts(productList);
+        setProducts(productRes.data || []);
 
-        // Fetch service
+        // Fetch already sold serial numbers
+        const serialRes = await axios.get(`${API_BASE_URL}/get-serviceserials`);
+        const soldSerialNumbers = (serialRes.data || []).map((s) => s.serial_no);
+        setAlreadySoldSerials(soldSerialNumbers);
+
+        // Fetch existing service details
         const serviceRes = await axios.get(`${API_BASE_URL}/service-vci/${id}`);
-        if (serviceRes.data) {
-          const serviceData = serviceRes.data;
-          const items = serviceData.items?.map(item => ({
-            id: item.id,
-            vci_serial_no: item.vci_serial_no || "",
-            testing_assigned_to: item.testing_assigned_to || "",
-            tested_date: item.tested_date || "",
-            testing_status: item.testing_status || "",
-            issue_found: item.issue_found || "",
-            warranty_status: "",
-          })) || [];
+        const serviceData = serviceRes.data;
 
-          setFormData({
+        if (serviceData) {
+          // Prefill main form fields (preserve document URLs)
+          const topData = {
             challan_no: serviceData.challan_no || "",
             challan_date: serviceData.challan_date || "",
             courier_name: serviceData.courier_name || "",
             from_place: serviceData.from_place || "",
             to_place: serviceData.to_place || "",
-            tester_name: serviceData.tester_name || "",
+            tracking_number: serviceData.tracking_number || "",
             quantity: serviceData.quantity || "",
             sent_date: serviceData.sent_date || "",
             received_date: serviceData.received_date || "",
             remarks: serviceData.remarks || "",
-            items,
-          });
+            challan_1: serviceData.challan_1 || null,
+            challan_2: serviceData.challan_2 || null,
+            receipt_upload: serviceData.receipt_upload || null,
+          };
 
-          // Fetch serials for each item
+          // Prefill items
+          const items = (serviceData.items || []).map((item) => ({
+            id: item.id,
+            product_id: item.product_id || "",
+            vci_serial_no: item.vci_serial_no || "",
+            warranty_status: item.warranty_status || "",
+            testing_assigned_to: item.testing_assigned_to || "",
+            tested_date: item.tested_date || "",
+            testing_status: item.testing_status || "",
+            issue_found: item.issue_found || "",
+            action_taken: item.action_taken || "",
+            urgent: item.urgent || false,
+            upload_image: null,
+          }));
+
+          setFormData((prev) => ({ ...prev, ...topData, items }));
+
+          // Fetch serial numbers per product
+          const serialsObj = {};
           for (const item of items) {
-            if (item.product) {
-              const serialRes = await axios.get(`${API_BASE_URL}/sales/serials/${item.product}`);
-              const serials = serialRes.data?.data || serialRes.data || [];
-              setSerialNumbersByProduct(prev => ({
-                ...prev,
-                [item.product]: serials,
-              }));
+            if (item.product_id) {
+              const serialsRes = await axios.get(
+                `${API_BASE_URL}/sales/serials/${item.product_id}`
+              );
+              const serials = (serialsRes.data || []).filter(
+                (s) => !soldSerialNumbers.includes(s.serial_no)
+              );
+              serialsObj[item.product_id] = serials;
             }
           }
+          setSerialNumbersByProduct(serialsObj);
         }
       } catch (error) {
         console.error(error);
-        toast.error("Failed to fetch data!");
+        toast.error("Failed to fetch service data!");
       }
     };
+
     fetchData();
   }, [id]);
 
-  // Handle form field changes
+  // Handle top-level form fields
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const { name, value, files } = e.target;
+    if (files) {
+      setFormData((prev) => ({ ...prev, [name]: files[0] }));
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
-  // Handle item row changes
+  // Handle item changes
   const handleItemChange = async (index, e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked, files } = e.target;
     const items = [...formData.items];
-    items[index][name] = value;
-    setFormData(prev => ({ ...prev, items }));
+    items[index][name] = files ? files[0] : type === "checkbox" ? checked : value;
+    setFormData((prev) => ({ ...prev, items }));
 
-    if (name === "product" && value) {
+    if (name === "product_id" && value) {
       try {
         const res = await axios.get(`${API_BASE_URL}/sales/serials/${value}`);
-        const serials = res.data?.data || res.data || [];
-        setSerialNumbersByProduct(prev => ({
-          ...prev,
-          [value]: serials,
-        }));
+        const serials = (res.data || []).filter(
+          (s) => !alreadySoldSerials.includes(s.serial_no)
+        );
+        setSerialNumbersByProduct((prev) => ({ ...prev, [value]: serials }));
+
         items[index].vci_serial_no = "";
-        setFormData(prev => ({ ...prev, items }));
+        setFormData((prev) => ({ ...prev, items }));
       } catch (error) {
         toast.error("Failed to fetch serial numbers!");
       }
@@ -125,18 +155,21 @@ const EditService = () => {
 
   // Add new item row
   const addRow = () => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       items: [
         ...prev.items,
         {
-          product: "",
+          product_id: "",
           vci_serial_no: "",
           warranty_status: "",
           testing_assigned_to: "",
           tested_date: "",
           testing_status: "",
           issue_found: "",
+          action_taken: "",
+          urgent: false,
+          upload_image: null,
         },
       ],
     }));
@@ -146,14 +179,38 @@ const EditService = () => {
   const removeRow = (index) => {
     const items = [...formData.items];
     items.splice(index, 1);
-    setFormData(prev => ({ ...prev, items }));
+    setFormData((prev) => ({ ...prev, items }));
   };
 
   // Submit form
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.put(`${API_BASE_URL}/service-vci/${id}`, formData);
+      const payload = new FormData();
+
+      // Top-level fields
+      for (const key in formData) {
+        if (key === "items") {
+          formData.items.forEach((item, index) => {
+            for (const field in item) {
+              if (item[field] instanceof File) {
+                payload.append(`items[${index}][${field}]`, item[field]);
+              } else if (item[field] !== null && item[field] !== undefined) {
+                payload.append(`items[${index}][${field}]`, item[field]);
+              }
+            }
+          });
+        } else if (formData[key] instanceof File) {
+          payload.append(key, formData[key]);
+        } else if (formData[key] !== null && formData[key] !== undefined) {
+          payload.append(key, formData[key]);
+        }
+      }
+
+      await axios.put(`${API_BASE_URL}/service-vci/${id}`, payload, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
       toast.success("Service updated successfully!");
       navigate("/service-product");
     } catch (error) {
@@ -172,7 +229,6 @@ const EditService = () => {
           <Button
             variant="outline-secondary"
             size="sm"
-            className="me-2"
             onClick={() => navigate("/service-product")}
           >
             <i className="bi bi-arrow-left"></i> Back
@@ -180,8 +236,8 @@ const EditService = () => {
         </Col>
       </Row>
 
-      <Form onSubmit={handleSubmit}>
-        {/* Row 1 */}
+      <Form onSubmit={handleSubmit} encType="multipart/form-data">
+        {/* Top-level fields */}
         <Row className="mb-3">
           <Col md={4}>
             <Form.Group>
@@ -218,7 +274,6 @@ const EditService = () => {
           </Col>
         </Row>
 
-        {/* Row 2 */}
         <Row className="mb-3">
           <Col md={4}>
             <Form.Group>
@@ -244,22 +299,17 @@ const EditService = () => {
           </Col>
           <Col md={4}>
             <Form.Group>
-              <Form.Label>Tester Name</Form.Label>
+              <Form.Label>Tracking Number</Form.Label>
               <Form.Control
-                as="select"
-                name="tester_name"
-                value={formData.tester_name}
+                type="text"
+                name="tracking_number"
+                value={formData.tracking_number}
                 onChange={handleChange}
-              >
-                <option value="">Select Tester</option>
-                <option value="tester1">Tester 1</option>
-                <option value="tester2">Tester 2</option>
-              </Form.Control>
+              />
             </Form.Group>
           </Col>
         </Row>
 
-        {/* Row 3 */}
         <Row className="mb-3">
           <Col md={4}>
             <Form.Group>
@@ -296,7 +346,104 @@ const EditService = () => {
           </Col>
         </Row>
 
-        {/* Remarks */}
+        {/* File Uploads */}
+        <Row className="mb-3">
+          {/* Challan 1 */}
+          <Col md={4}>
+            <Form.Group controlId="challan_1">
+              <Form.Label>Challan 1</Form.Label>
+              <div className="input-group flex-row-reverse">
+                <Form.Control
+                  type="text"
+                  readOnly
+                  className="bg-white"
+                  value={
+                    formData.challan_1
+                      ? typeof formData.challan_1 === "string"
+                        ? formData.challan_1.split("/").pop()
+                        : formData.challan_1.name
+                      : "No file chosen"
+                  }
+                />
+                <div className="input-group-prepend">
+                  <label className="btn btn-outline-dark mb-0">
+                    Choose
+                    <Form.Control
+                      type="file"
+                      name="challan_1"
+                      onChange={handleChange}
+                      style={{ display: "none" }}
+                    />
+                  </label>
+                </div>
+              </div>
+            </Form.Group>
+          </Col>
+
+          {/* Challan 2 */}
+          <Col md={4}>
+            <Form.Group controlId="challan_2">
+              <Form.Label>Challan 2</Form.Label>
+              <div className="input-group flex-row-reverse">
+                <Form.Control
+                  type="text"
+                  readOnly
+                  className="bg-white"
+                  value={
+                    formData.challan_2
+                      ? typeof formData.challan_2 === "string"
+                        ? formData.challan_2.split("/").pop()
+                        : formData.challan_2.name
+                      : "No file chosen"
+                  }
+                />
+                <div className="input-group-prepend">
+                  <label className="btn btn-outline-dark mb-0">
+                    Choose
+                    <Form.Control
+                      type="file"
+                      name="challan_2"
+                      onChange={handleChange}
+                      style={{ display: "none" }}
+                    />
+                  </label>
+                </div>
+              </div>
+            </Form.Group>
+          </Col>
+
+          {/* Receipt Upload */}
+          <Col md={4}>
+            <Form.Group controlId="receipt_upload">
+              <Form.Label>Receipt Upload</Form.Label>
+              <div className="input-group flex-row-reverse">
+                <Form.Control
+                  type="text"
+                  readOnly
+                  className="bg-white"
+                  value={
+                    formData.receipt_upload
+                      ? typeof formData.receipt_upload === "string"
+                        ? formData.receipt_upload.split("/").pop()
+                        : formData.receipt_upload.name
+                      : "No file chosen"
+                  }
+                />
+                <div className="input-group-prepend">
+                  <label className="btn btn-outline-dark mb-0">
+                    Choose
+                    <Form.Control
+                      type="file"
+                      name="receipt_upload"
+                      onChange={handleChange}
+                      style={{ display: "none" }}
+                    />
+                  </label>
+                </div>
+              </div>
+            </Form.Group>
+          </Col>
+        </Row>
         <Row className="mb-3">
           <Col md={12}>
             <Form.Group>
@@ -312,7 +459,7 @@ const EditService = () => {
           </Col>
         </Row>
 
-        {/* Service Items Table */}
+        {/* Items Table */}
         <h5 className="mt-4">Service Items</h5>
         <Table bordered responsive>
           <thead>
@@ -324,6 +471,8 @@ const EditService = () => {
               <th>Tested Date</th>
               <th>Test Status</th>
               <th>Issue Found</th>
+              <th>Urgent</th>
+              <th>Upload Image</th>
               <th>Action</th>
             </tr>
           </thead>
@@ -333,26 +482,33 @@ const EditService = () => {
                 <td>
                   <Form.Control
                     as="select"
-                    name="product"
-                    value={item.product?.toString() || ""}
+                    name="product_id"
+                    value={item.product_id || ""}
                     onChange={(e) => handleItemChange(index, e)}
                   >
                     <option value="">Select Product</option>
-                    {products.map(p => (
-                      <option key={p.id} value={p.id.toString()}>{p.name}</option>
+                    {products.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
                     ))}
                   </Form.Control>
-
                 </td>
                 <td>
                   <Form.Control
-                    type="text"
+                    as="select"
                     name="vci_serial_no"
                     value={item.vci_serial_no || ""}
-                    readOnly
-                  />
+                    onChange={(e) => handleItemChange(index, e)}
+                  >
+                    <option value="">Select Serial No</option>
+                    {(serialNumbersByProduct[item.product_id] || []).map((s) => (
+                      <option key={s.serial_no || s} value={s.serial_no || s}>
+                        {s.serial_no || s}
+                      </option>
+                    ))}
+                  </Form.Control>
                 </td>
-
                 <td>
                   <Form.Control
                     as="select"
@@ -390,8 +546,8 @@ const EditService = () => {
                   >
                     <option value="">Select</option>
                     <option value="pending">Pending</option>
-                    <option value="passed">Passed</option>
-                    <option value="failed">Failed</option>
+                    <option value="pass">Pass</option>
+                    <option value="fail">Fail</option>
                   </Form.Control>
                 </td>
                 <td>
@@ -402,9 +558,24 @@ const EditService = () => {
                     onChange={(e) => handleItemChange(index, e)}
                   />
                 </td>
+                <td className="text-center">
+                  <Form.Check
+                    type="checkbox"
+                    name="urgent"
+                    checked={item.urgent || false}
+                    onChange={(e) => handleItemChange(index, e)}
+                  />
+                </td>
                 <td>
+                  <Form.Control
+                    type="file"
+                    name="upload_image"
+                    onChange={(e) => handleItemChange(index, e)}
+                  />
+                </td>
+                <td className="text-center">
                   <Button
-                    variant="outline-danger"
+                    variant="danger"
                     size="sm"
                     onClick={() => removeRow(index)}
                   >
@@ -417,17 +588,16 @@ const EditService = () => {
         </Table>
 
         <Button variant="success" onClick={addRow}>
-          + Add Row
+          Add Item
         </Button>
 
-        <div className="mt-4 d-flex justify-content-end">
-          <Button variant="secondary" className="me-2" onClick={() => navigate("/service-product")}>
-            Cancel
-          </Button>
-          <Button type="submit" variant="success">
-            Update
-          </Button>
-        </div>
+        <Row className="mt-4">
+          <Col className="text-end">
+            <Button type="submit" variant="success">
+              Update Service
+            </Button>
+          </Col>
+        </Row>
       </Form>
     </Container>
   );

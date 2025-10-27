@@ -7,10 +7,11 @@ import "bootstrap-icons/font/bootstrap-icons.css";
 import { toast } from "react-toastify";
 import { API_BASE_URL } from "../api";
 import "react-toastify/dist/ReactToastify.css";
-import { parsePhoneNumberFromString, isValidPhoneNumber } from "libphonenumber-js";
 import { useNavigate } from "react-router-dom";
 import CountrySelect from "../components/CountrySelect";
 import CountryPhoneInput from "../components/CountryPhoneInput";
+// FIX: Ensure both parsing functions are imported
+import { parsePhoneNumberFromString, parsePhoneNumber } from "libphonenumber-js";
 
 export default function AddCustomer() {
   const [customer, setCustomer] = useState({
@@ -36,7 +37,8 @@ export default function AddCustomer() {
       .then((res) => res.json())
       .then((data) => {
         if (data && data.country_calling_code) {
-          setCountryCode(data.country_calling_code); // e.g. "+91"
+          // data.country_calling_code is typically something like "+91"
+          setCountryCode(data.country_calling_code);
         }
       })
       .catch(() => setCountryCode(""));
@@ -45,24 +47,25 @@ export default function AddCustomer() {
   const validateCustomer = () => {
     const errs = {};
 
-    // Required fields
     if (!customer.customer.trim()) errs.customer = "Customer Name is required";
-
-    if (customer.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email)) {
-      errs.email = "Invalid email format";
-    }
-
-
-
     if (!customer.pincode.trim()) errs.pincode = "Pincode is required";
     else if (!/^\d{6}$/.test(customer.pincode)) errs.pincode = "Pincode must be 6 digits";
-
     if (!customer.city.trim()) errs.city = "City is required";
     if (!customer.district.trim()) errs.district = "District is required";
     if (!customer.state.trim()) errs.state = "State is required";
     if (!customer.address.trim()) errs.address = "Address is required";
-
     if (!customer.status) errs.status = "Status is required";
+
+    // FIX: Simplified and corrected mobile validation logic
+    if (!customer.mobile_no.trim()) {
+      errs.mobile_no = "Mobile number is required";
+    } else {
+      const phoneNumber = parsePhoneNumberFromString(customer.mobile_no);
+      // Check if it's parsable and valid
+      if (!phoneNumber || !phoneNumber.isValid()) {
+        errs.mobile_no = "Invalid mobile number";
+      }
+    }
 
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -73,65 +76,54 @@ export default function AddCustomer() {
     setCustomer((prev) => ({ ...prev, [name]: value }));
 
     if (name === "gst_no") {
-      if (value.length > 15) {
-        setErrors((prev) => ({ ...prev, gst_no: "GST No must be 15 characters" }));
-      } else {
-        setErrors((prev) => ({ ...prev, gst_no: "" }));
-      }
+      // Note: The GST validation is done inline in the render section for better live feedback
     }
 
     if (name === "pincode" && value.length === 6) {
       fetchPincodeDetails(value);
     }
 
+    // FIX: Modified email handling. Removed "Email is required" as it doesn't have an asterisk.
     if (name === "email") {
-      const emailValue = value.trim(); // remove leading/trailing spaces
-
-      // Regex: no spaces, valid email format
+      const emailValue = value.trim();
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-      if (!emailValue) {
-        setErrors((prev) => ({ ...prev, email: "Email is required" }));
-      } else if (!emailRegex.test(emailValue)) {
+      // Only validate format if a value is present
+      if (emailValue && !emailRegex.test(emailValue)) {
         setErrors((prev) => ({ ...prev, email: "Invalid email format" }));
       } else {
         setErrors((prev) => ({ ...prev, email: "" }));
       }
-
-      setCustomer((prev) => ({ ...prev, email: emailValue }));
     }
-    if (errors[name]) {
+    
+    // Clear the error for the changed field if it exists, to allow re-validation
+    if (errors[name] && name !== 'email') { 
       setErrors((prev) => ({ ...prev, [name]: "" }));
     }
   };
 
   const handleMobileChange = (inputNumber) => {
-    let formattedNumber = inputNumber || "";
+    // This is the value provided by the react-phone-number-input component (usually in E.164 format)
+    setCustomer(prev => ({ ...prev, mobile_no: inputNumber || "" }));
 
-    // Auto-add +91 for 10-digit numbers without country code
-    if (formattedNumber && !formattedNumber.startsWith("+") && /^[6-9]\d{9}$/.test(formattedNumber)) {
-      formattedNumber = "+91" + formattedNumber;
-    }
-
-    setCustomer((prev) => ({ ...prev, mobile_no: formattedNumber }));
-
-    // Validation
-    if (!formattedNumber) {
-      setErrors((prev) => ({ ...prev, mobile_no: "Mobile number is required" }));
+    if (!inputNumber) {
+      setErrors(prev => ({ ...prev, mobile_no: "Mobile number is required" }));
       return;
     }
 
+    // FIX: Use the parsePhoneNumber function you imported (which uses the default country code if available)
     try {
-      if (!isValidPhoneNumber(formattedNumber)) {
-        setErrors((prev) => ({ ...prev, mobile_no: "Invalid mobile number for selected country" }));
+      // inputNumber is already E.164 (starts with +) if a country was selected
+      const phoneNumber = parsePhoneNumber(inputNumber);
+      if (phoneNumber && phoneNumber.isValid()) {
+        setErrors(prev => ({ ...prev, mobile_no: "" }));
       } else {
-        setErrors((prev) => ({ ...prev, mobile_no: "" }));
+        setErrors(prev => ({ ...prev, mobile_no: "Invalid mobile number" }));
       }
-    } catch (err) {
-      setErrors((prev) => ({ ...prev, mobile_no: "Invalid mobile number" }));
+    } catch {
+      setErrors(prev => ({ ...prev, mobile_no: "Invalid mobile number" }));
     }
   };
-
 
   const fetchPincodeDetails = async (pincode) => {
     try {
@@ -178,7 +170,11 @@ export default function AddCustomer() {
   };
 
   const saveCustomer = async () => {
-    if (!validateCustomer()) return;
+    if (!validateCustomer()) {
+      // Show error toast if validation fails
+      toast.error("Please correct the errors in the form before saving.");
+      return;
+    }
 
     try {
       const response = await fetch(`${API_BASE_URL}/customers`, {
@@ -199,7 +195,7 @@ export default function AddCustomer() {
         } else {
           toast.error("Error saving customer!");
         }
-        console.error(data);
+        console.error("Server Error:", data);
         return;
       }
 
@@ -207,13 +203,13 @@ export default function AddCustomer() {
       navigate("/customer");
       console.log(data);
     } catch (err) {
-      console.error(err);
-      toast.error("Error saving customer!");
+      console.error("Network or Unexpected Error:", err);
+      toast.error("Error saving customer! Check network connection or server status.");
     }
   };
 
   const feedbackStyle = { color: "red", fontSize: "0.85rem", marginTop: "4px" };
-  // ✅ GST regex
+  // GST regex is only needed for the inline validation logic
   const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
 
 
@@ -221,7 +217,7 @@ export default function AddCustomer() {
     <div className="container-fluid p-4" style={{ background: "white", minHeight: "100vh" }}>
       <Row className="align-items-center mb-3 fixed-header">
         <Col>
-          <h4>Add  customer</h4>
+          <h4>Add  customer</h4>
         </Col>
         <Col className="text-end">
           <Button
@@ -263,21 +259,20 @@ export default function AddCustomer() {
                 onChange={(e) => {
                   let value = e.target.value.toUpperCase();
 
-                  // Block typing beyond 25 characters
+                  // Block typing beyond 15 characters
                   if (value.length > 15) value = value.slice(0, 15);
 
                   setCustomer({ ...customer, gst_no: value });
 
-                  if (!value.trim()) {
-                    setErrors((prev) => ({ ...prev, gst_no: "GST No is required" }));
-                  } else if (!gstRegex.test(value)) {
+                  // Live validation for GST No (optional field)
+                  if (value.trim() && !gstRegex.test(value)) {
                     setErrors((prev) => ({ ...prev, gst_no: "Invalid GST No format" }));
                   } else {
                     setErrors((prev) => ({ ...prev, gst_no: "" }));
                   }
                 }}
                 placeholder="Enter GST No"
-                maxLength={15} // block typing beyond 25 chars
+                maxLength={15} 
               />
 
               {errors.gst_no && (
@@ -310,12 +305,13 @@ export default function AddCustomer() {
                     fetchPincodeDetails(value);
                   }
 
+                  // Allow clearing of error on typing
                   if (errors.pincode) {
                     setErrors((prev) => ({ ...prev, pincode: "" }));
                   }
                 }}
                 placeholder="Enter Pincode"
-                maxLength={6} // block typing beyond 6 digits
+                maxLength={6} 
               />
 
               {errors.pincode && <div style={feedbackStyle}>{errors.pincode}</div>}
@@ -334,11 +330,12 @@ export default function AddCustomer() {
                 isClearable
                 options={cityOptions.map((c) => ({ label: c, value: c }))}
                 value={customer.city ? { label: customer.city, value: customer.city } : null}
-                onChange={(selected) =>
+                onChange={(selected) => {
                   setCustomer((prev) => ({ ...prev, city: selected ? selected.value : "" }))
-                }
+                  if (errors.city) setErrors(prev => ({ ...prev, city: "" })); // Clear error on change
+                }}
                 placeholder="Select or type city"
-                classNamePrefix="my-select"   // ✅ Add this
+                classNamePrefix="my-select" 
               />
               {errors.city && <div style={feedbackStyle}>{errors.city}</div>}
             </Form.Group>
@@ -386,19 +383,21 @@ export default function AddCustomer() {
                 name="email"
                 value={customer.email}
                 onChange={(e) => {
-                  const value = e.target.value.replace(/\s/g, ""); // remove spaces
+                  const value = e.target.value.replace(/\s/g, ""); 
                   setCustomer((prev) => ({ ...prev, email: value }));
 
-                  // Live validation
+                  // Live validation for email (optional field)
                   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                  if (!value) setErrors((prev) => ({ ...prev, email: "Email is required" }));
-                  else if (!emailRegex.test(value)) setErrors((prev) => ({ ...prev, email: "Invalid email format" }));
-                  else setErrors((prev) => ({ ...prev, email: "" }));
+                  if (value && !emailRegex.test(value)) {
+                    setErrors((prev) => ({ ...prev, email: "Invalid email format" }));
+                  } else {
+                    setErrors((prev) => ({ ...prev, email: "" }));
+                  }
                 }}
                 placeholder="Enter Email"
               />
 
-              {/* {errors.email && <div style={feedbackStyle}>{errors.email}</div>} */}
+              {errors.email && <div style={feedbackStyle}>{errors.email}</div>}
             </Form.Group>
           </Col>
           <Col md={4}>
@@ -416,16 +415,11 @@ export default function AddCustomer() {
                 placeholder="Enter mobile number"
                 countrySelectComponent={CountrySelect}
               />
-              {errors.mobile_no && (
-                <div style={{ color: "red", fontSize: "0.85rem", marginTop: "4px" }}>
-                  {errors.mobile_no}
-                </div>
-              )}
-
-
-
-
-
+                {errors.mobile_no && (
+                  <div style={{ color: "red", fontSize: "0.85rem", marginTop: "4px" }}>
+                    {errors.mobile_no}
+                  </div>
+                )}
             </Form.Group>
           </Col>
           <Col md={4}>
@@ -458,6 +452,7 @@ export default function AddCustomer() {
                 onChange={handleChange}
                 placeholder="Enter Address"
               />
+              {errors.address && <div style={feedbackStyle}>{errors.address}</div>}
             </Form.Group>
           </Col>
         </Row>
@@ -467,7 +462,7 @@ export default function AddCustomer() {
         <Button
           variant="secondary"
           className="me-2"
-          onClick={() => navigate(-1)}  // go back to previous page
+          onClick={() => navigate(-1)} 
         >
           Cancel
         </Button>

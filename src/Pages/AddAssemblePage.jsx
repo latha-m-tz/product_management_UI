@@ -449,47 +449,47 @@ export default function AddAssemblePage() {
             };
             const response = await axios.post(`${API_BASE_URL}/inventory`, payload);
             if (response.data.items && Array.isArray(response.data.items)) {
-    const existsItems = response.data.items.filter(i => i.status === "exists");
-    const notPurchasedItems = response.data.items.filter(i => i.status === "not_purchased");
+                const existsItems = response.data.items.filter(i => i.status === "exists");
+                const notPurchasedItems = response.data.items.filter(i => i.status === "not_purchased");
 
-    if (notPurchasedItems.length > 0) {
-        toast.error(
-            <div>
-                <strong>Some serials were not added</strong>
-                <ul className="mb-0 mt-1 small">
-                    {notPurchasedItems.map((item, i) => (
-                        <li key={i}>
-                            Serial {item.serial_no}: {item.message}
-                        </li>
-                    ))}
-                </ul>
-            </div>,
-            { autoClose: 8000 }
-        );
-    } else if (existsItems.length > 0) {
-        toast.warn(
-            <div>
-                <strong>{response.data.message}</strong>
-                <ul className="mb-0 mt-1 small">
-                    {existsItems.slice(0, 5).map((item, i) => (
-                        <li key={i}>
-                            Serial {item.serial_no}: {item.message}
-                        </li>
-                    ))}
-                    {existsItems.length > 5 && (
-                        <li>...and {existsItems.length - 5} more</li>
-                    )}
-                </ul>
-            </div>,
-            { autoClose: 8000 }
-        );
-    } else {
-        toast.success(response.data.message || "Inventory saved successfully!");
-        navigate("/assemble");
-    }
-} else {
-    toast.success(response.data.message || "Inventory saved successfully!");
-    navigate("/assemble");
+                if (notPurchasedItems.length > 0) {
+                    toast.error(
+                        <div>
+                            <strong>Some serials were not added</strong>
+                            <ul className="mb-0 mt-1 small">
+                                {notPurchasedItems.map((item, i) => (
+                                    <li key={i}>
+                                        Serial {item.serial_no}: {item.message}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>,
+                        { autoClose: 8000 }
+                    );
+                } else if (existsItems.length > 0) {
+                    toast.warn(
+                        <div>
+                            <strong>{response.data.message}</strong>
+                            <ul className="mb-0 mt-1 small">
+                                {existsItems.slice(0, 5).map((item, i) => (
+                                    <li key={i}>
+                                        Serial {item.serial_no}: {item.message}
+                                    </li>
+                                ))}
+                                {existsItems.length > 5 && (
+                                    <li>...and {existsItems.length - 5} more</li>
+                                )}
+                            </ul>
+                        </div>,
+                        { autoClose: 8000 }
+                    );
+                } else {
+                    toast.success(response.data.message || "Inventory saved successfully!");
+                    navigate("/assemble");
+                }
+            } else {
+                toast.success(response.data.message || "Inventory saved successfully!");
+                navigate("/assemble");
 
 
             }
@@ -647,29 +647,36 @@ export default function AddAssemblePage() {
                                 value={form.fromSerial}
                                 onChange={(e) => {
                                     let value = e.target.value.toUpperCase();
-                                    // Only allow prefix + 6 digits
+
                                     if (prefix && value.startsWith(prefix)) {
                                         let digits = value.slice(prefix.length).replace(/\D/g, "");
                                         digits = digits.slice(0, 6);
                                         value = prefix + digits;
                                     } else if (prefix) {
-                                        value = prefix;
+                                        if (value.length > 0 && !value.startsWith(prefix)) {
+                                            toast.error(`From Serial must start with "${prefix}"`);
+                                        }
+                                        value = value.slice(0, prefix.length);
                                     } else {
                                         value = value.replace(/[^A-Z0-9]/g, "").slice(0, 6);
                                     }
+
                                     setForm(prev => ({ ...prev, fromSerial: value }));
                                     setErrors(prev => ({ ...prev, fromSerial: null }));
                                 }}
-                                onBlur={() => {
-                                    if (form.fromSerial && prefix && !form.fromSerial.startsWith(prefix)) {
+                                onBlur={(e) => {
+                                    const value = e.target.value; // ✅ use current value
+                                    if (prefix && !value.startsWith(prefix)) {
                                         toast.error(`From Serial must start with "${prefix}"`);
                                     }
-                                    if (form.fromSerial && prefix && form.fromSerial.slice(prefix.length).length !== 6) {
+                                    if (prefix && value.slice(prefix.length).length !== 6) {
                                         toast.error("From Serial must have exactly 6 digits after the prefix.");
                                     }
                                 }}
                                 isInvalid={!!errors.fromSerial}
                             />
+
+
                             <Form.Control.Feedback type="invalid">
                                 {errors.fromSerial}
                             </Form.Control.Feedback>
@@ -683,16 +690,20 @@ export default function AddAssemblePage() {
                                 value={form.toSerial}
                                 onChange={(e) => {
                                     let value = e.target.value.toUpperCase();
-                                    // Only allow prefix + 6 digits
+
                                     if (prefix && value.startsWith(prefix)) {
                                         let digits = value.slice(prefix.length).replace(/\D/g, "");
                                         digits = digits.slice(0, 6);
                                         value = prefix + digits;
                                     } else if (prefix) {
-                                        value = prefix;
+                                        if (value.length > 0 && !value.startsWith(prefix)) {
+                                            toast.error(`To Serial must start with "${prefix}"`);
+                                        }
+                                        value = value.slice(0, prefix.length);
                                     } else {
                                         value = value.replace(/[^A-Z0-9]/g, "").slice(0, 6);
                                     }
+
                                     setForm(prev => ({ ...prev, toSerial: value }));
                                     setErrors(prev => ({ ...prev, toSerial: null }));
                                 }}
@@ -706,6 +717,7 @@ export default function AddAssemblePage() {
                                 }}
                                 isInvalid={!!errors.toSerial}
                             />
+
                             <Form.Control.Feedback type="invalid">
                                 {errors.toSerial}
                             </Form.Control.Feedback>

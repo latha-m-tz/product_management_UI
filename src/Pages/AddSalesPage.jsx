@@ -193,14 +193,35 @@ export default function AddSalesPage() {
   };
 
   const removeItem = (index) => {
-    setItems(items.filter((_, i) => i !== index));
-    setFormErrors((prev) => {
-      const updated = { ...prev };
-      delete updated[`serialNo_${index}`];
-      delete updated[`quantity_${index}`];
-      return updated;
+    const removedItem = items[index]; // store the item to show in toast
+
+    MySwal.fire({
+      title: "Are you sure?",
+      text: `Do you want to remove product with Serial No "${removedItem.serialNo}"?`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#2FA64F",
+      confirmButtonText: "Yes, delete it!",
+    }).then((result) => {
+      if (result.isConfirmed) {
+        // Remove the item from state
+        setItems(items.filter((_, i) => i !== index));
+
+        // Remove errors related to this item
+        setFormErrors((prev) => {
+          const updated = { ...prev };
+          delete updated[`serialNo_${index}`];
+          delete updated[`quantity_${index}`];
+          return updated;
+        });
+
+        // Show toast
+        toast.success(`Product with Serial No "${removedItem.serialNo}" deleted!`);
+      }
     });
   };
+
 
   const RequiredLabel = ({ children }) => (
     <Form.Label>
@@ -212,28 +233,28 @@ export default function AddSalesPage() {
   /** ✅ Render */
   return (
     <div className="container-fluid px-4 py-4 bg-light min-vh-100">
-    
+
 
       <BreadCrumb title={saleId ? "Edit Sale" : "Add Sale"} />
- <Row className="align-items-center mb-3 fixed-header">
-             <Col>
-               <h4>Add Sale</h4>
-             </Col>
-             <Col className="text-end">
-               <Button
-                 variant="outline-secondary"
-                 size="sm"
-                 className="me-2"
-                 onClick={() => navigate("/sales-order")}
-               >
-                 <i className="bi bi-arrow-left"></i> Back
-               </Button>
-             </Col>
-           </Row>
-<Card
-  className="border-0 shadow-sm rounded-3"
-  style={{ backgroundColor: "#f4f4f8" }}
->        <Card.Body>
+      <Row className="align-items-center mb-3 fixed-header">
+        <Col>
+          <h4>Add Sale</h4>
+        </Col>
+        <Col className="text-end">
+          <Button
+            variant="outline-secondary"
+            size="sm"
+            className="me-2"
+            onClick={() => navigate("/sales-order")}
+          >
+            <i className="bi bi-arrow-left"></i> Back
+          </Button>
+        </Col>
+      </Row>
+      <Card
+        className="border-0 shadow-sm rounded-3"
+        style={{ backgroundColor: "#f4f4f8" }}
+      >        <Card.Body>
           <Form>
             <div className="row g-3">
               {/* Customer */}
@@ -261,7 +282,7 @@ export default function AddSalesPage() {
                   </Form.Control.Feedback>
                 </Form.Group>
               </div>
-              
+
 
               {/* Challan No */}
               <div className="col-md-6">
