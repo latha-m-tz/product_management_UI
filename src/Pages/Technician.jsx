@@ -204,8 +204,8 @@ export default function TechnicianPage() {
                 paginated.map((t, i) => (
                   <tr key={t.id}>
                     <td className="text-center">{(page - 1) * perPage + i + 1}</td>
-                    <td>{t.employee_id}</td>
-                    <td>{t.name}</td>
+                    <td style={{ fontSize: "0.90rem" }}>{t.employee_id}</td>
+                    <td style={{ fontSize: "0.90rem" }}>{t.name}</td>
                     <td className="text-center">
                       <Button
                         size="sm"

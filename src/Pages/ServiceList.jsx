@@ -196,12 +196,12 @@ export default function ServiceList() {
                     <td className="text-center">
                       {(page - 1) * perPage + index + 1}
                     </td>
-                    <td>{service.challan_no}</td>
-                    <td>{service.challan_date}</td>
-                    <td>{service.sent_date}</td>
-                    <td>{service.received_date}</td>
-                    <td>{service.quantity}</td>
-                    <td>{service.status || "Active"}</td>
+                    <td   style={{ fontSize: "0.90rem" }}>{service.challan_no}</td>
+                    <td   style={{ fontSize: "0.90rem" }}>{service.challan_date}</td>
+                    <td   style={{ fontSize: "0.90rem" }}>{service.sent_date}</td>
+                    <td   style={{ fontSize: "0.90rem" }}>{service.received_date}</td>
+                    <td   style={{ fontSize: "0.90rem" }}>{service.quantity}</td>
+                    <td   style={{ fontSize: "0.90rem" }}>{service.status || "Active"}</td>
                     <td className="text-center">
                       <Button
                         variant=""

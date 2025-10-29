@@ -14,6 +14,10 @@ const EditService = () => {
   const [products, setProducts] = useState([]);
   const [serialNumbersByProduct, setSerialNumbersByProduct] = useState({});
   const [alreadySoldSerials, setAlreadySoldSerials] = useState([]);
+  const [removedFiles, setRemovedFiles] = useState({
+    challan: [],
+    receipt: [],
+  });
 
   const [formData, setFormData] = useState({
     challan_no: "",
@@ -26,9 +30,8 @@ const EditService = () => {
     sent_date: "",
     received_date: "",
     remarks: "",
-    challan_1: null,
-    challan_2: null,
-    receipt_upload: null,
+    challan_files: [],
+    receipt_files: [],
     items: [
       {
         product_id: "",
@@ -44,25 +47,65 @@ const EditService = () => {
       },
     ],
   });
+  // --- File Field Handlers ---
+  const addFileField = (type) => {
+    setFormData((prev) => ({
+      ...prev,
+      [`${type}_files`]: [...(prev[`${type}_files`] || []), null],
+    }));
+  };
+
+  const removeFileField = (type, index) => {
+    const key = `${type}_files`;
+    const updated = [...formData[key]];
+    const removedFile = updated[index];
+
+    // Track removed file names if it's a string (already stored file)
+    if (typeof removedFile === "string") {
+      setRemovedFiles((prev) => ({
+        ...prev,
+        [type]: [...prev[type], removedFile],
+      }));
+    }
+
+    updated.splice(index, 1);
+    setFormData((prev) => ({ ...prev, [key]: updated }));
+  };
+
+
+  const handleFileChange = (type, index, file) => {
+    setFormData((prev) => {
+      const key = `${type}_files`;
+      const currentFiles = [...(prev[key] || [])];
+
+      currentFiles[index] = file instanceof File ? file : null;
+
+      return {
+        ...prev,
+        [key]: currentFiles,
+      };
+    });
+  };
+
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch all products
+        // 🔹 Fetch all products
         const productRes = await axios.get(`${API_BASE_URL}/product`);
         setProducts(productRes.data || []);
 
-        // Fetch already sold serial numbers
+        // 🔹 Fetch already sold serial numbers
         const serialRes = await axios.get(`${API_BASE_URL}/get-serviceserials`);
         const soldSerialNumbers = (serialRes.data || []).map((s) => s.serial_no);
         setAlreadySoldSerials(soldSerialNumbers);
 
-        // Fetch existing service details
+        // 🔹 Fetch existing service details
         const serviceRes = await axios.get(`${API_BASE_URL}/service-vci/${id}`);
         const serviceData = serviceRes.data;
 
         if (serviceData) {
-          // Prefill main form fields (preserve document URLs)
+          // ✅ Prefill main form fields (with all fields included)
           const topData = {
             challan_no: serviceData.challan_no || "",
             challan_date: serviceData.challan_date || "",
@@ -74,12 +117,16 @@ const EditService = () => {
             sent_date: serviceData.sent_date || "",
             received_date: serviceData.received_date || "",
             remarks: serviceData.remarks || "",
+            hsn_code: serviceData.hsn_code || "",
+            status: serviceData.status || "",
             challan_1: serviceData.challan_1 || null,
             challan_2: serviceData.challan_2 || null,
             receipt_upload: serviceData.receipt_upload || null,
+            challan_files: serviceData.challan_files || [], // ✅ new field (JSON array)
+            receipt_files: serviceData.receipt_files || [], // ✅ new field (JSON array)
           };
 
-          // Prefill items
+          // ✅ Prefill items array
           const items = (serviceData.items || []).map((item) => ({
             id: item.id,
             product_id: item.product_id || "",
@@ -91,12 +138,13 @@ const EditService = () => {
             issue_found: item.issue_found || "",
             action_taken: item.action_taken || "",
             urgent: item.urgent || false,
-            upload_image: null,
+            upload_image: item.upload_image || null, // ✅ keep existing image if present
           }));
 
+          // ✅ Update formData state
           setFormData((prev) => ({ ...prev, ...topData, items }));
 
-          // Fetch serial numbers per product
+          // 🔹 Fetch serial numbers for each product
           const serialsObj = {};
           for (const item of items) {
             if (item.product_id) {
@@ -112,13 +160,14 @@ const EditService = () => {
           setSerialNumbersByProduct(serialsObj);
         }
       } catch (error) {
-        console.error(error);
+        console.error("❌ Failed to fetch service data:", error);
         toast.error("Failed to fetch service data!");
       }
     };
 
     fetchData();
   }, [id]);
+
 
   // Handle top-level form fields
   const handleChange = (e) => {
@@ -191,11 +240,10 @@ const EditService = () => {
       // Laravel expects this for PUT/PATCH via FormData
       payload.append("_method", "PUT");
 
-      // Append top-level fields
+      // 🔹 Append top-level text fields
       payload.append("challan_no", formData.challan_no || "");
       payload.append("challan_date", formData.challan_date || "");
       payload.append("courier_name", formData.courier_name || "");
-      payload.append("hsn_code", formData.hsn_code || "");
       payload.append("quantity", formData.quantity || 0);
       payload.append("status", formData.status || "");
       payload.append("sent_date", formData.sent_date || "");
@@ -203,31 +251,39 @@ const EditService = () => {
       payload.append("from_place", formData.from_place || "");
       payload.append("to_place", formData.to_place || "");
       payload.append("tracking_number", formData.tracking_number || "");
+      payload.append("remarks", formData.remarks || "");
 
-      // Append files only if they are File objects
-      ["challan_1", "challan_2", "receipt_upload"].forEach((fileKey) => {
-        if (formData[fileKey] instanceof File) {
-          payload.append(fileKey, formData[fileKey]);
+      // 🔹 Append multiple files for challan_files and receipt_files
+      ["challan_files", "receipt_files"].forEach((key) => {
+        if (Array.isArray(formData[key]) && formData[key].length > 0) {
+          formData[key].forEach((file, index) => {
+            if (file instanceof File) {
+              payload.append(`${key}[${index}]`, file);
+            }
+          });
         }
       });
 
-      // Append items array
+      // 🔹 Append items array
       if (Array.isArray(formData.items) && formData.items.length > 0) {
         formData.items.forEach((item, index) => {
-          Object.entries(item).forEach(([key, val]) => {
-            payload.append(`items[${index}][${key}]`, val ?? "");
-          });
+          for (const field in item) {
+            payload.append(`items[${index}][${field}]`, item[field] ?? "");
+          }
         });
       } else {
-        // Send empty to avoid Laravel dropping 'items'
         payload.append("items", "");
       }
 
-      // Debug to verify what’s sent
-      console.log("Sending FormData:");
+      // 🆕 ✅ Append removed files info
+      payload.append("removed_challan_files", JSON.stringify(removedFiles.challan));
+      payload.append("removed_receipt_files", JSON.stringify(removedFiles.receipt));
+
+      // 🔹 Debug (optional)
+      console.log("🧾 Sending FormData:");
       for (let [k, v] of payload.entries()) console.log(k, v);
 
-      // ✅ Laravel-compatible request
+      // 🔹 Send request
       await axios.post(`${API_BASE_URL}/service-vci/${id}`, payload, {
         headers: { "Content-Type": "multipart/form-data" },
       });
@@ -235,7 +291,7 @@ const EditService = () => {
       toast.success("Service updated successfully!");
       navigate("/service-product");
     } catch (error) {
-      console.error("Error updating service:", error);
+      console.error("❌ Error updating service:", error);
 
       if (error.response?.status === 422 && error.response.data.errors) {
         const errors = error.response.data.errors;
@@ -245,6 +301,8 @@ const EditService = () => {
       }
     }
   };
+
+
 
 
   return (
@@ -373,105 +431,134 @@ const EditService = () => {
             </Form.Group>
           </Col>
         </Row>
-
-        {/* File Uploads */}
         <Row className="mb-3">
-          {/* Challan 1 */}
-          <Col md={4}>
-            <Form.Group controlId="challan_1">
-              <Form.Label>Challan 1</Form.Label>
-              <div className="input-group flex-row-reverse">
-                <Form.Control
-                  type="text"
-                  readOnly
-                  className="bg-white"
-                  value={
-                    formData.challan_1
-                      ? typeof formData.challan_1 === "string"
-                        ? formData.challan_1.split("/").pop()
-                        : formData.challan_1.name
-                      : "No file chosen"
-                  }
-                />
-                <div className="input-group-prepend">
-                  <label className="btn btn-outline-dark mb-0">
-                    Choose
-                    <Form.Control
-                      type="file"
-                      name="challan_1"
-                      onChange={handleChange}
-                      style={{ display: "none" }}
-                    />
-                  </label>
+          {/* RECEIPT FILES */}
+          <Col md={6}>
+            <Form.Group className="mb-2">
+              <Form.Label>
+                Receipt Documents
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="text-success ms-1 p-0"
+                  onClick={() => addFileField("receipt")}
+                >
+                  <i className="bi bi-plus-circle"></i> Add
+                </Button>
+              </Form.Label>
+
+              {formData.receipt_files.map((file, idx) => (
+                <div key={idx} className="d-flex align-items-center gap-2 mb-2">
+                  <div className="file-input-wrapper flex-grow-1 d-flex align-items-center border rounded overflow-hidden">
+                    <label className="custom-file-label mb-0">
+                      <span className="btn btn-outline-secondary btn-sm">Choose File</span>
+                      <input
+                        type="file"
+                        accept="image/*,application/pdf"
+                        onChange={(e) =>
+                          handleFileChange("receipt", idx, e.target.files[0])
+                        }
+                        style={{ display: "none" }}
+                      />
+                    </label>
+
+                    <div className="file-display px-2 text-truncate">
+                      {typeof file === "string" ? (
+                        <a
+                          href={`${API_BASE_URL.replace("/api", "")}/storage/${file}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-dark text-truncate"
+                          style={{ maxWidth: "100%", textDecoration: "none" }}
+                        >
+                          {file.split("/").pop()}
+                        </a>
+                      ) : file ? (
+                        file.name
+                      ) : (
+                        "No file chosen"
+                      )}
+                    </div>
+                  </div>
+
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="text-danger p-0"
+                    onClick={() => removeFileField("receipt", idx)}
+                  >
+                    <i className="bi bi-x-circle"></i>
+                  </Button>
                 </div>
-              </div>
+              ))}
             </Form.Group>
           </Col>
 
-          {/* Challan 2 */}
-          <Col md={4}>
-            <Form.Group controlId="challan_2">
-              <Form.Label>Challan 2</Form.Label>
-              <div className="input-group flex-row-reverse">
-                <Form.Control
-                  type="text"
-                  readOnly
-                  className="bg-white"
-                  value={
-                    formData.challan_2
-                      ? typeof formData.challan_2 === "string"
-                        ? formData.challan_2.split("/").pop()
-                        : formData.challan_2.name
-                      : "No file chosen"
-                  }
-                />
-                <div className="input-group-prepend">
-                  <label className="btn btn-outline-dark mb-0">
-                    Choose
-                    <Form.Control
-                      type="file"
-                      name="challan_2"
-                      onChange={handleChange}
-                      style={{ display: "none" }}
-                    />
-                  </label>
-                </div>
-              </div>
-            </Form.Group>
-          </Col>
+          {/* CHALLAN FILES */}
+          <Col md={6}>
+            <Form.Group className="mb-2">
+              <Form.Label>
+                Challan Documents
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="text-success ms-1 p-0"
+                  onClick={() => addFileField("challan")}
+                >
+                  <i className="bi bi-plus-circle"></i> Add
+                </Button>
+              </Form.Label>
 
-          {/* Receipt Upload */}
-          <Col md={4}>
-            <Form.Group controlId="receipt_upload">
-              <Form.Label>Receipt Upload</Form.Label>
-              <div className="input-group flex-row-reverse">
-                <Form.Control
-                  type="text"
-                  readOnly
-                  className="bg-white"
-                  value={
-                    formData.receipt_upload
-                      ? typeof formData.receipt_upload === "string"
-                        ? formData.receipt_upload.split("/").pop()
-                        : formData.receipt_upload.name
-                      : "No file chosen"
-                  }
-                />
-                <div className="input-group-prepend">
-                  <label className="btn btn-outline-dark mb-0">
-                    Choose
-                    <Form.Control
-                      type="file"
-                      name="receipt_upload"
-                      onChange={handleChange}
-                      style={{ display: "none" }}
-                    />
-                  </label>
+              {formData.challan_files.map((file, idx) => (
+                <div key={idx} className="d-flex align-items-center gap-2 mb-2">
+                  <div className="file-input-wrapper flex-grow-1 d-flex align-items-center border rounded overflow-hidden">
+                    <label className="custom-file-label mb-0">
+                      <span className="btn btn-outline-secondary btn-sm">Choose File</span>
+                      <input
+                        type="file"
+                        accept="image/*,application/pdf"
+                        onChange={(e) =>
+                          handleFileChange("challan", idx, e.target.files[0])
+                        }
+                        style={{ display: "none" }}
+                      />
+                    </label>
+
+                    <div className="file-display px-2 text-truncate">
+                      {typeof file === "string" ? (
+                        <a
+                          href={`${API_BASE_URL.replace("/api", "")}/storage/${file}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-dark text-truncate"
+                          style={{ maxWidth: "100%", textDecoration: "none" }}
+                        >
+                          {file.split("/").pop()}
+                        </a>
+                      ) : file ? (
+                        file.name
+                      ) : (
+                        "No file chosen"
+                      )}
+                    </div>
+                  </div>
+
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="text-danger p-0"
+                    onClick={() => removeFileField("challan", idx)}
+                  >
+                    <i className="bi bi-x-circle"></i>
+                  </Button>
                 </div>
-              </div>
+              ))}
             </Form.Group>
           </Col>
         </Row>
+
+
+
         <Row className="mb-3">
           <Col md={12}>
             <Form.Group>
@@ -595,11 +682,46 @@ const EditService = () => {
                   />
                 </td>
                 <td>
-                  <Form.Control
-                    type="file"
-                    name="upload_image"
-                    onChange={(e) => handleItemChange(index, e)}
-                  />
+                  <div className="d-flex align-items-center gap-1">
+                    <div className="file-input-wrapper flex-grow-1 d-flex align-items-center border rounded overflow-hidden" style={{ height: "32px" }}>
+                      <label className="custom-file-label mb-0" style={{ fontSize: "12px" }}>
+                        <span
+                          className="btn btn-outline-secondary btn-sm py-0 px-2"
+                          style={{ fontSize: "12px", lineHeight: "20px" }}
+                        >
+                          Choose
+                        </span>
+                        <input
+                          type="file"
+                          name="upload_image"
+                          accept="image/*,application/pdf"
+                          onChange={(e) => handleItemChange(index, e)}
+                          style={{ display: "none" }}
+                        />
+                      </label>
+
+                      <div
+                        className="file-display px-2 text-truncate"
+                        style={{ fontSize: "12px", maxWidth: "120px" }}
+                      >
+                        {typeof item.upload_image === "string" && item.upload_image ? (
+                          <a
+                            href={`${API_BASE_URL.replace("/api", "")}/storage/${item.upload_image}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-dark text-truncate"
+                            style={{ textDecoration: "none" }}
+                          >
+                            {item.upload_image.split("/").pop()}
+                          </a>
+                        ) : item.upload_image instanceof File ? (
+                          item.upload_image.name
+                        ) : (
+                          "No file"
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </td>
                 <td className="text-center">
                   <Button

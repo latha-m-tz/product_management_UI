@@ -28,13 +28,13 @@ export default function DataTable({
             backgroundColor: "#2E3A59",
             color: "#2E3A59",
           fontSize: "1rem", // ✅ match body font
-            height: "40px",
+            height: "60px",
             verticalAlign: "middle",
           }}
         >
           <tr>
             <th
-              style={{ ...headerStyle, width: "60px", textAlign: "center" }}
+              style={{ ...headerStyle, width: "120px", textAlign: "center" }}
             >
               S.No
             </th>

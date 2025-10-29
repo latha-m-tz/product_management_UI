@@ -23,6 +23,8 @@ const AddServicePage = () => {
   const [serialNumbersByProduct, setSerialNumbersByProduct] = useState({});
   const [alreadySoldSerials, setAlreadySoldSerials] = useState([]);
   const MySwal = withReactContent(Swal);
+  const [challanFiles, setChallanFiles] = useState([null]);
+  const [recipientFiles, setRecipientFiles] = useState([null]);
 
   const [formData, setFormData] = useState({
     challan_no: "",
@@ -124,29 +126,62 @@ const AddServicePage = () => {
 
     setFormData((prev) => ({ ...prev, items }));
 
-   if (name === "product_id" && value) {
-  try {
-    const res = await axios.get(`${API_BASE_URL}/sales/serials/${value}`);
-    const serials = res.data || [];
+    if (name === "product_id" && value) {
+      try {
+        const res = await axios.get(`${API_BASE_URL}/sales/serials/${value}`);
+        const serials = res.data || [];
 
-    const filteredSerials = serials.filter(
-      (s) => !alreadySoldSerials.includes(s.serial_no)
-    );
+        const filteredSerials = serials.filter(
+          (s) => !alreadySoldSerials.includes(s.serial_no)
+        );
 
-    setSerialNumbersByProduct((prev) => ({
-      ...prev,
-      [value]: filteredSerials,
-    }));
+        setSerialNumbersByProduct((prev) => ({
+          ...prev,
+          [value]: filteredSerials,
+        }));
 
-    items[index].vci_serial_no = "";
-    setFormData((prev) => ({ ...prev, items }));
-  } catch (error) {
-    console.error("Failed to fetch serials:", error);
-    toast.error("Failed to fetch serial numbers!");
+        items[index].vci_serial_no = "";
+        setFormData((prev) => ({ ...prev, items }));
+      } catch (error) {
+        console.error("Failed to fetch serials:", error);
+        toast.error("Failed to fetch serial numbers!");
+      }
+    }
   }
-}
-  }
-  // ✅ Add row
+  // Add new file input
+  const addFileField = (type) => {
+    if (type === "challan") {
+      setChallanFiles((prev) => [...prev, null]);
+    } else if (type === "recipient") {
+      setRecipientFiles((prev) => [...prev, null]);
+    }
+  };
+
+  // Remove file input
+  const removeFileField = (type, index) => {
+    if (type === "challan") {
+      setChallanFiles((prev) => prev.filter((_, i) => i !== index));
+    } else if (type === "recipient") {
+      setRecipientFiles((prev) => prev.filter((_, i) => i !== index));
+    }
+  };
+
+  // Handle file change
+  const handleFileChange = (type, index, file) => {
+    if (type === "challan") {
+      setChallanFiles((prev) => {
+        const updated = [...prev];
+        updated[index] = file;
+        return updated;
+      });
+    } else if (type === "recipient") {
+      setRecipientFiles((prev) => {
+        const updated = [...prev];
+        updated[index] = file;
+        return updated;
+      });
+    }
+  };
   const addRow = () => {
     setFormData((prev) => ({
       ...prev,
@@ -194,6 +229,8 @@ const AddServicePage = () => {
     if (!validate()) return;
 
     const payload = new FormData();
+
+    // Append all basic form fields
     for (const key in formData) {
       if (key === "items") {
         formData.items.forEach((item, index) => {
@@ -206,13 +243,25 @@ const AddServicePage = () => {
       }
     }
 
+    // ✅ Append multiple receipt files
+    recipientFiles.forEach((file, i) => {
+      if (file) payload.append(`receipt_files[${i}]`, file);
+    });
+
+    // ✅ Append multiple challan files
+    challanFiles.forEach((file, i) => {
+      if (file) payload.append(`challan_files[${i}]`, file);
+    });
+
     try {
       await axios.post(`${API_BASE_URL}/service-vci`, payload, {
         headers: { "Content-Type": "multipart/form-data" },
       });
+
       toast.success("Service added successfully!");
       navigate("/service-product");
     } catch (error) {
+      console.error("❌ Service submission error:", error);
       toast.error("Failed to add service!");
     }
   };
@@ -369,21 +418,84 @@ const AddServicePage = () => {
           </Col>
         </Row>
 
-        {/* Uploads */}
         <Row className="mb-3">
-          <Col md={4}>
-            <Form.Label>Challan 1 Upload</Form.Label>
-            <Form.Control type="file" name="challan_1" onChange={handleChange} />
+          {/* RECEIPT FILES */}
+          <Col md={6}>
+            <Form.Group className="mb-2">
+              <Form.Label>
+                Receipt Documents
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="text-success ms-1 p-0"
+                  onClick={() => addFileField("recipient")}
+                >
+                  <i className="bi bi-plus-circle"></i> Add
+                </Button>
+              </Form.Label>
+              {recipientFiles.map((file, idx) => (
+                <div key={idx} className="d-flex align-items-center mb-1">
+                  <Form.Control
+                    type="file"
+                    accept="image/*,application/pdf"
+                    onChange={(e) =>
+                      handleFileChange("recipient", idx, e.target.files[0])
+                    }
+                  />
+                  {recipientFiles.length > 1 && (
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="text-danger ms-2 p-0"
+                      onClick={() => removeFileField("recipient", idx)}
+                    >
+                      <i className="bi bi-x-circle"></i>
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </Form.Group>
           </Col>
-          <Col md={4}>
-            <Form.Label>Challan 2 Upload</Form.Label>
-            <Form.Control type="file" name="challan_2" onChange={handleChange} />
-          </Col>
-          <Col md={4}>
-            <Form.Label>Receipt Upload</Form.Label>
-            <Form.Control type="file" name="receipt_upload" onChange={handleChange} />
+
+          {/* CHALLAN FILES */}
+          <Col md={6}>
+            <Form.Group className="mb-2">
+              <Form.Label>
+                Challan Documents
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="text-success ms-1 p-0"
+                  onClick={() => addFileField("challan")}
+                >
+                  <i className="bi bi-plus-circle"></i> Add
+                </Button>
+              </Form.Label>
+              {challanFiles.map((file, idx) => (
+                <div key={idx} className="d-flex align-items-center mb-1">
+                  <Form.Control
+                    type="file"
+                    accept="image/*,application/pdf"
+                    onChange={(e) =>
+                      handleFileChange("challan", idx, e.target.files[0])
+                    }
+                  />
+                  {challanFiles.length > 1 && (
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="text-danger ms-2 p-0"
+                      onClick={() => removeFileField("challan", idx)}
+                    >
+                      <i className="bi bi-x-circle"></i>
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </Form.Group>
           </Col>
         </Row>
+
 
         {/* Remarks */}
         <Row className="mb-3">

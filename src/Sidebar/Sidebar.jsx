@@ -2,46 +2,55 @@ import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 
-
 export default function Sidebar({ collapsed }) {
   const navigate = useNavigate();
-  const location = useLocation(); // <-- get current path
+  const location = useLocation();
 
   const menu = {
-    // home: [{ link: "overview", title: "Overview", icon: ["/Overviiew_G.png", "/squares.png"] }],
     purchase: [
       { link: "vendor", title: "Vendor", icon: ["/VendorG.png", "/Vendor.png"] },
-{ link: "spare-parts", title: "Spare Parts", icon: ["/spare-parts.png", "/spare-parts.png"] },
-      { link: "spare-partsPurchase", title: "Spare Parts Purchase", icon: ["/Purchase Order.png", "/Purchase Order 1.png"] },
-      { link: "spare-parts-by-series", title: "Spare Parts Requirements Calculation", icon: ["/Purchase Order.png", "/Purchase Order 1.png"] }, // <-- New link
+      {
+        link: "spare-parts",
+        title: "Spare Parts",
+        icon: ["/Spare-parts.png", "/Spare-parts.png"],
+      },
+      {
+        link: "spare-partsPurchase",
+        title: "Spare Parts Purchase",
+        icon: ["/Purchase Order.png", "/Purchase Order 1.png"],
+      },
+      {
+        link: "spare-parts-by-series",
+        title: "Spare Parts Requirements Calculation",
+        icon: ["/calculation.png", "/calculation.png"],
+      },
     ],
 
     inventory: [
       { link: "product", title: "Product", icon: ["/Product.png", "/Product.png"] },
       { link: "product-type", title: "Product Type", icon: ["/Product.png", "/Product.png"] },
-      { link: "technician", title: "Technician", icon: ["/Product.png", "/Product.png"] },
-
-      { link: "assemble", title: "Assemble", icon: ["/Product.png", "/Product.png"] },
+      { link: "technician", title: "Technician", icon: ["/techinician.png", "/techinician.png"] },
+      { link: "assemble", title: "Assemble", icon: ["/assemble.png", "/assemble.png"] },
     ],
 
     sales: [
       { link: "customer", title: "Customer", icon: ["/CustomerG.png", "/Customer.png"] },
       { link: "sales-order", title: "Sales", icon: ["/Sale 1.png", "/Sale 1.png"] },
     ],
-   service: [
-  { link: "service-product", title: "Service Product", icon: ["/Service VCI.png", "/Service VCI.png"] },
-  { link: "service-items", title: "Service Items", icon: ["/Service VCI.png", "/Service VCI.png"] } // <-- new
-],
+
+    service: [
+      { link: "service-product", title: "Service Product", icon: ["/Service VCI.png", "/Service VCI.png"] },
+      { link: "service-items", title: "Service Items", icon: ["/service_list.png", "/service_list.png"] },
+    ],
 
     tracking: [{ link: "tracking", title: "Tracking", icon: ["/track.png", "/track.png"] }],
   };
 
   const handleLinkClick = (link) => navigate(`/${link}`);
 
-  const isActive = (link) => {
-    // Highlight if the current path includes the base link
-    return location.pathname === `/${link}` || location.pathname.startsWith(`/${link}/`);
-  };
+  const isActive = (link) =>
+    location.pathname === `/${link}` || location.pathname.startsWith(`/${link}/`);
+
   const linkStyle = {
     backgroundColor: "transparent",
     borderRadius: "8px",
@@ -60,13 +69,14 @@ export default function Sidebar({ collapsed }) {
     whiteSpace: "nowrap",
   };
 
+  // ✅ Fixed size for all icons here
   const iconStyle = {
-    width: "18px",
-    height: "18px",
-    filter: "invert(94%) sepia(0%) saturate(0%) hue-rotate(200deg) brightness(100%) contrast(100%)"
+    width: "24px",
+    height: "24px",
+    filter:
+      "invert(94%) sepia(0%) saturate(0%) hue-rotate(200deg) brightness(100%) contrast(100%)",
+    objectFit: "contain",
   };
-
-
 
   const subLinkStyle = {
     color: "#fff",
@@ -106,57 +116,32 @@ export default function Sidebar({ collapsed }) {
           height: "100%",
           overflowY: "auto",
           paddingBottom: "1rem",
-          scrollbarWidth: "thin",        // for Firefox
-          scrollbarColor: "#888 transparent", // Firefox colors
+          scrollbarWidth: "thin",
+          scrollbarColor: "#888 transparent",
         }}
       >
         <style>
           {`
-      /* Webkit-based browsers */
-      nav::-webkit-scrollbar {
-        width: 2px;
-      }
-      nav::-webkit-scrollbar-track {
-        background: transparent;
-      }
-      .menu .submenu {
-        padding-left: 30px;  /* Indent to look like a child */
-        font-size: 14px;
-        opacity: 0.85;
-      }
-      nav::-webkit-scrollbar-thumb {
-        background-color: #888;
-        border-radius: 2px;
-        border: 1px solid transparent;
-        background-clip: content-box;
-      }
-      nav::-webkit-scrollbar-thumb:hover {
-        background-color: #555;
-      }
-        .active-link {
-          background-color: #1abc9c; /* green highlight */
-          border-radius: 8px;
-      }
-    `}
+            nav::-webkit-scrollbar { width: 2px; }
+            nav::-webkit-scrollbar-track { background: transparent; }
+            .menu .submenu {
+              padding-left: 30px;
+              font-size: 14px;
+              opacity: 0.85;
+            }
+            nav::-webkit-scrollbar-thumb {
+              background-color: #888;
+              border-radius: 2px;
+              border: 1px solid transparent;
+              background-clip: content-box;
+            }
+            nav::-webkit-scrollbar-thumb:hover { background-color: #555; }
+            .active-link {
+              background-color: #1abc9c;
+              border-radius: 8px;
+            }
+          `}
         </style>
-
-        {/* Home
-        <div className="mb-1 sidebar-link-titles">{!collapsed && "Home"}</div>
-        {menu.home.map((item) => (
-          <a
-            key={item.link}
-            href="#"
-            onClick={(e) => {
-              e.preventDefault();
-              handleLinkClick(item.link);
-            }}
-            className={`sidebar-link ${location.pathname.startsWith(`/${item.link}`) ? "active-link" : ""
-              }`}
-          >
-            <img src={item.icon ? item.icon[1] : ""} alt={item.title} style={iconStyle} />
-            {!collapsed && <span>{item.title}</span>}
-          </a>
-        ))} */}
 
         {/* Purchase */}
         <div className="sidebar-link-titles">{!collapsed && "Purchase"}</div>
@@ -168,13 +153,15 @@ export default function Sidebar({ collapsed }) {
               e.preventDefault();
               handleLinkClick(item.link);
             }}
-            className={`sidebar-link ${location.pathname === `/${item.link}` ||
+            className={`sidebar-link ${
+              location.pathname === `/${item.link}` ||
               location.pathname.startsWith(`/${item.link}/`)
-              ? "active-link"
-              : ""
-              }`}>
-            {item.icon && <img src={item.icon[1]} alt={item.title} style={iconStyle} />}
-            {!collapsed && <span >{item.title}</span>}
+                ? "active-link"
+                : ""
+            }`}
+          >
+            <img src={item.icon[1]} alt={item.title} style={iconStyle} />
+            {!collapsed && <span>{item.title}</span>}
           </a>
         ))}
 
@@ -188,13 +175,15 @@ export default function Sidebar({ collapsed }) {
               e.preventDefault();
               handleLinkClick(item.link);
             }}
-            className={`sidebar-link ${location.pathname === `/${item.link}` ||
+            className={`sidebar-link ${
+              location.pathname === `/${item.link}` ||
               location.pathname.startsWith(`/${item.link}/`)
-              ? "active-link"
-              : ""
-              }`}>
-            {item.icon && <img src={item.icon[1]} alt={item.title} style={iconStyle} />}
-            {!collapsed && <span >{item.title}</span>}
+                ? "active-link"
+                : ""
+            }`}
+          >
+            <img src={item.icon[1]} alt={item.title} style={iconStyle} />
+            {!collapsed && <span>{item.title}</span>}
           </a>
         ))}
 
@@ -208,13 +197,15 @@ export default function Sidebar({ collapsed }) {
               e.preventDefault();
               handleLinkClick(item.link);
             }}
-            className={`sidebar-link ${location.pathname === `/${item.link}` ||
+            className={`sidebar-link ${
+              location.pathname === `/${item.link}` ||
               location.pathname.startsWith(`/${item.link}/`)
-              ? "active-link"
-              : ""
-              }`}>
-            {item.icon && <img src={item.icon[1]} alt={item.title} style={iconStyle} />}
-            {!collapsed && <span >{item.title}</span>}
+                ? "active-link"
+                : ""
+            }`}
+          >
+            <img src={item.icon[1]} alt={item.title} style={iconStyle} />
+            {!collapsed && <span>{item.title}</span>}
           </a>
         ))}
 
@@ -228,15 +219,19 @@ export default function Sidebar({ collapsed }) {
               e.preventDefault();
               handleLinkClick(item.link);
             }}
-            className={`sidebar-link ${location.pathname === `/${item.link}` ||
+            className={`sidebar-link ${
+              location.pathname === `/${item.link}` ||
               location.pathname.startsWith(`/${item.link}/`)
-              ? "active-link"
-              : ""
-              }`}>
-            {item.icon && <img src={item.icon[1]} alt={item.title} style={iconStyle} />}
-            {!collapsed && <span >{item.title}</span>}
+                ? "active-link"
+                : ""
+            }`}
+          >
+            <img src={item.icon[1]} alt={item.title} style={iconStyle} />
+            {!collapsed && <span>{item.title}</span>}
           </a>
         ))}
+
+        {/* Tracking */}
         {menu.tracking.map((item) => (
           <a
             key={item.link}
@@ -245,18 +240,18 @@ export default function Sidebar({ collapsed }) {
               e.preventDefault();
               handleLinkClick(item.link);
             }}
-            className={`sidebar-link ${location.pathname === `/${item.link}` ||
+            className={`sidebar-link ${
+              location.pathname === `/${item.link}` ||
               location.pathname.startsWith(`/${item.link}/`)
-              ? "active-link"
-              : ""
-              }`}>
-            {item.icon && <img src={item.icon[1]} alt={item.title} style={iconStyle} />}
+                ? "active-link"
+                : ""
+            }`}
+          >
+            <img src={item.icon[1]} alt={item.title} style={iconStyle} />
             {!collapsed && <span>{item.title}</span>}
           </a>
         ))}
       </nav>
-
-
     </aside>
   );
 }
