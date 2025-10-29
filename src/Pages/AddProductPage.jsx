@@ -1,28 +1,26 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Button, Spinner, Form, Card, Table, Row, Col } from "react-bootstrap";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import { API_BASE_URL } from "../api";
 import Pagination from "../components/Pagination";
-import { toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css"; // make sure you import this
 
 export default function AddProductPage({ onProductsSelected }) {
   const navigate = useNavigate();
 
-  // Filters
+
   const [serialFrom, setSerialFrom] = useState("");
   const [serialTo, setSerialTo] = useState("");
   const [testFilter, setTestFilter] = useState("");
   const [selectedProductId, setSelectedProductId] = useState("");
 
-  // Data
   const [products, setProducts] = useState([]);
   const [testingData, setTestingData] = useState([]);
   const [selectedSerials, setSelectedSerials] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Already sold serials
   const [alreadySoldSerials, setAlreadySoldSerials] = useState([]);
 
   // Serial numbers for selected product
@@ -156,6 +154,8 @@ export default function AddProductPage({ onProductsSelected }) {
       return;
     }
     const selectedProducts = testingData.filter((item) => selectedSerials.includes(item.id));
+    console.log('Selected Products:', selectedProducts);
+
     localStorage.setItem("selectedProducts", JSON.stringify(selectedProducts));
     if (onProductsSelected) onProductsSelected(selectedProducts);
     toast.success(`${selectedProducts.length} product(s) added successfully!`);

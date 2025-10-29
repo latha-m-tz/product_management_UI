@@ -268,9 +268,9 @@ export default function VendorPage() {
                 paginatedData.map((vendor, index) => (
                   <tr key={vendor.id}>
                     <td className="text-center">{(page - 1) * perPage + index + 1}</td>
-                    <td>{vendor.vendor || "N/A"}</td>
-                    <td>{vendor.gst_no || "N/A"}</td>
-                    <td>{vendor.email || "N/A"}</td>
+                    <td style={{ fontSize: "0.90rem" }}>{vendor.vendor || "N/A"}</td>
+                    <td style={{ fontSize: "0.90rem" }}>{vendor.gst_no || "N/A"}</td>
+                    <td style={{ fontSize: "0.90rem" }}>{vendor.email || "N/A"}</td>
                     <td>{formatMobileNumber(vendor.mobile_no, "IN")}</td>
                     <td>
                       <span

@@ -69,57 +69,66 @@ export default function EditSalesPage() {
           setShipmentDate(sale.shipment_date);
           setShipmentName(sale.shipment_name || "");
           setNotes(sale.notes || "");
-          setItems(
-            sale.items.map((item) => ({
-              id: item.id,
-              serialNo: item.serial_no || "",
-              quantity: item.quantity,
-            }))
-          );
+          setItems((prevItems) => {
+            const updated = [
+              ...prevItems,
+              ...sale.items
+                .filter(
+                  (item) =>
+                    !prevItems.some((prev) => prev.serialNo === (item.serial_no || ""))
+                )
+                .map((item) => ({
+                  id: item.id,
+                  serialNo: item.serial_no || "",
+                  quantity: item.quantity,
+                })),
+            ];
+
+            console.log("✅ Updated items list 2:", updated);
+            return updated;
+          });
         })
         .catch(() => toast.error("Failed to load sale data"));
     }
   }, [id]);
 
+  const loadSelectedProducts = () => {
+    const stored = localStorage.getItem("selectedProducts");
+    if (!stored) return;
+
+    try {
+      const selected = JSON.parse(stored);
+      if (!Array.isArray(selected)) return;
+
+      setItems((prevItems) => {
+        const existingSerials = prevItems.map((i) => i.serialNo);
+        const merged = [
+          ...prevItems,
+          ...selected
+            .filter((p) => !existingSerials.includes(p.serial_no))
+            .map((p) => ({
+              quantity: 1,
+              serialNo: p.serial_no,
+            })),
+        ];
+        console.log("✅ Updated product list:", merged);
+        return merged;
+      });
+
+      // ✅ Clear after merging to prevent repeat adds
+      localStorage.removeItem("selectedProducts");
+    } catch (err) {
+      console.error("Error parsing selectedProducts:", err);
+    }
+  };
+
   useEffect(() => {
-    const loadSelectedProducts = () => {
-      const stored = localStorage.getItem("selectedProducts");
-      if (!stored) return;
-
-      try {
-        const selected = JSON.parse(stored);
-        if (!Array.isArray(selected)) return;
-
-        setItems((prevItems) => {
-          const existingSerials = prevItems.map((i) => i.serialNo);
-          const merged = [
-            ...prevItems,
-            ...selected
-              .filter((p) => !existingSerials.includes(p.serial_no))
-              .map((p) => ({
-                quantity: 1,
-                serialNo: p.serial_no,
-              })),
-          ];
-          console.log("✅ Updated product list:", merged);
-          return merged;
-        });
-
-        // ✅ Clear after merging to prevent repeat adds
-        localStorage.removeItem("selectedProducts");
-      } catch (err) {
-        console.error("Error parsing selectedProducts:", err);
-      }
-    };
-
-    // Load when coming back or refocusing
     loadSelectedProducts();
     const handleFocus = () => loadSelectedProducts();
     window.addEventListener("focus", handleFocus);
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") loadSelectedProducts();
     });
-
     return () => {
       window.removeEventListener("focus", handleFocus);
     };
@@ -246,7 +255,6 @@ export default function EditSalesPage() {
     });
   };
 
-  // ✅ JSX
   return (
     <div className="container-fluid px-4 py-4 bg-light min-vh-100">
       <Row className="align-items-center mb-3">
@@ -395,9 +403,11 @@ export default function EditSalesPage() {
               </Button>
 
               {formErrors.items && <div className="text-danger mb-2">{formErrors.items}</div>}
+              {items.length === 0 && <div className="text-muted">No products added</div>}
 
               {items.length > 0 && (
                 <>
+                  {/* <div>{JSON.stringify(items, null, 2)}</div> */}
                   <Table striped bordered hover size="sm">
                     <thead>
                       <tr>

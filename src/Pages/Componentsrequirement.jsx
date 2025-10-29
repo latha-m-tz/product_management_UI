@@ -314,12 +314,12 @@ export default function ComponentsRequirement() {
                     .map((part, idx) => (
                       <tr key={idx}>
                         <td>{(page - 1) * perPage + idx + 1}</td>
-                        <td>{part.name}</td>
-                        <td>{part.purchased_quantity}</td>
-                        <td>{part.used_quantity}</td>
-                        <td>{part.available_quantity}</td>
-                        <td>{computePerVCI(part)}</td>
-                        <td>{computeTotalRequired(part)}</td>
+                        <td style={{ fontSize: "0.90rem" }}>{part.name}</td>
+                        <td style={{ fontSize: "0.90rem" }}>{part.purchased_quantity}</td>
+                        <td style={{ fontSize: "0.90rem" }}>{part.used_quantity}</td>
+                        <td style={{ fontSize: "0.90rem" }}>{part.available_quantity}</td>
+                        <td style={{ fontSize: "0.90rem" }}>{computePerVCI(part)}</td>
+                        <td style={{ fontSize: "0.90rem" }}>{computeTotalRequired(part)}</td>
                         <td style={{ color: computeShortage(part) > 0 ? "red" : "green" }}>
                           {computeShortage(part) > 0 ? computeShortage(part) : "OK"}
                         </td>
@@ -364,12 +364,12 @@ export default function ComponentsRequirement() {
                         .map((part, idx) => (
                           <tr key={idx}>
                             <td>{(page - 1) * perPage + idx + 1}</td>
-                            <td>{part.name}</td>
-                            <td>{part.purchased_quantity}</td>
-                            <td>{part.used_quantity}</td>
-                            <td>{part.available_quantity}</td>
-                            <td>{computePerVCI(part)}</td>
-                            <td>{computeTotalRequired(part)}</td>
+                            <td style={{ fontSize: "0.90rem" }}>{part.name}</td>
+                            <td style={{ fontSize: "0.90rem" }}>{part.purchased_quantity}</td>
+                            <td style={{ fontSize: "0.90rem" }}>{part.used_quantity}</td>
+                            <td style={{ fontSize: "0.90rem" }}>{part.available_quantity}</td>
+                            <td style={{ fontSize: "0.90rem" }}>{computePerVCI(part)}</td>
+                            <td style={{ fontSize: "0.90rem" }}>{computeTotalRequired(part)}</td>
                             <td
                               style={{
                                 color: computeShortage(part) > 0 ? "red" : "green",

@@ -375,62 +375,69 @@ const handleContactChange = (e) => {
   };
 
 
-  const addContactPerson = () => {
-    const errors = {};
-    if (!contact.name.trim()) errors.name = "Name is required";
-    if (!contact.mobile_no.trim()) errors.mobile_no = "Mobile number is required";
-    if (Object.keys(errors).length > 0) {
-      setContactErrors(errors);
-      return;
-    }
+const addContactPerson = () => {
+  if (!contact.name.trim()) {
+    setContactErrors({ name: "Name is required" });
+    return;
+  }
+  if (!contact.mobile_no.trim()) {
+    setContactErrors({ mobile_no: "Mobile number is required" });
+    return;
+  }
 
-    let updatedContacts = [...contactPersons];
+  const contactToSave = { ...contact };
+  let updatedContacts = [...contactPersons];
 
-    // 🚨 Check if there’s already a Main Contact
-    const alreadyHasMain = updatedContacts.some(c => c.isMain);
+  // 🔹 Check if already has a main contact person (when adding or editing)
+  const hasMainContact =
+    updatedContacts.some((c, idx) => c.isMain && idx !== editingIndex);
 
-    if (contact.isMain && alreadyHasMain && editingIndex === null) {
-      toast.warning("A main contact person already exists!", {
-        position: "top-right",
-        autoClose: 3000,
-        closeOnClick: true,
-        pauseOnHover: true,
-        theme: "light",
-      });
-      return;
-    }
+  if (contactToSave.isMain && hasMainContact) {
+    toast.error("A main contact person already exists!");
+    return;
+  }
 
-    // ✅ If editing a contact, allow updating
-    if (editingIndex !== null) {
-      if (contact.isMain) {
-        updatedContacts = updatedContacts.map((c, i) => ({
-          ...c,
-          isMain: i === editingIndex ? true : false,
-        }));
-      }
-      updatedContacts[editingIndex] = { ...contact };
-    } else {
-      if (contact.isMain) {
-        // Make sure all others are not main
-        updatedContacts = updatedContacts.map(c => ({ ...c, isMain: false }));
-      }
-      updatedContacts.push({ ...contact });
-    }
+  // 🔹 Check for duplicate mobile numbers
+  const duplicateInContacts = updatedContacts.some(
+    (c, idx) => c.mobile_no === contactToSave.mobile_no && idx !== editingIndex
+  );
 
+  const duplicateWithVendor = contactToSave.mobile_no === vendor.mobile_no;
+
+  if (duplicateInContacts || duplicateWithVendor) {
+    toast.error(`Mobile number ${contactToSave.mobile_no} is already used!`);
+    return;
+  }
+
+  // 🔹 If this is marked as main, clear all others
+  if (contactToSave.isMain) {
+    updatedContacts = updatedContacts.map((c) => ({ ...c, isMain: false }));
+  }
+
+  // 🔹 Update or Add contact
+  if (editingIndex !== null) {
+    updatedContacts[editingIndex] = contactToSave;
     setContactPersons(updatedContacts);
+    toast.success(`Contact person "${contactToSave.name}" updated successfully!`);
+  } else {
+    setContactPersons([...updatedContacts, contactToSave]);
+    toast.success(`Contact person "${contactToSave.name}" added successfully!`);
+  }
 
-    setContact({
-      name: "",
-      designation: "",
-      mobile_no: "",
-      email: "",
-      status: "Active",
-      isMain: false,
-    });
-    setEditingIndex(null);
-    setShowPanel(false);
-    setContactErrors({});
-  };
+  // 🔹 Reset contact form and panel
+  setContact({
+    name: "",
+    designation: "",
+    mobile_no: "",
+    email: "",
+    status: "Active",
+    isMain: false,
+  });
+  setContactErrors({});
+  setEditingIndex(null);
+  setShowPanel(false);
+  setTimeout(() => setShowPanel(false), 0);
+};
 
 
 
@@ -443,7 +450,6 @@ const handleContactChange = (e) => {
       if (phoneNumber && phoneNumber.isValid()) {
         mobileValue = phoneNumber.number; // E.164
       }
-      // else fallback to raw number
     } catch (err) {
       console.error("Error parsing mobile:", err);
     }

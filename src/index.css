@@ -312,3 +312,55 @@ input[type="file"].form-control-file {
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
 }
+.file-input-wrapper {
+  display: flex;
+  align-items: center;
+  background-color: #fff;
+}
+
+.file-input {
+  flex: 0 0 140px; /* ensures full "Choose File" button */
+  max-width: 140px;
+  border: none;
+  background: transparent;
+}
+
+.file-display {
+  flex: 1;
+  font-size: 0.9rem;
+  color: #333;
+  background-color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.file-input::-webkit-file-upload-text {
+  display: none;
+}
+.file-input::file-selector-button {
+  margin-right: 8px;
+}
+.custom-file-label {
+  cursor: pointer;
+  background-color: #fff;
+}
+
+.file-input-wrapper {
+  min-height: 38px;
+}
+
+.file-display {
+  font-size: 0.9rem;
+  color: #555;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.table td:nth-child(2),
+.table th:nth-child(2) {
+  width: 250px;
+  white-space: nowrap;
+}
+.table {
+  font-size: 0.80rem !important;
+}

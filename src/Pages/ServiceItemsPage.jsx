@@ -208,12 +208,12 @@ export default function ServiceItemsPage() {
                     <td className="text-center">
                       {(page - 1) * perPage + index + 1}
                     </td>
-                    <td>{item.vci_serial_no || "-"}</td>
-                    <td>{item.product_name || "-"}</td>
-                    <td>{item.vendor_name || "-"}</td>
-                    <td>{item.testing_status || "-"}</td>
-                    <td>{item.tracking_number || "-"}</td>
-                    <td>{item.from_place || "-"}</td>
+                    <td style={{ fontSize: "0.90rem" }}>{item.vci_serial_no || "-"}</td>
+                    <td style={{ fontSize: "0.90rem" }}>{item.product_name || "-"}</td>
+                    <td style={{ fontSize: "0.90rem" }}>{item.vendor_name || "-"}</td>
+                    <td style={{ fontSize: "0.90rem" }}>{item.testing_status || "-"}</td>
+                    <td style={{ fontSize: "0.90rem" }}>{item.tracking_number || "-"}</td>
+                    <td style={{ fontSize: "0.90rem" }}>{item.from_place || "-"}</td>
                     <td>{item.to_place || "-"}</td>
                     <td>
                       {item.upload_image_url ? (

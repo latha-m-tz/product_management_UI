@@ -290,11 +290,11 @@ export default function AssemblePage() {
                                 paginatedData.map((item, index) => (
                                     <tr key={`${item.from_serial}-${item.to_serial}`}>
                                         <td className="text-center">{(page - 1) * perPage + index + 1}</td>
-                                        <td>{item.product?.name || "-"}</td>
-                                        <td>{item.product_type?.name || "-"}</td>
-                                        <td>{item.from_serial}</td>
-                                        <td>{item.to_serial}</td>
-                                        <td>{item.quantity}</td>
+                                        <td style={{ fontSize: "0.90rem" }}>{item.product?.name || "-"}</td>
+                                        <td style={{ fontSize: "0.90rem" }}>{item.product_type?.name || "-"}</td>
+                                        <td style={{ fontSize: "0.90rem" }}>{item.from_serial}</td>
+                                        <td style={{ fontSize: "0.90rem" }}>{item.to_serial}</td>
+                                        <td style={{ fontSize: "0.90rem" }}>{item.quantity}</td>
                                         <td className="text-center">
                                             <ActionButtons
                                                 onView={() => navigate(`/inventory/${item.from_serial}-${item.to_serial}`)}

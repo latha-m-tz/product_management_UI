@@ -271,7 +271,7 @@ export default function ProductPage() {
                     <td className="text-center">
                       {(page - 1) * perPage + index + 1}
                     </td>
-                    <td>{product.name}</td>
+                    <td style={{ fontSize: "0.90rem" }}>{product.name}</td>
                     <td className="text-center">
                       <Button
                         variant=""
