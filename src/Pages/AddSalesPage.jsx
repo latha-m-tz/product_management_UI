@@ -236,7 +236,7 @@ export default function AddSalesPage() {
 
 
       <BreadCrumb title={saleId ? "Edit Sale" : "Add Sale"} />
-      <Row className="align-items-center mb-3 fixed-header">
+      <Row className="align-items-center mb-3">
         <Col>
           <h4>Add Sale</h4>
         </Col>

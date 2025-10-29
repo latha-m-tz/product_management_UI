@@ -22,18 +22,30 @@ export default function EditVendor() {
   const [countryCode, setCountryCode] = useState("IN");
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(5);
-  const formatPhoneNumber = (phone) => {
-    if (!phone || !phone.startsWith("+")) return phone;
+  const [contactKey, setContactKey] = useState(0);
 
-    // Extract country code (1–3 digits after +)
-    const match = phone.match(/^\+(\d{1,3})(\d+)$/);
-    if (!match) return phone;
 
-    const countryCode = match[1];
-    const number = match[2];
 
-    return `+${countryCode} ${number}`;
+  const formatPhoneNumber = (number, defaultCountry = "IN") => {
+    if (!number) return "N/A";
+
+    try {
+      // If number doesn't have "+", prepend default country code
+      const fullNumber = number.startsWith("+")
+        ? number
+        : `+${getCountryCallingCode(defaultCountry)}${number}`;
+
+      const phoneNumber = parsePhoneNumberFromString(fullNumber);
+
+      if (!phoneNumber) return number;
+
+      // ✅ Only one space between country code and full mobile number
+      return `+${phoneNumber.countryCallingCode} ${phoneNumber.nationalNumber}`;
+    } catch {
+      return number;
+    }
   };
+
 
 
   const [panelKey, setPanelKey] = useState(0);
@@ -189,86 +201,53 @@ export default function EditVendor() {
 
   const handleVendorChange = async (e) => {
     const { name, value } = e.target;
-    let newValue = value.replace(/[^0-9]/g, ""); // allow only digits
-    let newErrors = { ...errors };
+    let newValue = value;
 
+    // Auto-capitalize first letter for text fields
+    const capitalizeFields = ["vendor", "city", "state", "district", "address"];
+    if (capitalizeFields.includes(name)) {
+      newValue = capitalizeFirstLetter(value);
+    }
+
+    // Handle pincode separately (digits only)
     if (name === "pincode") {
-      setVendor(prev => ({ ...prev, pincode: newValue }));
-
-      if (!newValue.trim()) newErrors.pincode = "Pincode is required";
-      else if (newValue.length !== 6) newErrors.pincode = "Pincode must be 6 digits";
-      else delete newErrors.pincode;
-
-      setErrors(newErrors);
-
-      if (newValue.length === 6) {
-        try {
-          const res = await fetch(`https://api.postalpincode.in/pincode/${newValue}`);
-          const data = await res.json();
-          if (data[0].Status === "Success") {
-            const postOffices = data[0].PostOffice;
-            const cities = postOffices.map(po => po.Name);
-
-            setCityOptions(cities);
-            setVendor(prev => ({
-              ...prev,
-              state: postOffices[0].State,
-              district: postOffices[0].District,
-              city: cities.includes(prev.city) ? prev.city : cities[0],
-            }));
-
-            // Clear any previous errors
-            setErrors(prev => {
-              const updated = { ...prev };
-              delete updated.city;
-              delete updated.state;
-              delete updated.district;
-              return updated;
-            });
-          } else {
-            setVendor(prev => ({ ...prev, state: "", district: "", city: "" }));
-            setCityOptions([]);
-            toast.error("Invalid pincode, please check");
-          }
-        } catch (err) {
-          console.error("Pincode fetch error:", err);
-          toast.error("Failed to fetch state and district");
-        }
-      } else {
-        // If PIN is incomplete, clear state/district
-        setVendor(prev => ({ ...prev, state: "", district: "", city: "" }));
-        setCityOptions([]);
-      }
-
+      const cleanValue = value.replace(/[^0-9]/g, "").slice(0, 6);
+      setVendor(prev => ({ ...prev, [name]: cleanValue }));
       return;
     }
 
-    // Other fields update
-    setVendor(prev => ({ ...prev, [name]: value }));
+    // Update vendor object
+    setVendor(prev => ({ ...prev, [name]: newValue }));
   };
 
-  const handleContactChange = (e) => {
-    const { name, value } = e.target;
-    let newValue = value;
-    let newErrors = { ...contactErrors };
+const handleContactChange = (e) => {
+  const { name, value } = e.target;
+  let newValue = value;
 
-    if (name === "name") newValue.trim() ? delete newErrors.name : newErrors.name = "Name is required";
-    if (name === "mobile_no") {
-      if (!/^\d*$/.test(newValue)) newErrors.mobile_no = "Only digits are allowed";
-      else if (newValue.length > 10) newErrors.mobile_no = "Mobile number cannot exceed 10 digits";
-      else if (newValue.length > 0 && newValue.length < 10) newErrors.mobile_no = "Enter a valid 10-digit mobile number";
-      else delete newErrors.mobile_no;
-    }
-    if (name === "email") {
-      if (!newValue.trim()) delete newErrors.email;
-      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newValue)) newErrors.email = "Enter a valid email";
-      else delete newErrors.email;
-    }
-    if (name === "status") !newValue.trim() ? newErrors.status = "Status is required" : delete newErrors.status;
+  if (["name", "designation"].includes(name)) {
+    newValue = capitalizeFirstLetter(value);
+  }
 
-    setContact({ ...contact, [name]: newValue });
-    setContactErrors(newErrors);
-  };
+  // existing validation logic continues here...
+  let newErrors = { ...contactErrors };
+
+  if (name === "name") newValue.trim() ? delete newErrors.name : newErrors.name = "Name is required";
+  if (name === "mobile_no") {
+    if (!/^\d*$/.test(newValue)) newErrors.mobile_no = "Only digits are allowed";
+    else if (newValue.length > 10) newErrors.mobile_no = "Mobile number cannot exceed 10 digits";
+    else if (newValue.length > 0 && newValue.length < 10) newErrors.mobile_no = "Enter a valid 10-digit mobile number";
+    else delete newErrors.mobile_no;
+  }
+  if (name === "email") {
+    if (!newValue.trim()) delete newErrors.email;
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newValue)) newErrors.email = "Enter a valid email";
+    else delete newErrors.email;
+  }
+
+  setContact({ ...contact, [name]: newValue });
+  setContactErrors(newErrors);
+};
+
 
 
 
@@ -407,19 +386,47 @@ export default function EditVendor() {
 
     let updatedContacts = [...contactPersons];
 
-    if (contact.isMain) {
-      updatedContacts = updatedContacts.map(c => ({ ...c, isMain: false }));
+    // 🚨 Check if there’s already a Main Contact
+    const alreadyHasMain = updatedContacts.some(c => c.isMain);
+
+    if (contact.isMain && alreadyHasMain && editingIndex === null) {
+      toast.warning("A main contact person already exists!", {
+        position: "top-right",
+        autoClose: 3000,
+        closeOnClick: true,
+        pauseOnHover: true,
+        theme: "light",
+      });
+      return;
     }
 
+    // ✅ If editing a contact, allow updating
     if (editingIndex !== null) {
-      updatedContacts[editingIndex] = { ...contact }; // update existing
+      if (contact.isMain) {
+        updatedContacts = updatedContacts.map((c, i) => ({
+          ...c,
+          isMain: i === editingIndex ? true : false,
+        }));
+      }
+      updatedContacts[editingIndex] = { ...contact };
     } else {
+      if (contact.isMain) {
+        // Make sure all others are not main
+        updatedContacts = updatedContacts.map(c => ({ ...c, isMain: false }));
+      }
       updatedContacts.push({ ...contact });
     }
 
     setContactPersons(updatedContacts);
 
-    setContact({ name: "", designation: "", mobile_no: "", email: "", status: "Active", isMain: false });
+    setContact({
+      name: "",
+      designation: "",
+      mobile_no: "",
+      email: "",
+      status: "Active",
+      isMain: false,
+    });
     setEditingIndex(null);
     setShowPanel(false);
     setContactErrors({});
@@ -452,6 +459,10 @@ export default function EditVendor() {
   };
 
 
+  const capitalizeFirstLetter = (value) => {
+    if (!value) return "";
+    return value.charAt(0).toUpperCase() + value.slice(1);
+  };
 
 
 
@@ -498,20 +509,67 @@ export default function EditVendor() {
     };
 
     try {
-      await fetch(`${API_BASE_URL}/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+
+      const rawText = await res.text();
+      let data = null;
+      try {
+        data = rawText ? JSON.parse(rawText) : null;
+      } catch {
+        data = null;
+      }
+
+      console.log("Response status:", res.status);
+      console.log("Raw response:", rawText);
+
+      // ✅ CASE 1: Laravel validation error (422)
+      if (res.status === 422 && data?.errors) {
+        const flat = Object.values(data.errors).flat();
+        const message = flat.join("\n");
+
+        if (data.errors.vendor) {
+          setErrors(prev => ({ ...prev, vendor: data.errors.vendor.join(" ") }));
+        }
+
+        toast.error(message, { position: "top-right" });
+        return;
+      }
+
+      // ✅ CASE 2: SQL unique violation
+      if (data?.error && data.error.includes("duplicate key value violates unique constraint")) {
+        const match = data.error.match(/\(vendor\)=\(([^)]+)\)/);
+        const duplicateVendor = match ? match[1] : "This vendor";
+
+        const message = `${duplicateVendor} name already exists.`;
+        setErrors(prev => ({ ...prev, vendor: message }));
+        toast.error(message, { position: "top-right" });
+        return;
+      }
+
+      // ✅ CASE 3: General non-OK
+      if (!res.ok) {
+        toast.error(data?.message || "Something went wrong while updating vendor.", {
+          position: "top-right",
+        });
+        return;
+      }
+
+      // ✅ CASE 4: Success
+      setErrors({});
       toast.success("Vendor updated successfully!", { position: "top-right" });
-      setTimeout(() => navigate("/vendor"), 1500);
+      setTimeout(() => navigate("/vendor"), 1000);
 
     } catch (err) {
-      console.error(err);
-      toast.error("Error updating vendor!");
-
+      console.error("Network or unexpected error:", err);
+      toast.error("Network error! Please try again.", { position: "top-right" });
     }
   };
+
+
 
   const cityOptionsFormatted = [
     ...cityOptions.map(c => ({ label: c, value: c })),
@@ -524,7 +582,7 @@ export default function EditVendor() {
 
   return (
     <div className="container-fluid " style={{ background: "white", minHeight: "100vh", position: "relative" }}>
-      <Row className="align-items-center mb-3 fixed-header">
+      <Row className="align-items-center mb-3">
         <Col>
           <h4>Edit Vendor Details</h4>
         </Col>
@@ -753,15 +811,17 @@ export default function EditVendor() {
           setContact({
             name: "",
             designation: "",
-            mobile_no: "",  // important
+            mobile_no: "",
             email: "",
             status: "Active",
             isMain: false,
           });
           setContactErrors({});
-          setEditingIndex(null);  // marks as new contact
+          setEditingIndex(null);
+          setContactKey(prev => prev + 1); // 👈 force re-render
           setShowPanel(true);
         }}
+
       >
         + Add Contact Person
       </Button>
@@ -946,6 +1006,7 @@ export default function EditVendor() {
                   Mobile No<span style={{ color: "red" }}> *</span>
                 </Form.Label>
                 <CountryPhoneInput
+                  key={contactKey}   // 👈 important!
                   country={countryCode.toLowerCase()}
                   international
                   value={contact.mobile_no ?? ""}
@@ -954,6 +1015,7 @@ export default function EditVendor() {
                   defaultCountry={countryCode}
                   className="form-control"
                 />
+
                 {/* {contactErrors.mobile_no && (
                   <div className="invalid-feedback" style={{ display: "block" }}>
                     {contactErrors.mobile_no}

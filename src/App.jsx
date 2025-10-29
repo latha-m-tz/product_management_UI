@@ -74,12 +74,12 @@ export default function App() {
         <Route
           path="/login"
           element={
-            isLoggedIn ? <Navigate to="/overview" replace /> : <LoginPage onLogin={handleLogin} />
+            isLoggedIn ? <Navigate to="/vendor" replace /> : <LoginPage onLogin={handleLogin} />
           }
         />
         <Route
           path="/register"
-          element={isLoggedIn ? <Navigate to="/overview" replace /> : <RegisterPage />}
+          element={isLoggedIn ? <Navigate to="/vendor" replace /> : <RegisterPage />}
         />
         {/* Protected Routes */}
         <Route

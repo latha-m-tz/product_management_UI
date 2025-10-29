@@ -146,6 +146,7 @@ const AddServicePage = () => {
   }
 }
   }
+  // ✅ Add row
   const addRow = () => {
     setFormData((prev) => ({
       ...prev,
@@ -187,52 +188,34 @@ const AddServicePage = () => {
     });
   };
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  if (!validate()) return;
+  // ✅ Submit
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!validate()) return;
 
-  const payload = new FormData();
-
-  // Top-level fields
-  for (const key in formData) {
-    if (key === "items") continue; // handle later
-
-    // If file, append file object
-    if (formData[key] instanceof File) {
-      payload.append(key, formData[key]);
-    } else {
-      payload.append(key, formData[key] || "");
-    }
-  }
-
-  // Items
-  formData.items.forEach((item, index) => {
-    for (const field in item) {
-      if (item[field] instanceof File) {
-        payload.append(`items[${index}][${field}]`, item[field]);
+    const payload = new FormData();
+    for (const key in formData) {
+      if (key === "items") {
+        formData.items.forEach((item, index) => {
+          for (const field in item) {
+            payload.append(`items[${index}][${field}]`, item[field]);
+          }
+        });
       } else {
-        payload.append(`items[${index}][${field}]`, item[field] || "");
+        payload.append(key, formData[key]);
       }
     }
-  });
 
-  try {
-    await axios.post(`${API_BASE_URL}/service-vci`, payload, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
-    toast.success("Service added successfully!");
-    navigate("/service-product");
-  } catch (error) {
-    console.error(error);
-    if (error.response?.data?.errors) {
-      setErrors(error.response.data.errors);
-      toast.error("Validation errors occurred!");
-    } else {
+    try {
+      await axios.post(`${API_BASE_URL}/service-vci`, payload, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      toast.success("Service added successfully!");
+      navigate("/service-product");
+    } catch (error) {
       toast.error("Failed to add service!");
     }
-  }
-};
-
+  };
 
   const RequiredLabel = ({ children }) => (
     <Form.Label>

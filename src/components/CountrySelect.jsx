@@ -36,6 +36,7 @@ const phoneDigitsByCountry = {
   AR: 10,
   RU: 10,
   IT: 10,
+  // IL: 8,
 };
 
 // Prepare country options

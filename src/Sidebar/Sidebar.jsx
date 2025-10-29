@@ -11,7 +11,7 @@ export default function Sidebar({ collapsed }) {
     // home: [{ link: "overview", title: "Overview", icon: ["/Overviiew_G.png", "/squares.png"] }],
     purchase: [
       { link: "vendor", title: "Vendor", icon: ["/VendorG.png", "/Vendor.png"] },
-      { link: "spare-parts", title: "Spare Parts", icon: ["/Purchase Order.png", "/Purchase Order 1.png"] },
+{ link: "spare-parts", title: "Spare Parts", icon: ["/spare-parts.png", "/spare-parts.png"] },
       { link: "spare-partsPurchase", title: "Spare Parts Purchase", icon: ["/Purchase Order.png", "/Purchase Order 1.png"] },
       { link: "spare-parts-by-series", title: "Spare Parts Requirements Calculation", icon: ["/Purchase Order.png", "/Purchase Order 1.png"] }, // <-- New link
     ],

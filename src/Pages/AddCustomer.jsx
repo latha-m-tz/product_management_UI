@@ -95,9 +95,9 @@ export default function AddCustomer() {
         setErrors((prev) => ({ ...prev, email: "" }));
       }
     }
-    
+
     // Clear the error for the changed field if it exists, to allow re-validation
-    if (errors[name] && name !== 'email') { 
+    if (errors[name] && name !== 'email') {
       setErrors((prev) => ({ ...prev, [name]: "" }));
     }
   };
@@ -215,7 +215,7 @@ export default function AddCustomer() {
 
   return (
     <div className="container-fluid p-4" style={{ background: "white", minHeight: "100vh" }}>
-      <Row className="align-items-center mb-3 fixed-header">
+      <Row className="align-items-center mb-3">
         <Col>
           <h4>Add  customer</h4>
         </Col>
@@ -272,7 +272,7 @@ export default function AddCustomer() {
                   }
                 }}
                 placeholder="Enter GST No"
-                maxLength={15} 
+                maxLength={15}
               />
 
               {errors.gst_no && (
@@ -311,7 +311,7 @@ export default function AddCustomer() {
                   }
                 }}
                 placeholder="Enter Pincode"
-                maxLength={6} 
+                maxLength={6}
               />
 
               {errors.pincode && <div style={feedbackStyle}>{errors.pincode}</div>}
@@ -335,7 +335,7 @@ export default function AddCustomer() {
                   if (errors.city) setErrors(prev => ({ ...prev, city: "" })); // Clear error on change
                 }}
                 placeholder="Select or type city"
-                classNamePrefix="my-select" 
+                classNamePrefix="my-select"
               />
               {errors.city && <div style={feedbackStyle}>{errors.city}</div>}
             </Form.Group>
@@ -383,7 +383,7 @@ export default function AddCustomer() {
                 name="email"
                 value={customer.email}
                 onChange={(e) => {
-                  const value = e.target.value.replace(/\s/g, ""); 
+                  const value = e.target.value.replace(/\s/g, "");
                   setCustomer((prev) => ({ ...prev, email: value }));
 
                   // Live validation for email (optional field)
@@ -415,11 +415,11 @@ export default function AddCustomer() {
                 placeholder="Enter mobile number"
                 countrySelectComponent={CountrySelect}
               />
-                {errors.mobile_no && (
-                  <div style={{ color: "red", fontSize: "0.85rem", marginTop: "4px" }}>
-                    {errors.mobile_no}
-                  </div>
-                )}
+              {errors.mobile_no && (
+                <div style={{ color: "red", fontSize: "0.85rem", marginTop: "4px" }}>
+                  {errors.mobile_no}
+                </div>
+              )}
             </Form.Group>
           </Col>
           <Col md={4}>
@@ -462,7 +462,7 @@ export default function AddCustomer() {
         <Button
           variant="secondary"
           className="me-2"
-          onClick={() => navigate(-1)} 
+          onClick={() => navigate(-1)}
         >
           Cancel
         </Button>

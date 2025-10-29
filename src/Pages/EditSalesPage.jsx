@@ -8,12 +8,14 @@ import "bootstrap/dist/css/bootstrap.min.css";
 
 import { API_BASE_URL } from "../api";
 import Breadcrumb from "../components/BreadCrumb";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { IoTrashOutline } from "react-icons/io5";
 
 export default function EditSalesPage() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const location = useLocation();
+
   const [customerId, setCustomerId] = useState("");
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -34,7 +36,7 @@ export default function EditSalesPage() {
 
   const MySwal = withReactContent(Swal);
 
-  // Load customers
+  // ✅ Load customers
   useEffect(() => {
     axios
       .get(`${API_BASE_URL}/customers/get`)
@@ -43,7 +45,7 @@ export default function EditSalesPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Load sale for edit or draft
+  // ✅ Load sale for edit or draft
   useEffect(() => {
     const draft = localStorage.getItem("draftSale");
     if (draft) {
@@ -79,27 +81,50 @@ export default function EditSalesPage() {
     }
   }, [id]);
 
-  // Load selected products from AddProductPage
   useEffect(() => {
-    const stored = localStorage.getItem("selectedProducts");
-    if (stored) {
-      const selected = JSON.parse(stored);
-      const existingSerials = items.map((i) => i.serialNo);
-      const newProducts = selected
-        .filter((item) => !existingSerials.includes(item.serial_no))
-        .map((item) => ({
-          quantity: 1,
-          serialNo: item.serial_no,
-        }));
+    const loadSelectedProducts = () => {
+      const stored = localStorage.getItem("selectedProducts");
+      if (!stored) return;
 
-      if (newProducts.length > 0) {
-        setItems((prev) => [...prev, ...newProducts]);
+      try {
+        const selected = JSON.parse(stored);
+        if (!Array.isArray(selected)) return;
+
+        setItems((prevItems) => {
+          const existingSerials = prevItems.map((i) => i.serialNo);
+          const merged = [
+            ...prevItems,
+            ...selected
+              .filter((p) => !existingSerials.includes(p.serial_no))
+              .map((p) => ({
+                quantity: 1,
+                serialNo: p.serial_no,
+              })),
+          ];
+          console.log("✅ Updated product list:", merged);
+          return merged;
+        });
+
+        // ✅ Clear after merging to prevent repeat adds
+        localStorage.removeItem("selectedProducts");
+      } catch (err) {
+        console.error("Error parsing selectedProducts:", err);
       }
-      localStorage.removeItem("selectedProducts");
-    }
-  }, [navigate]);
+    };
 
-  // Form validation
+    // Load when coming back or refocusing
+    loadSelectedProducts();
+    const handleFocus = () => loadSelectedProducts();
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") loadSelectedProducts();
+    });
+
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, []);
+
   const validateForm = () => {
     const errors = {};
     if (!customerId || parseInt(customerId) <= 0)
@@ -128,7 +153,7 @@ export default function EditSalesPage() {
     return Object.keys(errors).length === 0;
   };
 
-  // Handle save
+  // ✅ Save
   const handleSave = async () => {
     if (!validateForm()) {
       toast.warning("Please fix the highlighted errors!");
@@ -143,7 +168,7 @@ export default function EditSalesPage() {
       shipment_name: shipmentName.trim(),
       notes: notes.trim(),
       items: items.map((item) => ({
-        id: item.id,
+        ...(item.id ? { id: item.id } : {}),
         quantity: parseInt(item.quantity),
         serial_no: item.serialNo.trim(),
       })),
@@ -158,7 +183,7 @@ export default function EditSalesPage() {
     }
   };
 
-  // Update field
+  // ✅ Field change handlers
   const handleChange = (field, value) => {
     switch (field) {
       case "customerId":
@@ -189,7 +214,6 @@ export default function EditSalesPage() {
     }
   };
 
-  // Update item
   const handleItemChange = (index, field, value) => {
     const newItems = [...items];
     newItems[index][field] = value;
@@ -203,37 +227,29 @@ export default function EditSalesPage() {
     });
   };
 
-  const removeItem = (index) => {
-    setItems(items.filter((_, i) => i !== index));
-    setFormErrors((prev) => {
-      const updated = { ...prev };
-      delete updated[`serialNo_${index}`];
-      delete updated[`quantity_${index}`];
-      return updated;
+  const handleDeleteItem = (index) => {
+    MySwal.fire({
+      title: "Are you sure?",
+      text: "You won't be able to revert this!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#2FA64F",
+      confirmButtonText: "Yes, delete it!",
+    }).then((result) => {
+      if (result.isConfirmed) {
+        const deletedItem = items[index];
+        const newItems = items.filter((_, i) => i !== index);
+        setItems(newItems);
+        toast.success(`Product ${deletedItem.serialNo} removed successfully!`);
+      }
     });
   };
-const handleDeleteItem = (index) => {
-  MySwal.fire({
-    title: "Are you sure?",
-    text: "You won't be able to revert this!",
-    icon: "warning",
-    showCancelButton: true,
-    confirmButtonColor: "#d33",
-    cancelButtonColor: "#2FA64F",
-    confirmButtonText: "Yes, delete it!",
-  }).then((result) => {
-    if (result.isConfirmed) {
-      const deletedItem = items[index];
-      const newItems = items.filter((_, i) => i !== index);
-      setItems(newItems);
-      toast.success(`Product ${deletedItem.serialNo} removed successfully!`);
-    }
-  });
-};
 
+  // ✅ JSX
   return (
     <div className="container-fluid px-4 py-4 bg-light min-vh-100">
-      <Row className="align-items-center mb-3 fixed-header">
+      <Row className="align-items-center mb-3">
         <Col>
           <h4>Edit Sale</h4>
         </Col>
@@ -386,7 +402,6 @@ const handleDeleteItem = (index) => {
                     <thead>
                       <tr>
                         <th>Serial No</th>
-                        {/* <th>Quantity</th> */}
                         <th>Action</th>
                       </tr>
                     </thead>
@@ -406,35 +421,21 @@ const handleDeleteItem = (index) => {
                               {formErrors[`serialNo_${startIndex + index}`]}
                             </Form.Control.Feedback>
                           </td>
-                          {/* <td>
-                            <Form.Control
-                              type="number"
-                              value={item.quantity}
-                              isInvalid={!!formErrors[`quantity_${startIndex + index}`]}
-                              onChange={(e) =>
-                                handleItemChange(startIndex + index, "quantity", e.target.value)
-                              }
-                            />
-                            <Form.Control.Feedback type="invalid">
-                              {formErrors[`quantity_${startIndex + index}`]}
-                            </Form.Control.Feedback>
-                          </td> */}
                           <td>
-                      <Button
-  variant="outline-danger"
-  size="sm"
-  onClick={() => handleDeleteItem(startIndex + index)}
->
-  <IoTrashOutline />
-</Button>
-
+                            <Button
+                              variant="outline-danger"
+                              size="sm"
+                              onClick={() => handleDeleteItem(startIndex + index)}
+                            >
+                              <IoTrashOutline />
+                            </Button>
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </Table>
 
-                  {/* ✅ Pagination Controls */}
+                  {/* Pagination */}
                   <div className="d-flex justify-content-between align-items-center">
                     <Button
                       variant="outline-secondary"

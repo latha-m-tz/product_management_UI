@@ -46,22 +46,25 @@ const ViewServicePage = () => {
             sent_date: res.data.sent_date || "",
             received_date: res.data.received_date || "",
             remarks: res.data.remarks || "",
-            items: res.data.items?.map((item) => ({
-              id: item.id,
-              product: item.product_name || item.product || "",
-              vci_serial_no: item.vci_serial_no || "",
-              warranty_status: item.warranty_status || "",
-              testing_assigned_to: item.testing_assigned_to || "",
-              tested_date: item.tested_date || "",
-              testing_status: item.testing_status || "",
-              issue_found: item.issue_found || "",
-              action_taken: item.action_taken || "",
-              urgent: item.urgent || false,
-            })) || [],
+            items:
+              res.data.items?.map((item) => ({
+                id: item.id,
+                product:
+                  item.product_name || item.product?.name || "N/A",
+                vci_serial_no: item.vci_serial_no || "",
+                warranty_status: item.warranty_status || "",
+                testing_assigned_to: item.testing_assigned_to || "",
+                tested_date: item.tested_date || "",
+                testing_status: item.testing_status || "",
+                issue_found: item.issue_found || "",
+                action_taken: item.action_taken || "",
+                urgent: item.urgent || false,
+              })) || [],
           };
           setFormData(serviceData);
         }
       } catch (error) {
+        console.error("Fetch error:", error);
         toast.error("Failed to fetch service data!");
       } finally {
         setLoading(false);
@@ -82,7 +85,7 @@ const ViewServicePage = () => {
     {
       header: "Urgent",
       accessor: (row) => (
-        <Form.Check type="checkbox" checked={row.urgent} readOnly />
+        <Form.Check type="checkbox" checked={!!row.urgent} readOnly />
       ),
     },
   ];
@@ -94,9 +97,9 @@ const ViewServicePage = () => {
 
   return (
     <Container fluid>
-   <Row className="align-items-center mb-3 fixed-header">
+      <Row className="align-items-center mb-3 fixed-header">
         <Col>
-          <h4>view service</h4>
+          <h4>View Service</h4>
         </Col>
         <Col className="text-end">
           <Button
@@ -109,6 +112,7 @@ const ViewServicePage = () => {
           </Button>
         </Col>
       </Row>
+
       {/* Row 1 */}
       <Row className="mb-3">
         <Col md={4}>
@@ -145,12 +149,6 @@ const ViewServicePage = () => {
             <Form.Control type="text" value={formData.to_place} readOnly />
           </Form.Group>
         </Col>
-        {/* <Col md={4}>
-          <Form.Group>
-            <Form.Label>Tester Name</Form.Label>
-            <Form.Control type="text" value={formData.tester_name} readOnly />
-          </Form.Group>
-        </Col> */}
       </Row>
 
       {/* Row 3 */}
@@ -163,7 +161,7 @@ const ViewServicePage = () => {
         </Col>
         <Col md={4}>
           <Form.Group>
-            <Form.Label>Send Date</Form.Label>
+            <Form.Label>Sent Date</Form.Label>
             <Form.Control type="date" value={formData.sent_date} readOnly />
           </Form.Group>
         </Col>
@@ -180,7 +178,12 @@ const ViewServicePage = () => {
         <Col md={12}>
           <Form.Group>
             <Form.Label>Remarks</Form.Label>
-            <Form.Control as="textarea" rows={3} value={formData.remarks} readOnly />
+            <Form.Control
+              as="textarea"
+              rows={3}
+              value={formData.remarks}
+              readOnly
+            />
           </Form.Group>
         </Col>
       </Row>
@@ -195,12 +198,6 @@ const ViewServicePage = () => {
         perPage={perPage}
         headerStyle={headerStyle}
       />
-
-      <div className="mt-4 d-flex justify-content-end">
-        {/* <Button variant="secondary" onClick={() => navigate("/service-product")}>
-          Back
-        </Button> */}
-      </div>
     </Container>
   );
 };

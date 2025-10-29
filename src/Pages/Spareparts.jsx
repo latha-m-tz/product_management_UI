@@ -32,6 +32,7 @@ export default function App() {
   const [sortField, setSortField] = useState("");
   const [sortDirection, setSortDirection] = useState("asc");
   const location = useLocation();
+  const [productTypes, setProductTypes] = useState([]);
 
   function initialFormState() {
     return {
@@ -60,6 +61,18 @@ export default function App() {
 
   useEffect(() => {
     fetchSpareparts();
+  }, []);
+  useEffect(() => {
+    const fetchProductTypes = async () => {
+      try {
+        const res = await axios.get(`${API_BASE_URL}/product-types`);
+        setProductTypes(res.data?.data || res.data || []);
+      } catch (err) {
+        console.error("Error fetching product types:", err);
+        toast.error("Failed to load product types.");
+      }
+    };
+    fetchProductTypes();
   }, []);
 
   const saveSparepart = async (payload) => {
@@ -98,13 +111,13 @@ export default function App() {
     }
   };
 
-const handleChange = (e) => {
-  const { name, value } = e.target;
+  const handleChange = (e) => {
+    const { name, value } = e.target;
 
-  // No restriction for name
-  setFormData((prev) => ({ ...prev, [name]: value }));
-  if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
-};
+    // No restriction for name
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
+  };
 
 
 
@@ -308,6 +321,19 @@ const handleChange = (e) => {
                   {sortField === "code" && (sortDirection === "asc" ? "▲" : "▼")}
                 </th>
 
+                {/* ✅ NEW COLUMN */}
+                <th
+                  style={{
+                    backgroundColor: "#2E3A59",
+                    color: "white",
+                    fontSize: "0.82rem",
+                    height: "40px",
+                    textAlign: "center"
+                  }}
+                >
+                  Available Quantity
+                </th>
+
                 <th
                   style={{
                     backgroundColor: "#2E3A59",
@@ -324,6 +350,7 @@ const handleChange = (e) => {
             </thead>
 
 
+
             <tbody>
               {loading ? (
                 <tr><td colSpan="7" className="text-center py-4"><Spinner animation="border" /></td></tr>
@@ -334,7 +361,12 @@ const handleChange = (e) => {
                   <tr key={part.id}>
                     <td className="text-center" style={{ width: "70px" }}>{(page - 1) * perPage + index + 1}</td>
                     <td className="text-center" style={{ wordBreak: "break-word" }}>{part.name}</td>
+
                     <td className="text-center" style={{ wordBreak: "break-word" }}>{part.code ?? "-"}</td>
+                    <td className="text-center" style={{ wordBreak: "break-word" }}>
+                      {part.available_quantity ?? 0}
+                    </td>
+
                     <td className="text-center" style={{ width: "130px" }}>
                       <Button variant="" size="sm" className="me-1" onClick={() => handleEdit(part)} style={{ borderColor: "#2E3A59", color: "#2E3A59" }}>
                         <i className="bi bi-pencil-square"></i>
@@ -389,9 +421,39 @@ const handleChange = (e) => {
                 </div>
 
                 <div className="mb-2 col-12 form-field">
-                  <Form.Label className="mb-1" style={{ fontSize: "13px", fontWeight: 500 }}>Spare part Usage</Form.Label>
-                  <Form.Control type="text" name="sparepart_usages" value={formData.sparepart_usages} onChange={handleChange} className="custom-placeholder" placeholder="Enter Usage (default: common)" style={{ height: "34px", fontSize: "13px" }} />
+                  <Form.Label className="mb-1" style={{ fontSize: "13px", fontWeight: 500 }}>
+                    Spare Part Usage
+                  </Form.Label>
+
+                  {formData.sparepart_usages === "common" ? (
+                    <Form.Control
+                      type="text"
+                      name="sparepart_usages"
+                      value={formData.sparepart_usages}
+                      onChange={handleChange}
+                      className="custom-placeholder"
+                      placeholder="Enter Usage (default: common)"
+                      style={{ height: "34px", fontSize: "13px" }}
+                    />
+                  ) : (
+                    <Form.Select
+                      name="sparepart_usages"
+                      value={formData.sparepart_usages}
+                      onChange={handleChange}
+                      className="custom-placeholder"
+                      style={{ height: "34px", fontSize: "13px" }}
+                    >
+                      <option value="">-- Select Product Type --</option>
+                      {productTypes.map((pt) => (
+                        <option key={pt.id} value={pt.name}>
+                          {pt.name}
+                        </option>
+                      ))}
+                    </Form.Select>
+                  )}
+
                 </div>
+
                 <div className="mb-2 col-12 form-field">
                   <Form.Label className="mb-1" style={{ fontSize: "13px", fontWeight: 500 }}>
                     Required per VCI <span style={{ color: "red" }}>*</span>

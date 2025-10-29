@@ -17,7 +17,6 @@ export default function DashboardLayout({ onLogout }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredSuggestions, setFilteredSuggestions] = useState([]);
 
-  // Load user info from localStorage
   useEffect(() => {
     const email = localStorage.getItem("authEmail");
     const name = localStorage.getItem("authName"); // make sure this is set as username during login/registration
@@ -29,8 +28,8 @@ export default function DashboardLayout({ onLogout }) {
     userName
       ? userName.charAt(0).toUpperCase()
       : userEmail
-      ? userEmail.charAt(0).toUpperCase()
-      : "U";
+        ? userEmail.charAt(0).toUpperCase()
+        : "U";
 
   const handleLogout = () => {
     localStorage.removeItem("authToken");
@@ -191,14 +190,23 @@ export default function DashboardLayout({ onLogout }) {
               className="position-absolute top-100 end-0 mt-2 bg-white border shadow-sm p-2 rounded"
               style={{ zIndex: 2100, minWidth: "110px" }}
             >
-              <Button
-                variant="outline-danger"
-                size="sm"
-                onClick={handleLogout}
-                style={{ fontSize: "13px", padding: "6px 10px" }}
-              >
-                Logout
-              </Button>
+           <Button
+  variant="outline-danger"
+  onClick={handleLogout}
+  style={{
+    fontSize: "16px",
+    padding: "10px 16px",
+    width: "100%",
+    fontWeight: "600",
+    borderRadius: "10px",
+    borderWidth: "2px",
+    borderColor: "#dc3545",
+    color: "#dc3545",
+    backgroundColor: "transparent",
+  }}
+>
+  Logout
+</Button>
             </div>
           )}
         </div>
