@@ -24,13 +24,16 @@ export default function AddSparepartPurchase() {
   const [challan1File, setChallan1File] = useState(null);
   const [challan2File, setChallan2File] = useState(null);
   const [serialErrorShown, setSerialErrorShown] = useState(false);
+  const [recipientFiles, setRecipientFiles] = useState([null]);
+  const [challanFiles, setChallanFiles] = useState([null]);
+  const [trackingNumber, setTrackingNumber] = useState("");
 
   const MySwal = withReactContent(Swal);
 
   const [spareparts, setSpareparts] = useState([
     {
       sparepart_id: "",
-      qty: 1,
+      qty: "",
       warranty_status: "Active",
       product_id: "",
       from_serial: "",
@@ -40,6 +43,34 @@ export default function AddSparepartPurchase() {
   const [availableSpareparts, setAvailableSpareparts] = useState([]);
   const [availableVendors, setAvailableVendors] = useState([]);
   const [availableCategories, setAvailableCategories] = useState([]);
+  const handleFileChange = (type, index, file) => {
+    if (type === "recipient") {
+      const updated = [...recipientFiles];
+      updated[index] = file;
+      setRecipientFiles(updated);
+    } else if (type === "challan") {
+      const updated = [...challanFiles];
+      updated[index] = file;
+      setChallanFiles(updated);
+    }
+  };
+
+  const addFileField = (type) => {
+    if (type === "recipient") setRecipientFiles((prev) => [...prev, null]);
+    if (type === "challan") setChallanFiles((prev) => [...prev, null]);
+  };
+
+  const removeFileField = (type, index) => {
+    if (type === "recipient") {
+      const updated = [...recipientFiles];
+      updated.splice(index, 1);
+      setRecipientFiles(updated);
+    } else if (type === "challan") {
+      const updated = [...challanFiles];
+      updated.splice(index, 1);
+      setChallanFiles(updated);
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -70,7 +101,7 @@ export default function AddSparepartPurchase() {
 
     const updated = [...spareparts];
     updated[index].sparepart_id = value;
-    updated[index].qty = 1;
+    updated[index].qty = "";
     updated[index].warranty_status = "Active";
     updated[index].product_id = "";
     updated[index].from_serial = "";
@@ -125,28 +156,28 @@ export default function AddSparepartPurchase() {
       }
 
       // Range check
-  const fromNum = parseInt(updated[index].from_serial, 10);
-const toNum = parseInt(updated[index].to_serial, 10);
+      const fromNum = parseInt(updated[index].from_serial, 10);
+      const toNum = parseInt(updated[index].to_serial, 10);
 
-if (!isNaN(fromNum) && !isNaN(toNum)) {
-  if (fromNum > toNum) {
-    if (!serialErrorShown[index]?.rangeError) {
-      // Don't toast repeatedly
-      setSerialErrorShown(prev => ({
-        ...prev,
-        [index]: { ...prev[index], rangeError: true }
-      }));
-    }
-    updated[index].qty = 1; // reset qty if invalid
-  } else {
-    // Valid range → auto calculate quantity
-    updated[index].qty = toNum - fromNum + 1;
-    setSerialErrorShown(prev => ({
-      ...prev,
-      [index]: { ...prev[index], rangeError: false }
-    }));
-  }
-}
+      if (!isNaN(fromNum) && !isNaN(toNum)) {
+        if (fromNum > toNum) {
+          if (!serialErrorShown[index]?.rangeError) {
+            // Don't toast repeatedly
+            setSerialErrorShown(prev => ({
+              ...prev,
+              [index]: { ...prev[index], rangeError: true }
+            }));
+          }
+          updated[index].qty = ""; // reset qty if invalid
+        } else {
+          // Valid range → auto calculate quantity
+          updated[index].qty = toNum - fromNum + 1;
+          setSerialErrorShown(prev => ({
+            ...prev,
+            [index]: { ...prev[index], rangeError: false }
+          }));
+        }
+      }
 
       setSpareparts(updated);
       return;
@@ -256,17 +287,17 @@ if (!isNaN(fromNum) && !isNaN(toNum)) {
 
     if (!vendorId) {
       errs.vendor_id = "Vendor is required";
-      toast.error("Vendor is required");
+      // toast.error("Vendor is required");
     }
 
     if (!challanNo) {
       errs.challan_no = "Challan No is required";
-      toast.error("Challan No is required");
+      // toast.error("Challan No is required");
     }
 
     if (!challanDate) {
       errs.challan_date = "Challan Date is required";
-      toast.error("Challan Date is required");
+      // toast.error("Challan Date is required");
     }
 
     const itemErrors = {};
@@ -276,7 +307,7 @@ if (!isNaN(fromNum) && !isNaN(toNum)) {
 
       if (!sp.sparepart_id) {
         itemErr.sparepart_id = "Select sparepart";
-        toast.error(`Sparepart is required for item ${idx + 1}`);
+        // toast.error(`Sparepart is required for item ${idx + 1}`);
       }
 
       // Prefix mismatch
@@ -301,7 +332,7 @@ if (!isNaN(fromNum) && !isNaN(toNum)) {
       }
       if (!sp.qty || sp.qty < 1) {
         itemErr.qty = "Quantity must be at least 1";
-        toast.error(`Quantity must be at least 1 for item ${idx + 1}`);
+        // toast.error(`Quantity must be at least 1 for item ${idx + 1}`);
       }
 
       if (type.includes("warranty") && !sp.warranty_status) {
@@ -326,6 +357,7 @@ if (!isNaN(fromNum) && !isNaN(toNum)) {
 
     formData.append("vendor_id", vendorId || "");
     formData.append("challan_no", challanNo || "");
+    formData.append("tracking_number", trackingNumber || "");
 
     // Format date to dd-mm-yyyy
     let formattedDate = challanDate;
@@ -340,9 +372,15 @@ if (!isNaN(fromNum) && !isNaN(toNum)) {
       formData.append("received_date", `${day}-${month}-${year}`);
     }
 
-    if (recipientFile) formData.append("image_recipient", recipientFile);
-    if (challan1File) formData.append("image_challan_1", challan1File);
-    if (challan2File) formData.append("image_challan_2", challan2File);
+    // Append all recipient files
+    recipientFiles.forEach((file) => {
+      if (file) formData.append("image_recipient[]", file);
+    });
+
+    // Append all challan files
+    challanFiles.forEach((file) => {
+      if (file) formData.append("image_challan[]", file);
+    });
 
     // ✅ Append items as proper array fields
     spareparts.forEach((sp, index) => {
@@ -384,7 +422,7 @@ if (!isNaN(fromNum) && !isNaN(toNum)) {
 
   return (
     <div className="container-fluid " style={{ background: "F4F4F8", minHeight: "100vh", position: "relative" }}>
-      <Row className="align-items-center mb-3 fixed-header">
+      <Row className="align-items-center mb-3">
         <Col>
           <h4>Add purchase Details</h4>
         </Col>
@@ -407,146 +445,175 @@ if (!isNaN(fromNum) && !isNaN(toNum)) {
         <Card.Body>
           <h6 className="mb-3">Purchase Details</h6>
 
-          <Row className="mb-2">
-            <Col md={4}>
-              <Form.Group className="mb-2 form-field">
-                <Form.Label>
-                  Vendor<span style={{ color: "red" }}> *</span>
-                </Form.Label>
+    <Row className="mb-2">
+  <Col md={4}>
+    <Form.Group className="mb-2 form-field">
+      <Form.Label>
+        Vendor<span style={{ color: "red" }}> *</span>
+      </Form.Label>
 
-                <Form.Select
-                  value={vendorId}
-                  // onChange={(e) => setVendorId(e.target.value)}
-                  onChange={(e) => {
-                    setVendorId(e.target.value);
-                    clearError("vendor_id");   // clear vendor error live
-                  }}
+      <Form.Select
+        value={vendorId}
+        onChange={(e) => {
+          setVendorId(e.target.value);
+          clearError("vendor_id");
+        }}
+      >
+        <option value="">Select Vendor</option>
+        {availableVendors.map((v) => {
+          if (v.contact_persons?.length > 0) {
+            return v.contact_persons.map((c) => (
+              <option key={`${v.id}-${c.id}`} value={v.id}>
+                {v.vendor} – {c.name}
+                {c.is_main ? " (Main person)" : ""}
+              </option>
+            ));
+          } else {
+            return (
+              <option key={v.id} value={v.id}>
+                {v.vendor}
+              </option>
+            );
+          }
+        })}
+      </Form.Select>
+      {errors.vendor_id && <div style={feedbackStyle}>{errors.vendor_id}</div>}
+    </Form.Group>
+  </Col>
 
-                >
-                  <option value="">Select Vendor</option>
-                  {availableVendors.map((v) => {
-                    if (v.contact_persons?.length > 0) {
-                      return v.contact_persons.map((c) => (
-                        <option key={`${v.id}-${c.id}`} value={v.id}>
-                          {v.vendor} – {c.name}
-                          {c.is_main ? " (Main person)" : ""}
-                        </option>
-                      ));
-                    } else {
-                      return (
-                        <option key={v.id} value={v.id}>
-                          {v.vendor}
-                        </option>
-                      );
-                    }
-                  })}
-                </Form.Select>
-                {errors.vendor_id && <div style={feedbackStyle}>{errors.vendor_id}</div>}
-              </Form.Group>
-            </Col>
+  <Col md={4}>
+    <Form.Group className="mb-2 form-field">
+      <Form.Label>
+        Challan No<span style={{ color: "red" }}> *</span>
+      </Form.Label>
+      <Form.Control
+        type="text"
+        value={challanNo}
+        onChange={(e) => {
+          setChallanNo(e.target.value);
+          clearError("challan_no");
+        }}
+        placeholder="Enter Challan No"
+      />
+      {errors.challan_no && <div style={feedbackStyle}>{errors.challan_no}</div>}
+    </Form.Group>
+  </Col>
 
-            <Col md={4}>
-              <Form.Group className="mb-2 form-field">
-                <Form.Label>
-                  Challan No<span style={{ color: "red" }}> *</span>
-                </Form.Label>
+  <Col md={4}>
+    <Form.Group className="mb-2 form-field">
+      <Form.Label>
+        Challan Date<span style={{ color: "red" }}> *</span>
+      </Form.Label>
+      <Form.Control
+        type="date"
+        value={challanDate}
+        onChange={(e) => {
+          const val = e.target.value;
+          setChallanDate(val);
+          clearError("challan_date");
+        }}
+      />
+      {errors.challan_date && <div style={feedbackStyle}>{errors.challan_date}</div>}
+    </Form.Group>
+  </Col>
 
-                <Form.Control
-                  type="text"
-                  value={challanNo}
-                  // onChange={(e) => setChallanNo(e.target.value)}
-                  onChange={(e) => {
-                    setChallanNo(e.target.value);
-                    clearError("challan_no");
-                  }}
-                  placeholder="Enter Challan No"
+  {/* Received Date and Tracking Number side by side */}
+  <Col md={4}>
+    <Form.Group className="mb-2 form-field">
+      <Form.Label>Received Date</Form.Label>
+      <Form.Control
+        type="date"
+        value={receivedDate}
+        onChange={(e) => setReceivedDate(e.target.value)}
+      />
+    </Form.Group>
+  </Col>
 
-                />
-                {errors.challan_no && <div style={feedbackStyle}>{errors.challan_no}</div>}
+  <Col md={4}>
+    <Form.Group className="mb-2 form-field">
+      <Form.Label>Tracking Number</Form.Label>
+      <Form.Control
+        type="text"
+        placeholder="Enter Tracking Number"
+        value={trackingNumber}
+        onChange={(e) => setTrackingNumber(e.target.value)}
+      />
+    </Form.Group>
+  </Col>
 
-              </Form.Group>
-            </Col>
+  {/* RECEIPT FILES */}
+  <Col md={6}>
+    <Form.Group className="mb-2">
+      <Form.Label>
+        Receipt Documents
+        <Button
+          variant="link"
+          size="sm"
+          className="text-success ms-1 p-0"
+          onClick={() => addFileField("recipient")}
+        >
+          <i className="bi bi-plus-circle"></i> Add
+        </Button>
+      </Form.Label>
+      {recipientFiles.map((file, idx) => (
+        <div key={idx} className="d-flex align-items-center mb-1">
+          <Form.Control
+            type="file"
+            accept="image/*"
+            onChange={(e) => handleFileChange("recipient", idx, e.target.files[0])}
+          />
+          {recipientFiles.length > 1 && (
+            <Button
+              variant="link"
+              size="sm"
+              className="text-danger ms-2 p-0"
+              onClick={() => removeFileField("recipient", idx)}
+            >
+              <i className="bi bi-x-circle"></i>
+            </Button>
+          )}
+        </div>
+      ))}
+    </Form.Group>
+  </Col>
 
-            <Col md={4}>
-              <Form.Group className="mb- form-field">
-                <Form.Label>
-                  Challan Date<span style={{ color: "red" }}> *</span>
-                </Form.Label>
-                <Form.Control
-                  type="date"
-                  value={challanDate}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setChallanDate(val);
-                    clearError("challan_date");
-                  }}
-                  onInput={(e) => {
-                    // Prevent typing more than 4 digits for year
-                    const val = e.target.value;
-                    const parts = val.split("-");
-                    if (parts[0]?.length > 4) {
-                      e.target.value = parts[0].slice(0, 4) + (parts[1] ? `-${parts[1]}` : "") + (parts[2] ? `-${parts[2]}` : "");
-                      setChallanDate(e.target.value);
-                    }
-                  }}
-                  onBlur={() => {
-                    // Validate year on blur
-                    if (challanDate) {
-                      const [year, month, day] = challanDate.split("-").map(Number);
-                      if (!year || year < 1900 || year > 2100) {
-                        // setErrors((prev) => ({ ...prev, challan_date: "Year must be 4 digits between 1900-2100" }));
-                      }
-                    }
-                  }}
-                />
-                {errors.challan_date && <div style={feedbackStyle}>{errors.challan_date}</div>}
-              </Form.Group>
-            </Col>
-            <Col md={4}>
-              <Form.Group className="mb-2 form-field">
-                <Form.Label>Received Date</Form.Label>
-                <Form.Control
-                  type="date"
-                  value={receivedDate}
-                  onChange={(e) => setReceivedDate(e.target.value)}
-                />
-              </Form.Group>
-            </Col>
+  {/* CHALLAN FILES */}
+  <Col md={6}>
+    <Form.Group className="mb-2">
+      <Form.Label>
+        Challan Documents
+        <Button
+          variant="link"
+          size="sm"
+          className="text-success ms-1 p-0"
+          onClick={() => addFileField("challan")}
+        >
+          <i className="bi bi-plus-circle"></i> Add
+        </Button>
+      </Form.Label>
+      {challanFiles.map((file, idx) => (
+        <div key={idx} className="d-flex align-items-center mb-1">
+          <Form.Control
+            type="file"
+            accept="image/*"
+            onChange={(e) => handleFileChange("challan", idx, e.target.files[0])}
+          />
+          {challanFiles.length > 1 && (
+            <Button
+              variant="link"
+              size="sm"
+              className="text-danger ms-2 p-0"
+              onClick={() => removeFileField("challan", idx)}
+            >
+              <i className="bi bi-x-circle"></i>
+            </Button>
+          )}
+        </div>
+      ))}
+    </Form.Group>
+  </Col>
+</Row>
 
-            <Col md={4}>
-              <Form.Group className="mb-2 form-field">
-                <Form.Label>Receipt Document</Form.Label>
-                <Form.Control
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setRecipientFile(e.target.files[0])}
-                />
-              </Form.Group>
-            </Col>
-
-            <Col md={4}>
-              <Form.Group className="mb-2 form-field">
-                <Form.Label>Challan Document 1</Form.Label>
-                <Form.Control
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setChallan1File(e.target.files[0])}
-                />
-              </Form.Group>
-            </Col>
-
-            <Col md={4}>
-              <Form.Group className="mb-2 form-field">
-                <Form.Label>Challan Document 2</Form.Label>
-                <Form.Control
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setChallan2File(e.target.files[0])}
-                />
-              </Form.Group>
-            </Col>
-
-          </Row>
 
           {/* First sparepart dropdown + conditional fields */}
           <Row className="align-items-end">

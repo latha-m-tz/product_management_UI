@@ -184,11 +184,34 @@ const TrackingPage = () => {
               type="text"
               placeholder="Search Product Serial"
               value={serialNumber}
-              onChange={(e) => setSerialNumber(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value;
+                // Allow only digits and limit to 6 characters
+                if (/^\d{0,6}$/.test(value)) {
+                  setSerialNumber(value);
+                }
+              }}
               style={styles.searchInput}
+              maxLength={6} // extra safety
             />
+
           </div>
-          <Button variant="primary" style={styles.searchButton} type="submit">Search</Button>
+        <Button
+  type="submit"
+  style={{
+    backgroundColor: "#2E3A59",
+    border: "1px solid #2E3A59",
+    borderRadius: "10px",
+    height: "40px",
+    padding: "0 25px",
+    fontWeight: 500,
+    color: "white",
+  }}
+>
+  Search
+</Button>
+
+
         </Form>
       </div>
 

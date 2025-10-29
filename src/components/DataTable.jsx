@@ -21,13 +21,13 @@ export default function DataTable({
     <div className="table-responsive">
       <Table
         className="table-sm align-middle mb-0"
-        style={{ fontSize: "0.85rem" }}
+       style={{ fontSize: "1rem" }}
       >
         <thead
           style={{
             backgroundColor: "#2E3A59",
             color: "#2E3A59",
-            fontSize: "0.82rem",
+          fontSize: "1rem", // ✅ match body font
             height: "40px",
             verticalAlign: "middle",
           }}

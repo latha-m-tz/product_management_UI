@@ -68,9 +68,12 @@ export default function SalesListPage() {
     }
   };
 
-  const filteredSales = sales.filter((sale) =>
-    (sale.challan_no || "").toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredSales = sales.filter((sale) => {
+    const searchTerm = search.toLowerCase();
+    const challan = (sale.challan_no || "").toLowerCase();
+    const customer = (sale.customer?.customer || "").toLowerCase();
+    return challan.includes(searchTerm) || customer.includes(searchTerm);
+  });
 
   const paginatedSales = filteredSales.slice((page - 1) * perPage, page * perPage);
 
@@ -90,7 +93,7 @@ export default function SalesListPage() {
         <ActionButtons
           onEdit={() => navigate(`/sales/edit/${row.id}`)}
           onDelete={() => handleDelete(row)}
-          onView={() => navigate(`/sales-order-overview/${row.id}`)} 
+          onView={() => navigate(`/sales-order-overview/${row.id}`)}
         />
       ),
     },

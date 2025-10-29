@@ -494,7 +494,7 @@ export default function EditAssemblePage() {
     <Container className="main-container">
 
 
-      <Row className="align-items-center mb-3 fixed-header">
+      <Row className="align-items-center mb-3">
         <Col>
           <h4>Edit New Inventory</h4>
         </Col>

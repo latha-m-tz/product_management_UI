@@ -182,46 +182,74 @@ const EditService = () => {
     setFormData((prev) => ({ ...prev, items }));
   };
 
-  // Submit form
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     try {
       const payload = new FormData();
 
-      // Top-level fields
-      for (const key in formData) {
-        if (key === "items") {
-          formData.items.forEach((item, index) => {
-            for (const field in item) {
-              if (item[field] instanceof File) {
-                payload.append(`items[${index}][${field}]`, item[field]);
-              } else if (item[field] !== null && item[field] !== undefined) {
-                payload.append(`items[${index}][${field}]`, item[field]);
-              }
-            }
-          });
-        } else if (formData[key] instanceof File) {
-          payload.append(key, formData[key]);
-        } else if (formData[key] !== null && formData[key] !== undefined) {
-          payload.append(key, formData[key]);
+      // Laravel expects this for PUT/PATCH via FormData
+      payload.append("_method", "PUT");
+
+      // Append top-level fields
+      payload.append("challan_no", formData.challan_no || "");
+      payload.append("challan_date", formData.challan_date || "");
+      payload.append("courier_name", formData.courier_name || "");
+      payload.append("hsn_code", formData.hsn_code || "");
+      payload.append("quantity", formData.quantity || 0);
+      payload.append("status", formData.status || "");
+      payload.append("sent_date", formData.sent_date || "");
+      payload.append("received_date", formData.received_date || "");
+      payload.append("from_place", formData.from_place || "");
+      payload.append("to_place", formData.to_place || "");
+      payload.append("tracking_number", formData.tracking_number || "");
+
+      // Append files only if they are File objects
+      ["challan_1", "challan_2", "receipt_upload"].forEach((fileKey) => {
+        if (formData[fileKey] instanceof File) {
+          payload.append(fileKey, formData[fileKey]);
         }
+      });
+
+      // Append items array
+      if (Array.isArray(formData.items) && formData.items.length > 0) {
+        formData.items.forEach((item, index) => {
+          Object.entries(item).forEach(([key, val]) => {
+            payload.append(`items[${index}][${key}]`, val ?? "");
+          });
+        });
+      } else {
+        // Send empty to avoid Laravel dropping 'items'
+        payload.append("items", "");
       }
 
-      await axios.put(`${API_BASE_URL}/service-vci/${id}`, payload, {
+      // Debug to verify what’s sent
+      console.log("Sending FormData:");
+      for (let [k, v] of payload.entries()) console.log(k, v);
+
+      // ✅ Laravel-compatible request
+      await axios.post(`${API_BASE_URL}/service-vci/${id}`, payload, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
       toast.success("Service updated successfully!");
       navigate("/service-product");
     } catch (error) {
-      console.error(error);
-      toast.error("Failed to update service!");
+      console.error("Error updating service:", error);
+
+      if (error.response?.status === 422 && error.response.data.errors) {
+        const errors = error.response.data.errors;
+        Object.values(errors).flat().forEach((msg) => toast.error(msg));
+      } else {
+        toast.error("Failed to update service!");
+      }
     }
   };
 
+
   return (
     <Container fluid>
-      <Row className="align-items-center mb-3 fixed-header">
+      <Row className="align-items-center mb-3">
         <Col>
           <h4>Edit Service</h4>
         </Col>

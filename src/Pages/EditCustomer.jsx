@@ -241,7 +241,7 @@ export default function EditCustomer() {
       className="container-fluid p-4"
       style={{ background: "white", minHeight: "100vh" }}
     >
-      <Row className="align-items-center mb-3 fixed-header">
+      <Row className="align-items-center mb-3">
         <Col>
           <h4>Edit  customer</h4>
         </Col>
@@ -348,7 +348,7 @@ export default function EditCustomer() {
                   }
                 }}
                 placeholder="Enter Pincode"
-                maxLength={6} 
+                maxLength={6}
               />
 
               {errors.pincode && (

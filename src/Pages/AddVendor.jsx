@@ -38,6 +38,8 @@ export default function AddVendor() {
   const MySwal = withReactContent(Swal);
   const [panelKey, setPanelKey] = useState(0);
   const [contactCountry, setContactCountry] = useState("IN");
+  const capitalizeWords = (str) =>
+    str.replace(/\b\w/g, (char) => char.toUpperCase());
 
   const [contact, setContact] = useState({
     name: "",
@@ -51,7 +53,6 @@ export default function AddVendor() {
     if (!number) return "N/A";
 
     try {
-      // If number doesn't have "+", prepend default country code
       const fullNumber = number.startsWith("+")
         ? number
         : `+${getCountryCallingCode(defaultCountry)}${number}`;
@@ -141,6 +142,7 @@ export default function AddVendor() {
   const handleVendorChange = (e) => {
     const { name, value } = e.target;
 
+    // For pincode, keep numeric logic as is
     if (name === "pincode") {
       let input = value.replace(/\D/g, "");
       if (input.length > 6) input = input.slice(0, 6);
@@ -154,20 +156,37 @@ export default function AddVendor() {
       return;
     }
 
-    setVendor((prev) => ({ ...prev, [name]: value }));
+    // Capitalize all text fields except email, gst_no, and address
+    let updatedValue = value;
+    if (!["email", "gst_no", "address"].includes(name)) {
+      updatedValue = capitalizeWords(value);
+    }
+
+    setVendor((prev) => ({ ...prev, [name]: updatedValue }));
+
     if (vendorErrors[name]) {
       setVendorErrors((prev) => ({ ...prev, [name]: "" }));
     }
   };
 
+
   const handleContactChange = (e) => {
     const { name, value } = e.target;
-    setContact({ ...contact, [name]: value });
+
+    let updatedValue = value;
+
+    // Only capitalize text fields (not email or mobile)
+    if (!["email", "mobile_no"].includes(name)) {
+      updatedValue = capitalizeWords(value);
+    }
+
+    setContact({ ...contact, [name]: updatedValue });
 
     if (name !== "mobile_no" && contactErrors[name]) {
       setContactErrors((prev) => ({ ...prev, [name]: "" }));
     }
   };
+
 
   const cityOptionsFormatted = cityOptions.map((c) => ({ label: c, value: c }));
 
@@ -220,6 +239,16 @@ export default function AddVendor() {
     const contactToSave = { ...contact };
     let updatedContacts = [...contactPersons];
 
+    // 🔹 Check if already has a main contact person (when adding or editing)
+    const hasMainContact =
+      updatedContacts.some((c, idx) => c.isMain && idx !== editingIndex);
+
+    if (contactToSave.isMain && hasMainContact) {
+      toast.error("A main contact person already exists!");
+      return;
+    }
+
+    // 🔹 Check for duplicate mobile numbers
     const duplicateInContacts = updatedContacts.some(
       (c, idx) => c.mobile_no === contactToSave.mobile_no && idx !== editingIndex
     );
@@ -231,10 +260,12 @@ export default function AddVendor() {
       return;
     }
 
+    // 🔹 If this is marked as main, clear all others
     if (contactToSave.isMain) {
-      updatedContacts = updatedContacts.map(c => ({ ...c, isMain: false }));
+      updatedContacts = updatedContacts.map((c) => ({ ...c, isMain: false }));
     }
 
+    // 🔹 Update or Add contact
     if (editingIndex !== null) {
       updatedContacts[editingIndex] = contactToSave;
       setContactPersons(updatedContacts);
@@ -244,6 +275,7 @@ export default function AddVendor() {
       toast.success(`Contact person "${contactToSave.name}" added successfully!`);
     }
 
+    // 🔹 Reset contact form and panel
     setContact({
       name: "",
       designation: "",
@@ -257,6 +289,7 @@ export default function AddVendor() {
     setShowPanel(false);
     setTimeout(() => setShowPanel(false), 0);
   };
+
 
   const editContact = (index) => {
     const c = contactPersons[index];
@@ -408,7 +441,7 @@ export default function AddVendor() {
   return (
     <>
       <div className="container-fluid " style={{ background: "white", minHeight: "100vh", position: "relative" }}>
-        <Row className="align-items-center mb-3 fixed-header">
+        <Row className="align-items-center mb-3">
           <Col>
             <h4>Add Vendor Details</h4>
           </Col>
