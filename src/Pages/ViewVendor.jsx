@@ -11,17 +11,15 @@ export default function ViewVendor() {
   const navigate = useNavigate();
   const [vendor, setVendor] = useState(null);
   const [loading, setLoading] = useState(true);
+
   const formatMobileNumber = (number, defaultCountry = "IN") => {
     if (!number) return "-";
-
     try {
       const fullNumber = number.startsWith("+")
         ? number
         : `+${getCountryCallingCode(defaultCountry)}${number}`;
-
       const phone = parsePhoneNumberFromString(fullNumber, metadata);
       if (!phone) return number;
-
       return `+${phone.countryCallingCode} ${phone.nationalNumber}`;
     } catch {
       return number;
@@ -31,14 +29,14 @@ export default function ViewVendor() {
   useEffect(() => {
     setLoading(true);
     fetch(`${API_BASE_URL}/vendors/get/${id}`)
-      .then(res => res.json())
-      .then(data => {
+      .then((res) => res.json())
+      .then((data) => {
         setVendor({
           ...data,
-          contact_persons: data.contact_persons ?? []
+          contact_persons: data.contact_persons ?? [],
         });
       })
-      .catch(err => {
+      .catch((err) => {
         console.error("Error fetching vendor:", err);
         setVendor(null);
       })
@@ -67,10 +65,8 @@ export default function ViewVendor() {
   const firstContact = vendor.contact_persons[0] ?? null;
   const otherContacts = vendor.contact_persons.slice(1);
 
-
-
   const InfoRow = ({ label, value }) => (
-    <Row className="mb-2">
+    <Row className="mb-3">
       <Col xs={5} md={4} style={{ color: "#6c757d", fontSize: "0.9rem" }}>
         {label}
       </Col>
@@ -81,9 +77,29 @@ export default function ViewVendor() {
   );
 
   const SectionCard = ({ title, children }) => (
-    <Card className="mb-3 border-0">
-      <Card.Body style={{ background: "#f6f7f9", borderRadius: "6px" }}>
-        <h6 style={{ fontWeight: 600, marginBottom: "12px", color: "#222" }}>
+    <Card
+      className="mb-4 shadow-sm"
+      style={{
+        border: "none",
+        borderRadius: "12px",
+        width: "100%",
+      }}
+    >
+      <Card.Body
+        style={{
+          background: "#f6f7f9",
+          borderRadius: "12px",
+          padding: "32px 36px",
+        }}
+      >
+        <h6
+          style={{
+            fontWeight: 600,
+            marginBottom: "18px",
+            color: "#222",
+            fontSize: "1.1rem",
+          }}
+        >
           {title}
         </h6>
         {children}
@@ -92,11 +108,36 @@ export default function ViewVendor() {
   );
 
   return (
-    <div className="container-fluid p-4">
+    <div
+      className="container-fluid py-4 px-5"
+      style={{
+        maxWidth: "1200px",
+        margin: "0 auto",
+      }}
+    >
       {/* Header */}
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h5 className="mb-0">Overview</h5>
-        <Button variant="outline-secondary" size="sm" onClick={() => navigate(-1)}>
+      <div
+        className="d-flex justify-content-between align-items-center mb-4"
+        style={{
+          padding: "8px 0",
+        }}
+      >
+        <h5
+          className="mb-0"
+          style={{ color: "#2E3A59", fontWeight: "600", fontSize: "1.3rem" }}
+        >
+          Vendor Overview
+        </h5>
+        <Button
+          size="sm"
+          onClick={() => navigate(-1)}
+          style={{
+            backgroundColor: "grey",
+            borderColor: "grey",
+            padding: "6px 14px",
+            marginTop: "6px",
+          }}
+        >
           ← Back
         </Button>
       </div>
@@ -114,7 +155,10 @@ export default function ViewVendor() {
           </Col>
           <Col md={6}>
             <InfoRow label="District" value={vendor.district} />
-            <InfoRow label="Mobile no" value={formatMobileNumber(vendor.mobile_no)} />
+            <InfoRow
+              label="Mobile no"
+              value={formatMobileNumber(vendor.mobile_no)}
+            />
             <InfoRow label="Address" value={vendor.address} />
           </Col>
         </Row>
@@ -127,7 +171,9 @@ export default function ViewVendor() {
             <Col md={6}>
               <InfoRow
                 label="Name"
-                value={`${firstContact.name}${firstContact.is_main ? " (Main person)" : ""}`}
+                value={`${firstContact.name}${
+                  firstContact.is_main ? " (Main person)" : ""
+                }`}
               />
               <InfoRow label="Designation" value={firstContact.designation} />
               <InfoRow
@@ -136,7 +182,8 @@ export default function ViewVendor() {
                   firstContact.status ? (
                     <span
                       style={{
-                        color: firstContact.status === "Active" ? "green" : "red",
+                        color:
+                          firstContact.status === "Active" ? "green" : "red",
                       }}
                     >
                       {firstContact.status}
@@ -149,7 +196,10 @@ export default function ViewVendor() {
             </Col>
             <Col md={6}>
               <InfoRow label="Email ID" value={firstContact.email} />
-              <InfoRow label="Mobile No" value={formatMobileNumber(firstContact.mobile_no)} />
+              <InfoRow
+                label="Mobile No"
+                value={formatMobileNumber(firstContact.mobile_no)}
+              />
             </Col>
           </Row>
         </SectionCard>
@@ -163,7 +213,9 @@ export default function ViewVendor() {
               <Col md={6}>
                 <InfoRow
                   label="Name"
-                  value={`${person.name}${(person.is_main || person.isMain) ? " (Main person)" : ""}`}
+                  value={`${person.name}${
+                    person.is_main || person.isMain ? " (Main person)" : ""
+                  }`}
                 />
                 <InfoRow label="Designation" value={person.designation} />
                 <InfoRow
@@ -185,7 +237,10 @@ export default function ViewVendor() {
               </Col>
               <Col md={6}>
                 <InfoRow label="Email ID" value={person.email} />
-                <InfoRow label="Mobile No" value={formatMobileNumber(person.mobile_no)} />
+                <InfoRow
+                  label="Mobile No"
+                  value={formatMobileNumber(person.mobile_no)}
+                />
               </Col>
             </Row>
           </SectionCard>

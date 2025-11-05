@@ -257,7 +257,7 @@ const getMaxDigits = (country) => {
     setMobile(input);
 
     if (!input) {
-        setInternalError("Mobile number is required");
+        // setInternalError("Mobile number is required");
         onChange && onChange("");
         return;
     }
@@ -302,7 +302,7 @@ const getMaxDigits = (country) => {
                     onChange={sel => {
                         setSelectedCountry(sel);
                         setMobile("");
-                        setInternalError("Mobile number is required");
+                        // setInternalError("Mobile number is required");
                         onChange && onChange("");
                     }}
                     components={{ SingleValue }}

@@ -217,10 +217,10 @@ export default function VendorPage() {
                 </th>
                 {[
                   { label: "Vendor", field: "vendor" },
-                  { label: "GST No", field: "gst_no" },
+                  { label: "District", field: "district" },
+                  { label: "City", field: "city" },
                   { label: "Email", field: "email" },
                   { label: "Mobile No", field: "mobile_no" },
-                  { label: "Status", field: "status" },
                 ].map(({ label, field }) => (
                   <th
                     key={field}
@@ -269,17 +269,11 @@ export default function VendorPage() {
                   <tr key={vendor.id}>
                     <td className="text-center">{(page - 1) * perPage + index + 1}</td>
                     <td style={{ fontSize: "0.90rem" }}>{vendor.vendor || "N/A"}</td>
-                    <td style={{ fontSize: "0.90rem" }}>{vendor.gst_no || "N/A"}</td>
+                    <td style={{ fontSize: "0.90rem" }}>{vendor.district || "N/A"}</td>
+                    <td style={{ fontSize: "0.90rem" }}>{vendor.city || "N/A"}</td>
                     <td style={{ fontSize: "0.90rem" }}>{vendor.email || "N/A"}</td>
-                    <td>{formatMobileNumber(vendor.mobile_no, "IN")}</td>
-                    <td>
-                      <span
-                        className={`badge ${vendor.status === "Active" ? "bg-success" : "bg-danger"
-                          }`}
-                      >
-                        {vendor.status}
-                      </span>
-                    </td>
+                    <td style={{ fontSize: "0.90rem" }}>{formatMobileNumber(vendor.mobile_no, "IN")}</td>
+                
                     <td className="text-center">
                       <ActionButton
                         onEdit={() => navigate(`/vendor/edit/${vendor.id}`)}
