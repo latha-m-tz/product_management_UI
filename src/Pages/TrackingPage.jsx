@@ -50,6 +50,25 @@ const TrackingPage = () => {
     { stage: "SALE", items: [] },
     { stage: "SERVICE", items: [] },
   ];
+useEffect(() => {
+  const savedSerial = localStorage.getItem("lastSerialNumber");
+  if (savedSerial) {
+    setSerialNumber(savedSerial);
+  }
+}, []);
+
+useEffect(() => {
+  if (serialNumber) {
+    localStorage.setItem("lastSerialNumber", serialNumber);
+  }
+}, [serialNumber]);
+
+// Fetch timeline automatically if serial exists (on reload)
+useEffect(() => {
+  if (serialNumber) {
+    fetchTimeline();
+  }
+}, [serialNumber]);
 
   const getStageColor = (stage) => "#2E3A59";
 

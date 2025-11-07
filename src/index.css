@@ -120,7 +120,7 @@ button:focus {
   white-space: nowrap;
   display: flex;
   align-items: center;
-  padding: 12px;
+  padding: 10px;
   border-radius: 8px;
   text-decoration: none;
   margin-bottom: 8px;
@@ -363,4 +363,36 @@ input[type="file"].form-control-file {
 }
 .table {
   font-size: 0.80rem !important;
+  font-family: product-sans, sans-serif !important;
+}
+.form-control.is-invalid {
+  border-color: #ced4da !important; /* Default grey border */
+  box-shadow: none !important;
+}
+
+.invalid-feedback {
+  color: red !important;
+}
+
+.react-select__control {
+  min-height: 34px !important;
+}
+.react-select__multi-value {
+  margin: 1px 3px !important;
+}
+.react-select__value-container {
+  padding: 2px 4px !important;
+}
+
+/* Remove red border + glow from invalid form fields */
+.form-control.is-invalid,
+.form-select.is-invalid {
+  border-color: #ced4da !important; /* reset to default gray */
+  box-shadow: none !important;      /* removes red outline */
+}
+
+/* Optional: still show error text in red */
+.invalid-feedback {
+  color: #dc3545 !important;
+  font-weight: 500;
 }

@@ -658,10 +658,6 @@ export default function EditVendor() {
     // ✅ Return false if any errors
     return Object.keys(newErrors).length === 0;
   };
-
-
-
-
   const saveVendor = async () => {
     if (!validateVendor()) {
       toast.error("Please correct the errors before saving.");

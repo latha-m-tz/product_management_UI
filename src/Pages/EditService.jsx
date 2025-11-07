@@ -404,9 +404,15 @@ const EditService = () => {
                 type="number"
                 name="quantity"
                 value={formData.quantity}
-                onChange={handleChange}
+                min="0" // 🔒 Prevents negative input
+                onChange={(e) => {
+                  const { name, value } = e.target;
+                  if (value < 0) return;
+                  setFormData({ ...formData, [name]: value });
+                }}
               />
             </Form.Group>
+
           </Col>
           <Col md={4}>
             <Form.Group>

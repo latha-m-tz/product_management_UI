@@ -17,16 +17,13 @@ export default function AddSparepartPurchase() {
   const [challanDate, setChallanDate] = useState("");
   const [errors, setErrors] = useState({});
   const navigate = useNavigate();
-  const [existingSerials, setExistingSerials] = useState([]);
-  const [serialErrors, setSerialErrors] = useState({});
   const [receivedDate, setReceivedDate] = useState("");
-  const [recipientFile, setRecipientFile] = useState(null);
-  const [challan1File, setChallan1File] = useState(null);
-  const [challan2File, setChallan2File] = useState(null);
   const [serialErrorShown, setSerialErrorShown] = useState(false);
-  const [recipientFiles, setRecipientFiles] = useState([null]);
-  const [challanFiles, setChallanFiles] = useState([null]);
   const [trackingNumber, setTrackingNumber] = useState("");
+  // const [vendorIdOnly, contactPersonId] = String(vendorId).split("-");
+  const [recipientFiles, setRecipientFiles] = useState([{ id: Date.now(), file: null }]);
+  const [courierName, setCourierName] = useState("");
+
 
   const MySwal = withReactContent(Swal);
 
@@ -35,7 +32,7 @@ export default function AddSparepartPurchase() {
       sparepart_id: "",
       qty: "",
       warranty_status: "Active",
-      product_id: "",
+      // product_id: "",
       from_serial: "",
       to_serial: "",
     },
@@ -43,34 +40,27 @@ export default function AddSparepartPurchase() {
   const [availableSpareparts, setAvailableSpareparts] = useState([]);
   const [availableVendors, setAvailableVendors] = useState([]);
   const [availableCategories, setAvailableCategories] = useState([]);
-  const handleFileChange = (type, index, file) => {
+  // Remove field
+  const removeFileField = (type, id) => {
+    if (type === "recipient") setRecipientFiles((prev) => prev.filter(f => f.id !== id));
+    // else if (type === "challan") setChallanFiles((prev) => prev.filter(f => f.id !== id));
+  };
+
+  // Handle file change
+  const handleFileChange = (type, id, file) => {
     if (type === "recipient") {
-      const updated = [...recipientFiles];
-      updated[index] = file;
-      setRecipientFiles(updated);
+      setRecipientFiles((prev) => prev.map(f => f.id === id ? { ...f, file } : f));
     } else if (type === "challan") {
-      const updated = [...challanFiles];
-      updated[index] = file;
-      setChallanFiles(updated);
+      // setChallanFiles((prev) => prev.map(f => f.id === id ? { ...f, file } : f));
     }
   };
 
   const addFileField = (type) => {
-    if (type === "recipient") setRecipientFiles((prev) => [...prev, null]);
-    if (type === "challan") setChallanFiles((prev) => [...prev, null]);
+    const newField = { id: Date.now(), file: null };
+    if (type === "recipient") setRecipientFiles((prev) => [...prev, newField]);
+    // else if (type === "challan") setChallanFiles((prev) => [...prev, newField]);
   };
 
-  const removeFileField = (type, index) => {
-    if (type === "recipient") {
-      const updated = [...recipientFiles];
-      updated.splice(index, 1);
-      setRecipientFiles(updated);
-    } else if (type === "challan") {
-      const updated = [...challanFiles];
-      updated.splice(index, 1);
-      setChallanFiles(updated);
-    }
-  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -103,7 +93,7 @@ export default function AddSparepartPurchase() {
     updated[index].sparepart_id = value;
     updated[index].qty = "";
     updated[index].warranty_status = "Active";
-    updated[index].product_id = "";
+    // updated[index].product_id = "";
     updated[index].from_serial = "";
     updated[index].to_serial = "";
     setSpareparts(updated);
@@ -113,88 +103,56 @@ export default function AddSparepartPurchase() {
 
 
 
-  const handleInputChange = (index, field, value) => {
-    const type = sparepartTypeOf(spareparts[index].sparepart_id);
-    const updated = [...spareparts];
+const handleInputChange = (index, field, value) => {
+  const type = sparepartTypeOf(spareparts[index].sparepart_id);
+  const updated = [...spareparts];
 
-    // Serial type fields
-    if (type.includes("serial") && (field === "from_serial" || field === "to_serial")) {
-      const productId = updated[index].product_id;
-
-      if (!productId) {
-        toast.error("Please choose product first");
-        updated[index][field] = "";
-        setSpareparts(updated);
-        return;
-      }
-
-      // Keep only digits & max 6
-      value = value.replace(/\D/g, "").slice(0, 6);
-      updated[index][field] = value;
-
-      const product = availableCategories.find(p => String(p.id) === String(productId));
-      const productPrefix = product?.name.match(/^(\d+)/)?.[1] || null;
-
-      // Check prefix match
-      if (productPrefix && value && !value.startsWith(productPrefix)) {
-        if (!serialErrorShown[index]?.prefixMismatch) {
-          toast.error(`Serial must start with product prefix (${productPrefix})`);
-          setSerialErrorShown(prev => ({
-            ...prev,
-            [index]: { ...prev[index], prefixMismatch: true }
-          }));
-        }
-        updated[index][field] = "";
-        setSpareparts(updated);
-        return;
-      } else {
-        // Reset prefixMismatch flag if correct
-        setSerialErrorShown(prev => ({
-          ...prev,
-          [index]: { ...prev[index], prefixMismatch: false }
-        }));
-      }
-
-      // Range check
-      const fromNum = parseInt(updated[index].from_serial, 10);
-      const toNum = parseInt(updated[index].to_serial, 10);
-
-      if (!isNaN(fromNum) && !isNaN(toNum)) {
-        if (fromNum > toNum) {
-          if (!serialErrorShown[index]?.rangeError) {
-            // Don't toast repeatedly
-            setSerialErrorShown(prev => ({
-              ...prev,
-              [index]: { ...prev[index], rangeError: true }
-            }));
-          }
-          updated[index].qty = ""; // reset qty if invalid
-        } else {
-          // Valid range → auto calculate quantity
-          updated[index].qty = toNum - fromNum + 1;
-          setSerialErrorShown(prev => ({
-            ...prev,
-            [index]: { ...prev[index], rangeError: false }
-          }));
-        }
-      }
-
-      setSpareparts(updated);
-      return;
-    }
-
-    // Other fields
+  // Serial type fields
+  if (type.includes("serial") && (field === "from_serial" || field === "to_serial")) {
+    // Keep only digits & max 6 characters
+    value = value.replace(/\D/g, "").slice(0, 6);
     updated[index][field] = value;
 
-    if (field === "qty") {
-      let qty = Number(value);
-      if (qty < 1) qty = 1;
-      updated[index][field] = qty;
+    // Range check
+    const fromNum = parseInt(updated[index].from_serial, 10);
+    const toNum = parseInt(updated[index].to_serial, 10);
+
+    if (!isNaN(fromNum) && !isNaN(toNum)) {
+      if (fromNum > toNum) {
+        if (!serialErrorShown[index]?.rangeError) {
+          setSerialErrorShown(prev => ({
+            ...prev,
+            [index]: { ...prev[index], rangeError: true }
+          }));
+        }
+        updated[index].qty = ""; // reset qty if invalid
+      } else {
+        // Valid range → auto calculate quantity
+        updated[index].qty = toNum - fromNum + 1;
+        setSerialErrorShown(prev => ({
+          ...prev,
+          [index]: { ...prev[index], rangeError: false }
+        }));
+      }
     }
 
     setSpareparts(updated);
-    clearError(field, index);
-  };
+    return;
+  }
+
+  // Other fields
+  updated[index][field] = value;
+
+  if (field === "qty") {
+    let qty = Number(value);
+    if (qty < 1) qty = 1;
+    updated[index][field] = qty;
+  }
+
+  setSpareparts(updated);
+  clearError(field, index);
+};
+
 
 
 
@@ -246,7 +204,7 @@ export default function AddSparepartPurchase() {
         sparepart_id: "",
         qty: 1,
         warranty_status: "Active",
-        product_id: "",
+        // product_id: "",
         from_serial: "",
         to_serial: "",
       },
@@ -260,7 +218,7 @@ export default function AddSparepartPurchase() {
         sparepart_id: "",
         qty: 1,
         warranty_status: "Active",
-        product_id: "",
+        // product_id: "",
         from_serial: "",
         to_serial: "",
       };
@@ -299,6 +257,10 @@ export default function AddSparepartPurchase() {
       errs.challan_date = "Challan Date is required";
       // toast.error("Challan Date is required");
     }
+    // if (!receivedDate) {
+    //   errs.received_date = "Received Date is required";
+    //   // toast.error("Received Date is required");
+    // }
 
     const itemErrors = {};
     spareparts.forEach((sp, idx) => {
@@ -349,45 +311,60 @@ export default function AddSparepartPurchase() {
     return Object.keys(errs).length === 0;
   };
 
-
   const handleSubmit = async () => {
     if (!validateForm()) return;
 
     const formData = new FormData();
+    // ---- Add this block here ----
+    let vendor_id = "";
+    let contact_person_id = "";
 
-    formData.append("vendor_id", vendorId || "");
+    if (vendorId) {
+      const parts = vendorId.split("-");
+      vendor_id = parts[0]; // vendor ID is always the first part
+      contact_person_id = parts[1] && parts[1] !== "0" ? parts[1] : null; // null if main vendor
+    } else {
+      // Vendor not selected → validation will catch it
+      vendor_id = "";
+      contact_person_id = null;
+    }
+    formData.append("vendor_id", vendor_id);
+    if (contact_person_id) formData.append("contact_person_id", contact_person_id);
+
+    // Basic fields
+    //   formData.append("vendor_id", vendorId || "");
+    //   formData.append("vendor_id", vendorIdOnly || "");
+
+    // formData.append("contact_person_id", contactPersonId || "")
     formData.append("challan_no", challanNo || "");
     formData.append("tracking_number", trackingNumber || "");
+    formData.append("courier_name", courierName || "");
 
-    // Format date to dd-mm-yyyy
-    let formattedDate = challanDate;
-    if (challanDate) {
-      const [year, month, day] = challanDate.split("-");
-      formattedDate = `${day}-${month}-${year}`;
-    }
-    formData.append("challan_date", formattedDate);
+    // Convert yyyy-mm-dd → mm-dd-yyyy
+    const formatDateMDY = (dateStr) => {
+      if (!dateStr) return "";
+      const [year, month, day] = dateStr.split("-");
+      return `${month}-${day}-${year}`;
+    };
 
-    if (receivedDate) {
-      const [year, month, day] = receivedDate.split("-");
-      formData.append("received_date", `${day}-${month}-${year}`);
-    }
+    // In handleSubmit
+    formData.append("challan_date", formatDateMDY(challanDate));
+    formData.append("received_date", formatDateMDY(receivedDate));
 
-    // Append all recipient files
-    recipientFiles.forEach((file) => {
-      if (file) formData.append("image_recipient[]", file);
+
+    recipientFiles.forEach((f) => {
+      if (f.file) formData.append("document_recipient[]", f.file);
     });
+    // challanFiles.forEach((f) => {
+    //   if (f.file) formData.append("document_challan[]", f.file);
+    // });
 
-    // Append all challan files
-    challanFiles.forEach((file) => {
-      if (file) formData.append("image_challan[]", file);
-    });
-
-    // ✅ Append items as proper array fields
+    // Append sparepart items
     spareparts.forEach((sp, index) => {
       if (!sp.sparepart_id) return;
 
       formData.append(`items[${index}][sparepart_id]`, sp.sparepart_id);
-      if (sp.product_id) formData.append(`items[${index}][product_id]`, sp.product_id);
+      // if (sp.product_id) formData.append(`items[${index}][product_id]`, sp.product_id);
       if (sp.from_serial) formData.append(`items[${index}][from_serial]`, sp.from_serial);
       if (sp.to_serial) formData.append(`items[${index}][to_serial]`, sp.to_serial);
       if (sp.warranty_status) formData.append(`items[${index}][warranty_status]`, sp.warranty_status);
@@ -416,15 +393,16 @@ export default function AddSparepartPurchase() {
     }
   };
 
-
-
   const feedbackStyle = { color: "red", fontSize: "0.85rem", marginTop: "4px" };
 
   return (
-    <div className="container-fluid " style={{ background: "F4F4F8", minHeight: "100vh", position: "relative" }}>
+    <div
+      className="container-fluid"
+      style={{ background: "#F4F4F8", minHeight: "100vh", position: "relative" }}
+    >
       <Row className="align-items-center mb-3">
         <Col>
-          <h4>Add purchase Details</h4>
+          <h4>Add Purchase Details</h4>
         </Col>
         <Col className="text-end">
           <Button
@@ -438,565 +416,353 @@ export default function AddSparepartPurchase() {
         </Col>
       </Row>
 
-      {/* Vendor Form */}
-
       {/* Purchase Details */}
       <Card className="mb-3" style={{ background: "#F4F4F8", borderRadius: 6 }}>
         <Card.Body>
           <h6 className="mb-3">Purchase Details</h6>
 
-    <Row className="mb-2">
-  <Col md={4}>
-    <Form.Group className="mb-2 form-field">
-      <Form.Label>
-        Vendor<span style={{ color: "red" }}> *</span>
-      </Form.Label>
-
-      <Form.Select
-        value={vendorId}
-        onChange={(e) => {
-          setVendorId(e.target.value);
-          clearError("vendor_id");
-        }}
-      >
-        <option value="">Select Vendor</option>
-        {availableVendors.map((v) => {
-          if (v.contact_persons?.length > 0) {
-            return v.contact_persons.map((c) => (
-              <option key={`${v.id}-${c.id}`} value={v.id}>
-                {v.vendor} – {c.name}
-                {c.is_main ? " (Main person)" : ""}
-              </option>
-            ));
-          } else {
-            return (
-              <option key={v.id} value={v.id}>
-                {v.vendor}
-              </option>
-            );
-          }
-        })}
-      </Form.Select>
-      {errors.vendor_id && <div style={feedbackStyle}>{errors.vendor_id}</div>}
-    </Form.Group>
-  </Col>
-
-  <Col md={4}>
-    <Form.Group className="mb-2 form-field">
-      <Form.Label>
-        Challan No<span style={{ color: "red" }}> *</span>
-      </Form.Label>
-      <Form.Control
-        type="text"
-        value={challanNo}
-        onChange={(e) => {
-          setChallanNo(e.target.value);
-          clearError("challan_no");
-        }}
-        placeholder="Enter Challan No"
-      />
-      {errors.challan_no && <div style={feedbackStyle}>{errors.challan_no}</div>}
-    </Form.Group>
-  </Col>
-
-  <Col md={4}>
-    <Form.Group className="mb-2 form-field">
-      <Form.Label>
-        Challan Date<span style={{ color: "red" }}> *</span>
-      </Form.Label>
-      <Form.Control
-        type="date"
-        value={challanDate}
-        onChange={(e) => {
-          const val = e.target.value;
-          setChallanDate(val);
-          clearError("challan_date");
-        }}
-      />
-      {errors.challan_date && <div style={feedbackStyle}>{errors.challan_date}</div>}
-    </Form.Group>
-  </Col>
-
-  {/* Received Date and Tracking Number side by side */}
-  <Col md={4}>
-    <Form.Group className="mb-2 form-field">
-      <Form.Label>Received Date</Form.Label>
-      <Form.Control
-        type="date"
-        value={receivedDate}
-        onChange={(e) => setReceivedDate(e.target.value)}
-      />
-    </Form.Group>
-  </Col>
-
-  <Col md={4}>
-    <Form.Group className="mb-2 form-field">
-      <Form.Label>Tracking Number</Form.Label>
-      <Form.Control
-        type="text"
-        placeholder="Enter Tracking Number"
-        value={trackingNumber}
-        onChange={(e) => setTrackingNumber(e.target.value)}
-      />
-    </Form.Group>
-  </Col>
-
-  {/* RECEIPT FILES */}
-  <Col md={6}>
-    <Form.Group className="mb-2">
-      <Form.Label>
-        Receipt Documents
-        <Button
-          variant="link"
-          size="sm"
-          className="text-success ms-1 p-0"
-          onClick={() => addFileField("recipient")}
-        >
-          <i className="bi bi-plus-circle"></i> Add
-        </Button>
-      </Form.Label>
-      {recipientFiles.map((file, idx) => (
-        <div key={idx} className="d-flex align-items-center mb-1">
-          <Form.Control
-            type="file"
-            accept="image/*"
-            onChange={(e) => handleFileChange("recipient", idx, e.target.files[0])}
-          />
-          {recipientFiles.length > 1 && (
-            <Button
-              variant="link"
-              size="sm"
-              className="text-danger ms-2 p-0"
-              onClick={() => removeFileField("recipient", idx)}
-            >
-              <i className="bi bi-x-circle"></i>
-            </Button>
-          )}
-        </div>
-      ))}
-    </Form.Group>
-  </Col>
-
-  {/* CHALLAN FILES */}
-  <Col md={6}>
-    <Form.Group className="mb-2">
-      <Form.Label>
-        Challan Documents
-        <Button
-          variant="link"
-          size="sm"
-          className="text-success ms-1 p-0"
-          onClick={() => addFileField("challan")}
-        >
-          <i className="bi bi-plus-circle"></i> Add
-        </Button>
-      </Form.Label>
-      {challanFiles.map((file, idx) => (
-        <div key={idx} className="d-flex align-items-center mb-1">
-          <Form.Control
-            type="file"
-            accept="image/*"
-            onChange={(e) => handleFileChange("challan", idx, e.target.files[0])}
-          />
-          {challanFiles.length > 1 && (
-            <Button
-              variant="link"
-              size="sm"
-              className="text-danger ms-2 p-0"
-              onClick={() => removeFileField("challan", idx)}
-            >
-              <i className="bi bi-x-circle"></i>
-            </Button>
-          )}
-        </div>
-      ))}
-    </Form.Group>
-  </Col>
-</Row>
-
-
-          {/* First sparepart dropdown + conditional fields */}
-          <Row className="align-items-end">
+          <Row className="mb-2">
             <Col md={4}>
               <Form.Group className="mb-2 form-field">
                 <Form.Label>
-                  Spare parts<span style={{ color: "red" }}> *</span>
+                  Vendor<span style={{ color: "red" }}> *</span>
                 </Form.Label>
-
                 <Form.Select
-                  value={spareparts[0].sparepart_id}
-                  onChange={(e) =>
-                    handleSparepartChange(0, e.target.value)
-                  }
+                  value={vendorId}
+                  onChange={(e) => setVendorId(e.target.value)}
+                  style={{ height: "34px", fontSize: "13px" }}
                 >
-                  <option value="">Select Spare parts</option>
-                  {availableSpareparts.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
+                  <option value="">Select Vendor</option>
+                  {availableVendors.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.vendor}
                     </option>
                   ))}
                 </Form.Select>
-                {errors.items?.[0]?.sparepart_id && (
-                  <div style={{ color: "red", fontSize: "0.85rem", marginTop: "4px" }}>{errors.items[0].sparepart_id}</div>
+                {errors.vendor_id && (
+                  <div style={{ color: "red", fontSize: "0.85rem" }}>
+                    {errors.vendor_id}
+                  </div>
                 )}
               </Form.Group>
             </Col>
 
-            {spareparts[0].sparepart_id &&
-              (() => {
-                const type0 = sparepartTypeOf(spareparts[0].sparepart_id);
+            <Col md={4}>
+              <Form.Group className="mb-2 form-field">
+                <Form.Label>
+                  Challan No<span style={{ color: "red" }}> *</span>
+                </Form.Label>
+                <Form.Control
+                  type="text"
+                  value={challanNo}
+                  onChange={(e) => {
+                    setChallanNo(e.target.value);
+                    clearError("challan_no");
+                  }}
+                  placeholder="Enter Challan No"
+                />
+                {errors.challan_no && (
+                  <div style={feedbackStyle}>{errors.challan_no}</div>
+                )}
+              </Form.Group>
+            </Col>
 
-                if (type0.includes("serial")) {
-                  return (
-                    <>
-                      {/* Row 1 */}
-                      <Row>
-                        <Col md={4}>
-                          <Form.Group className="mb-2 form-field">
-                            <Form.Label>
-                              Product<span style={{ color: "red" }}> *</span>
-                            </Form.Label>
+            <Col md={4}>
+              <Form.Group className="mb-2 form-field">
+                <Form.Label>
+                  Challan Date<span style={{ color: "red" }}> *</span>
+                </Form.Label>
+                <Form.Control
+                  type="date"
+                  value={challanDate}
+                  onChange={(e) => {
+                    setChallanDate(e.target.value);
+                    clearError("challan_date");
+                  }}
+                />
+                {errors.challan_date && (
+                  <div style={feedbackStyle}>{errors.challan_date}</div>
+                )}
+              </Form.Group>
+            </Col>
 
-                            <Form.Select
-                              value={spareparts[0].product_id}
-                              onChange={(e) =>
-                                handleInputChange(0, "product_id", e.target.value)
-                              }
-                            >
-                              <option value="">Select Product</option>
-                              {availableCategories.map((c) => (
-                                <option key={c.id} value={c.id}>
-                                  {c.name}
-                                </option>
-                              ))}
-                            </Form.Select>
-                          </Form.Group>
-                        </Col>
+            <Col md={4}>
+              <Form.Group className="mb-2 form-field">
+                <Form.Label>
+                  Received Date<span style={{ color: "red" }}> </span>
+                </Form.Label>
+                <Form.Control
+                  type="date"
+                  value={receivedDate}
+                  onChange={(e) => {
+                    setReceivedDate(e.target.value);
+                    clearError("received_date");
+                  }}
+                />
+                {errors.received_date && (
+                  <div style={{ color: "red", fontSize: "0.85rem" }}>
+                    {errors.received_date}
+                  </div>
+                )}
+              </Form.Group>
+            </Col>
 
-                        <Col md={4}>
-                          <Form.Group className="mb-2 form-field">
-                            <Form.Label>
-                              From Serial<span style={{ color: "red" }}> *</span>
-                            </Form.Label>
-                            <Form.Control
-                              type="text"
-                              value={spareparts[0].from_serial}
-                              maxLength={6}
-                              onChange={(e) => handleInputChange(0, "from_serial", e.target.value)}
-                            />
-                            {errors.items?.[0]?.from_serial && (
-                              <div style={{ color: "red", fontSize: "0.85rem", marginTop: "4px" }}>
-                                {errors.items[0].from_serial}
-                              </div>
-                            )}
+            <Col md={4}>
+              <Form.Group className="mb-2 form-field">
+                <Form.Label>Tracking Number</Form.Label>
+                <Form.Control
+                  type="text"
+                  placeholder="Enter Tracking Number"
+                  value={trackingNumber}
+                  onChange={(e) => setTrackingNumber(e.target.value)}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={4}>
+              <Form.Group className="mb-2 form-field">
+                <Form.Label>Courier Name</Form.Label>
+                <Form.Control
+                  type="text"
+                  placeholder="Enter Courier Name"
+                  value={courierName}
+                  onChange={(e) => setCourierName(e.target.value)}
+                />
+              </Form.Group>
+            </Col>
 
+            {/* Receipt Files */}
+            <Col md={6}>
+              <Form.Group className="mb-2">
+                <Form.Label>
+                  Receipt Documents
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="text-success ms-1 p-0"
+                    onClick={() => addFileField("recipient")}
+                  >
+                    <i className="bi bi-plus-circle"></i> Add
+                  </Button>
+                </Form.Label>
+                {recipientFiles.map((f) => (
+                  <div key={f.id} className="d-flex align-items-center mb-1">
+                    <Form.Control
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) =>
+                        handleFileChange("recipient", f.id, e.target.files[0])
+                      }
+                    />
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="text-danger ms-2 p-0"
+                      onClick={() => removeFileField("recipient", f.id)}
+                    >
+                      <i className="bi bi-x-circle"></i>
+                    </Button>
+                  </div>
+                ))}
+              </Form.Group>
+            </Col>
 
-                          </Form.Group>
-                        </Col>
-
-                        <Col md={4}>
-                          <Form.Group className="mb-2 form-field">
-                            <Form.Label>
-                              To Serial<span style={{ color: "red" }}> *</span>
-                            </Form.Label>
-                            <Form.Control
-                              type="text"
-                              value={spareparts[0].to_serial}
-                              maxLength={6}
-                              onChange={(e) => handleInputChange(0, "to_serial", e.target.value)}
-                            />
-                            {errors.items?.[0]?.to_serial && (
-                              <div style={{ color: "red", fontSize: "0.85rem", marginTop: "4px" }}>
-                                {errors.items[0].to_serial}
-                              </div>
-                            )}
-
-
-                          </Form.Group>
-                        </Col>
-                      </Row>
-
-                      {/* Row 2 */}
-                      <Row>
-                        <Col md={4}>
-                          <Form.Group className="mb-2 form-field">
-                            <Form.Label>Quantity</Form.Label>
-                            <Form.Control
-                              type="number"
-                              value={spareparts[0].qty}
-                              onChange={(e) =>
-                                handleInputChange(0, "qty", e.target.value)
-                              }
-                            />
-                            {errors.items?.[0]?.qty && (
-                              <div style={{ color: "red", fontSize: "0.85rem" }}>{errors.items[0].qty}</div>
-                            )}
-                          </Form.Group>
-                        </Col>
-
-                        <Col md={4}>
-                          <Form.Group className="mb-2 form-field">
-                            <Form.Label>Warranty Status</Form.Label>
-                            <Form.Select
-                              value={spareparts[0].warranty_status}
-                              onChange={(e) =>
-                                handleInputChange(0, "warranty_status", e.target.value)
-                              }
-                            >
-                              <option value="Active">Active</option>
-                              <option value="Inactive">Inactive</option>
-                            </Form.Select>
-                            {errors.items?.[0]?.warranty_status && (
-                              <div style={{ color: "red", fontSize: "0.85rem" }}>{errors.items[0].warranty_status}</div>
-                            )}
-                          </Form.Group>
-                        </Col>
-
-                      </Row>
-                    </>
-                  );
-                } else if (type0.includes("warranty")) {
-                  return (
-                    <Row>
-                      <Col md={4}>
-                        <Form.Group className="mb-2 form-field">
-                          <Form.Label>Warranty Status</Form.Label>
-                          <Form.Select
-                            value={spareparts[0].warranty_status}
-                            onChange={(e) =>
-                              handleInputChange(0, "warranty_status", e.target.value)
-                            }
-                          >
-                            <option value="Active">Active</option>
-                            <option value="Inactive">Inactive</option>
-                          </Form.Select>
-                        </Form.Group>
-                      </Col>
-
-                      <Col md={4}>
-                        <Form.Group className="mb-2 form-field">
-                          <Form.Label>Quantity</Form.Label>
-                          <Form.Control
-                            type="number"
-                            value={spareparts[0].qty}
-                            onChange={(e) =>
-                              handleInputChange(0, "qty", e.target.value)
-                            }
-                          />
-                        </Form.Group>
-                      </Col>
-
-                    </Row>
-                  );
-
-                } else {
-                  return (
-                    <Col md={4}>
-                      <Form.Group className="mb-2 form-field">
-                        <Form.Label>Quantity</Form.Label>
-                        <Form.Control
-                          type="number"
-                          value={spareparts[0].qty}
-                          onChange={(e) =>
-                            handleInputChange(0, "qty", e.target.value)
-                          }
-                        />
-                      </Form.Group>
-                    </Col>
-                  );
-                }
-              })()}
+            {/* Challan Files */}
+            {/* <Col md={6}>
+            <Form.Group className="mb-2">
+              <Form.Label>
+                Challan Documents
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="text-success ms-1 p-0"
+                  onClick={() => addFileField("challan")}
+                >
+                  <i className="bi bi-plus-circle"></i> Add
+                </Button>
+              </Form.Label>
+              {challanFiles.map((f) => (
+                <div key={f.id} className="d-flex align-items-center mb-1">
+                  <Form.Control
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) =>
+                      handleFileChange("challan", f.id, e.target.files[0])
+                    }
+                  />
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="text-danger ms-2 p-0"
+                    onClick={() => removeFileField("challan", f.id)}
+                  >
+                    <i className="bi bi-x-circle"></i>
+                  </Button>
+                </div>
+              ))}
+            </Form.Group>
+          </Col> */}
           </Row>
         </Card.Body>
       </Card>
 
-      {/* Additional spareparts cards */}
-      {spareparts.slice(1).map((sp, idx) => {
-        const realIndex = idx + 1;
-        const type = sparepartTypeOf(sp.sparepart_id);
+      {/* Spare Parts Section */}
+      {spareparts.length > 0 && (
+        <Card className="mb-3" style={{ background: "#F4F4F8", borderRadius: 6 }}>
+          <Card.Body>
+            <div className="d-flex justify-content-between align-items-center mb-3">
+              <h6 className="mb-0">Spare Parts Details</h6>
+            </div>
 
-        return (
-          <Card
-            key={realIndex}
-            className="mb-3"
-            style={{ background: "#F4F4F8", borderRadius: 6 }}
-          >
-            <Card.Body>
-              <Row className="mb-2 align-items-center">
-                <Col>
-                  <h6 className="mb-0">Spare Parts Details</h6>
-                </Col>
-                <Col xs="auto">
+            {spareparts.map((sp, index) => {
+              const type = sparepartTypeOf(sp.sparepart_id);
+
+              return (
+                <div
+                  key={index}
+                  className="p-3 mb-3 position-relative"
+                  style={{
+                    border: "1px solid #dee2e6",
+                    borderRadius: "6px",
+                    backgroundColor: "#fff",
+                  }}
+                >
+                  {/* Delete button on the top-right */}
                   <Button
                     variant="danger"
                     size="sm"
-                    onClick={() => handleDeleteSparepart(realIndex)}
+                    onClick={() => handleDeleteSparepart(index)}
+                    className="position-absolute"
+                    style={{ top: "50px", right: "8px" }}
                   >
                     <i className="bi bi-trash"></i>
                   </Button>
 
-
-                </Col>
-              </Row>
-
-              <Row className="align-items-end mb-2" key={realIndex}>
-                <Col md={4}>
-                  <Form.Group className="mb-2">
-                    <Form.Label>Spare parts</Form.Label>
-                    <Form.Select
-                      value={sp.sparepart_id}
-                      onChange={(e) => handleSparepartChange(realIndex, e.target.value)}
-                    >
-                      <option value="">Select Sparepart</option>
-                      {availableSpareparts.map((s) => (
-                        <option key={s.id} value={s.id}>{s.name}</option>
-                      ))}
-                    </Form.Select>
-                  </Form.Group>
-                </Col>
-
-                {sp.sparepart_id && type.includes("serial") && (
-                  <>
-                    <Col md={4}>
-                      <Form.Group className="mb-2">
-                        <Form.Label>Product</Form.Label>
+                  <Row className="align-items-end mt-3">
+                    <Col md={3}>
+                      <Form.Group className="mb-2 form-field">
+                        <Form.Label>
+                          Spare Parts<span style={{ color: "red" }}> *</span>
+                        </Form.Label>
                         <Form.Select
-                          value={sp.product_id}
-                          onChange={(e) => handleInputChange(realIndex, "product_id", e.target.value)}
+                          value={sp.sparepart_id}
+                          onChange={(e) => handleSparepartChange(index, e.target.value)}
                         >
-                          <option value="">Select Product</option>
-                          {availableCategories.map((c) => (
-                            <option key={c.id} value={c.id}>{c.name}</option>
+                          <option value="">Select Spare parts</option>
+                          {availableSpareparts.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.name}
+                            </option>
                           ))}
                         </Form.Select>
                       </Form.Group>
                     </Col>
 
-                    <Col md={4}>
-                      <Form.Group className="mb-2">
-                        <Form.Label>From Serial</Form.Label>
-                        <Form.Control
-                          type="text"
-                          value={sp.from_serial}
-                          onChange={(e) => handleInputChange(realIndex, "from_serial", e.target.value)}
-                        />
-                      </Form.Group>
-                    </Col>
+                    {/* Conditional Fields */}
+                    {sp.sparepart_id && (() => {
+                      if (type.includes("serial")) {
+                        return (
+                          <>
+                            {/* <Col md={2}>
+                              <Form.Group className="mb-2">
+                                <Form.Label>Product</Form.Label>
+                                <Form.Select
+                                  value={sp.product_id}
+                                  onChange={(e) =>
+                                    handleInputChange(index, "product_id", e.target.value)
+                                  }
+                                >
+                                  <option value="">Select Product</option>
+                                  {availableCategories.map((c) => (
+                                    <option key={c.id} value={c.id}>
+                                      {c.name}
+                                    </option>
+                                  ))}
+                                </Form.Select>
+                              </Form.Group>
+                            </Col> */}
 
-                    <Col md={4} className="d-flex align-items-end">
-                      <div className="flex-grow-1">
-                        <Form.Group className="mb-2">
-                          <Form.Label>To Serial</Form.Label>
-                          <Form.Control
-                            type="text"
-                            value={sp.to_serial}
-                            onChange={(e) => handleInputChange(realIndex, "to_serial", e.target.value)}
-                          />
-                        </Form.Group>
-                      </div>
-                      {/* <Button
-                        variant="info"
-                        size="sm"
-                        className="ms-2 mb-2"
-                        onClick={() =>
-                          navigate("/pcb-serials", {
-                            state: {
-                              sparepart: {
-                                ...sp,
-                                product_name: availableCategories.find(
-                                  (c) => c.id === sp.product_id
-                                )?.name || ""
-                              },
-                            },
-                          })
-                        }
-                      >
-                        View
-                      </Button> */}
-                    </Col>
-                    <Col md={4}>
-                      <Form.Group className="mb-2">
-                        <Form.Label>Quantity</Form.Label>
-                        <Form.Control
-                          type="number"
-                          value={sp.qty}
-                          onChange={(e) => handleInputChange(realIndex, "qty", e.target.value)}
-                        />
-                      </Form.Group>
-                    </Col>
+                            <Col md={2}>
+                              <Form.Group className="mb-2">
+                                <Form.Label>From Serial</Form.Label>
+                                <Form.Control
+                                  type="text"
+                                  maxLength={6}
+                                  value={sp.from_serial}
+                                  onChange={(e) =>
+                                    handleInputChange(index, "from_serial", e.target.value)
+                                  }
+                                />
+                              </Form.Group>
+                            </Col>
 
-                    <Col md={4}>
-                      <Form.Group className="mb-2">
-                        <Form.Label>Warranty Status</Form.Label>
-                        <Form.Select
-                          value={sp.warranty_status}
-                          onChange={(e) => handleInputChange(realIndex, "warranty_status", e.target.value)}
-                        >
-                          <option value="Active">Active</option>
-                          <option value="Inactive">Inactive</option>
-                        </Form.Select>
-                      </Form.Group>
-                    </Col>
-                  </>
-                )}
+                            <Col md={2}>
+                              <Form.Group className="mb-2">
+                                <Form.Label>To Serial</Form.Label>
+                                <Form.Control
+                                  type="text"
+                                  maxLength={6}
+                                  value={sp.to_serial}
+                                  onChange={(e) =>
+                                    handleInputChange(index, "to_serial", e.target.value)
+                                  }
+                                />
+                              </Form.Group>
+                            </Col>
 
-                {sp.sparepart_id && type.includes("warranty") && (
-                  <>
-                    <Col md={4}>
-                      <Form.Group className="mb-2">
-                        <Form.Label>Warranty Status</Form.Label>
-                        <Form.Select
-                          value={sp.warranty_status}
-                          onChange={(e) => handleInputChange(realIndex, "warranty_status", e.target.value)}
-                        >
-                          <option value="Active">Active</option>
-                          <option value="Inactive">Inactive</option>
-                        </Form.Select>
-                      </Form.Group>
-                    </Col>
+                            <Col md={2}>
+                              <Form.Group className="mb-2">
+                                <Form.Label>Qty</Form.Label>
+                                <Form.Control
+                                  type="number"
+                                  value={sp.qty}
+                                  onChange={(e) =>
+                                    handleInputChange(index, "qty", e.target.value)
+                                  }
+                                />
+                              </Form.Group>
+                            </Col>
+                          </>
+                        );
+                      } else {
+                        return (
+                          <Col md={3}>
+                            <Form.Group className="mb-2">
+                              <Form.Label>Quantity</Form.Label>
+                              <Form.Control
+                                type="number"
+                                min={1}
+                                value={sp.qty}
+                                onChange={(e) =>
+                                  handleInputChange(index, "qty", e.target.value)
+                                }
+                              />
+                            </Form.Group>
+                          </Col>
+                        );
+                      }
+                    })()}
+                  </Row>
+                </div>
+              );
+            })}
+          </Card.Body>
+        </Card>
+      )}
 
-                    <Col md={4}>
-                      <Form.Group className="mb-2">
-                        <Form.Label>Quantity</Form.Label>
-                        <Form.Control
-                          type="number"
-                          value={sp.qty}
-                          onChange={(e) => handleInputChange(realIndex, "qty", e.target.value)}
-                        />
-                      </Form.Group>
-                    </Col>
-                  </>
-                )}
 
-                {sp.sparepart_id && type.includes("quantity") && (
-                  <Col md={4}>
-                    <Form.Group className="mb-2">
-                      <Form.Label>Quantity</Form.Label>
-                      <Form.Control
-                        type="number"
-                        min={1}
-                        value={sp.qty}
-                        onChange={(e) => handleInputChange(realIndex, "qty", e.target.value)}
-                      />
-                    </Form.Group>
-                  </Col>
-                )}
-              </Row>
-            </Card.Body>
-          </Card>
-        );
-      })}
+
+
 
       <div className="d-flex justify-content-between mt-3">
         <Button variant="success" onClick={addSparepart}>
-          <i className="bi bi-plus-lg me-1" /> Add Spare parts
+          <i className="bi bi-plus-lg me-1" /> Add Spare Parts
         </Button>
 
         <div>
           <Button
             variant="secondary"
             className="me-2"
-            onClick={() => navigate(-1)}  // go back to previous page
+            onClick={() => navigate(-1)}
           >
             Cancel
           </Button>
@@ -1007,4 +773,6 @@ export default function AddSparepartPurchase() {
       </div>
     </div>
   );
+
 }
+

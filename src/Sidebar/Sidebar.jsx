@@ -11,7 +11,7 @@ export default function Sidebar({ collapsed }) {
       { link: "vendor", title: "Vendor", icon: ["/VendorG.png", "/Vendor.png"] },
       {
         link: "spare-parts",
-        title: "Spare Parts",
+        title: "Components",
         icon: ["/Spare-parts.png", "/Spare-parts.png"],
       },
       {
@@ -19,6 +19,8 @@ export default function Sidebar({ collapsed }) {
         title: "Spare Parts Purchase",
         icon: ["/Purchase Order.png", "/Purchase Order 1.png"],
       },
+            { link: "product", title: "Product", icon: ["/Product.png", "/Product.png"] },
+
       {
         link: "spare-parts-by-series",
         title: "Spare Parts Requirements Calculation",
@@ -27,9 +29,7 @@ export default function Sidebar({ collapsed }) {
     ],
 
     inventory: [
-      { link: "product", title: "Product", icon: ["/Product.png", "/Product.png"] },
-      { link: "product-type", title: "Product Type", icon: ["/Product.png", "/Product.png"] },
-      { link: "technician", title: "Technician", icon: ["/techinician.png", "/techinician.png"] },
+      // { link: "technician", title: "Technician", icon: ["/techinician.png", "/techinician.png"] },
       { link: "assemble", title: "Assemble", icon: ["/assemble.png", "/assemble.png"] },
     ],
 
@@ -41,6 +41,8 @@ export default function Sidebar({ collapsed }) {
     service: [
       { link: "service-product", title: "Service Product", icon: ["/Service VCI.png", "/Service VCI.png"] },
       { link: "service-items", title: "Service Items", icon: ["/service_list.png", "/service_list.png"] },
+      { link: "service-delivery", title: "Service Delivery", icon: ["/service_delivery.png", "/service_delivery.png"] },
+
     ],
 
     tracking: [{ link: "tracking", title: "Tracking", icon: ["/track.png", "/track.png"] }],
@@ -69,7 +71,6 @@ export default function Sidebar({ collapsed }) {
     whiteSpace: "nowrap",
   };
 
-  // ✅ Fixed size for all icons here
   const iconStyle = {
     width: "24px",
     height: "24px",
@@ -153,12 +154,11 @@ export default function Sidebar({ collapsed }) {
               e.preventDefault();
               handleLinkClick(item.link);
             }}
-            className={`sidebar-link ${
-              location.pathname === `/${item.link}` ||
+            className={`sidebar-link ${location.pathname === `/${item.link}` ||
               location.pathname.startsWith(`/${item.link}/`)
-                ? "active-link"
-                : ""
-            }`}
+              ? "active-link"
+              : ""
+              }`}
           >
             <img src={item.icon[1]} alt={item.title} style={iconStyle} />
             {!collapsed && <span>{item.title}</span>}
@@ -175,12 +175,11 @@ export default function Sidebar({ collapsed }) {
               e.preventDefault();
               handleLinkClick(item.link);
             }}
-            className={`sidebar-link ${
-              location.pathname === `/${item.link}` ||
+            className={`sidebar-link ${location.pathname === `/${item.link}` ||
               location.pathname.startsWith(`/${item.link}/`)
-                ? "active-link"
-                : ""
-            }`}
+              ? "active-link"
+              : ""
+              }`}
           >
             <img src={item.icon[1]} alt={item.title} style={iconStyle} />
             {!collapsed && <span>{item.title}</span>}
@@ -197,12 +196,11 @@ export default function Sidebar({ collapsed }) {
               e.preventDefault();
               handleLinkClick(item.link);
             }}
-            className={`sidebar-link ${
-              location.pathname === `/${item.link}` ||
+            className={`sidebar-link ${location.pathname === `/${item.link}` ||
               location.pathname.startsWith(`/${item.link}/`)
-                ? "active-link"
-                : ""
-            }`}
+              ? "active-link"
+              : ""
+              }`}
           >
             <img src={item.icon[1]} alt={item.title} style={iconStyle} />
             {!collapsed && <span>{item.title}</span>}
@@ -219,12 +217,11 @@ export default function Sidebar({ collapsed }) {
               e.preventDefault();
               handleLinkClick(item.link);
             }}
-            className={`sidebar-link ${
-              location.pathname === `/${item.link}` ||
+            className={`sidebar-link ${location.pathname === `/${item.link}` ||
               location.pathname.startsWith(`/${item.link}/`)
-                ? "active-link"
-                : ""
-            }`}
+              ? "active-link"
+              : ""
+              }`}
           >
             <img src={item.icon[1]} alt={item.title} style={iconStyle} />
             {!collapsed && <span>{item.title}</span>}
@@ -240,12 +237,11 @@ export default function Sidebar({ collapsed }) {
               e.preventDefault();
               handleLinkClick(item.link);
             }}
-            className={`sidebar-link ${
-              location.pathname === `/${item.link}` ||
+            className={`sidebar-link ${location.pathname === `/${item.link}` ||
               location.pathname.startsWith(`/${item.link}/`)
-                ? "active-link"
-                : ""
-            }`}
+              ? "active-link"
+              : ""
+              }`}
           >
             <img src={item.icon[1]} alt={item.title} style={iconStyle} />
             {!collapsed && <span>{item.title}</span>}

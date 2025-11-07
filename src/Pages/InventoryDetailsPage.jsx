@@ -52,7 +52,7 @@ export default function InventoryDetailsPage() {
     const [search, setSearch] = useState(""); // Renamed from searchTerm to search for consistency
 
     const [sortField, setSortField] = useState("serial_no"); // default sort field
-const [sortDirection, setSortDirection] = useState("asc");  // ascending
+    const [sortDirection, setSortDirection] = useState("asc");  // ascending
 
 
     // Memoized array of inventory items
@@ -66,31 +66,31 @@ const [sortDirection, setSortDirection] = useState("asc");  // ascending
         }
     }, [from, to]);
 
-  const fetchInventory = async () => {
-    setLoading(true);
-    try {
-        const res = await axios.get(
-            `${API_BASE_URL}/inventory/serialrange/${from}/${to}`
-        );
+    const fetchInventory = async () => {
+        setLoading(true);
+        try {
+            const res = await axios.get(
+                `${API_BASE_URL}/inventory/serialrange/${from}/${to}`
+            );
 
-        let items = Array.isArray(res.data.items) ? res.data.items : [];
+            let items = Array.isArray(res.data.items) ? res.data.items : [];
 
-        // Sort ascending by serial_no
-        items.sort((a, b) => {
-            if (a.serial_no < b.serial_no) return -1;
-            if (a.serial_no > b.serial_no) return 1;
-            return 0;
-        });
+            // Sort ascending by serial_no
+            items.sort((a, b) => {
+                if (a.serial_no < b.serial_no) return -1;
+                if (a.serial_no > b.serial_no) return 1;
+                return 0;
+            });
 
-        setInventory({ ...res.data, items }); // keep the rest of the object intact
-    } catch (err) {
-        console.error(err);
-        toast.error("Failed to fetch inventory details!");
-        setInventory(null);
-    } finally {
-        setLoading(false);
-    }
-};
+            setInventory({ ...res.data, items }); // keep the rest of the object intact
+        } catch (err) {
+            console.error(err);
+            toast.error("Failed to fetch inventory details!");
+            setInventory(null);
+        } finally {
+            setLoading(false);
+        }
+    };
 
 
     const getStatusVariant = (status) => {
@@ -157,7 +157,7 @@ const [sortDirection, setSortDirection] = useState("asc");  // ascending
         );
     }, [sortedItems, page, perPage]);
 
- 
+
 
 
     return (
@@ -172,7 +172,7 @@ const [sortDirection, setSortDirection] = useState("asc");  // ascending
                 {/* Header Row for controls: Records Per Page, Refresh, and Search (Updated) */}
                 <div className="row mb-2">
                     <div className="col-md-6 d-flex align-items-center mb-2 mb-md-0">
-                        <label className="me-2 fw-semibold mb-0" style={{fontSize: "0.75rem"}}>Records Per Page:</label>
+                        <label className="me-2 fw-semibold mb-0" style={{ fontSize: "0.75rem" }}>Records Per Page:</label>
                         <Form.Select
                             size="sm"
                             style={{ width: "100px", fontSize: "0.8rem" }}
@@ -192,14 +192,14 @@ const [sortDirection, setSortDirection] = useState("asc");  // ascending
 
                     <div className="col-md-6 text-md-end" style={{ fontSize: "0.8rem" }}>
                         <div className="mt-2 d-inline-block mb-2">
-                                <Button
-        variant="outline-secondary"
-        size="sm"
-        className="me-2"
-        onClick={() => navigate("/assemble")}
-    >
-        <i className="bi bi-arrow-left"></i> Back
-    </Button>
+                            <Button
+                                variant="outline-secondary"
+                                size="sm"
+                                className="me-2"
+                                onClick={() => navigate("/assemble")}
+                            >
+                                <i className="bi bi-arrow-left"></i> Back
+                            </Button>
                             <Button
                                 variant="outline-secondary"
                                 size="sm"

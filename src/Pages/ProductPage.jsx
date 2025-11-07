@@ -1,36 +1,52 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { Button, Spinner, Form, Card, Table, Offcanvas } from "react-bootstrap";
+import {
+  Button,
+  Spinner,
+  Form,
+  Card,
+  Table,
+  Offcanvas,
+  Row,
+  Col,
+} from "react-bootstrap";
 import { toast } from "react-toastify";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
 import "datatables.net-dt/css/dataTables.dataTables.css";
 import "bootstrap/dist/css/bootstrap.min.css";
+import "bootstrap-icons/font/bootstrap-icons.css";
+import Select from "react-select";
 
 import BreadCrumb from "../components/BreadCrumb";
 import Pagination from "../components/Pagination";
 import Search from "../components/Search";
-
 import { API_BASE_URL } from "../api";
 
 export default function ProductPage() {
   const [products, setProducts] = useState([]);
+  const [spareparts, setSpareparts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
+
   const [productName, setProductName] = useState("");
+  const [requirementPerProduct, setRequirementPerProduct] = useState("");
+  const [productTypeName, setProductTypeName] = useState("");
+  const [selectedSpareparts, setSelectedSpareparts] = useState([]);
+  const [productNameError, setProductNameError] = useState(false);
+
   const [editingProductId, setEditingProductId] = useState(null);
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
   const [search, setSearch] = useState("");
   const [sortField, setSortField] = useState(null);
   const [sortDirection, setSortDirection] = useState("asc");
-  const [productNameError, setProductNameError] = useState(false);
 
   const MySwal = withReactContent(Swal);
 
-
   useEffect(() => {
     fetchProducts();
+    fetchSpareparts();
   }, []);
 
   const fetchProducts = async () => {
@@ -40,30 +56,52 @@ export default function ProductPage() {
       setProducts(Array.isArray(res.data) ? res.data : []);
     } catch {
       toast.error("Failed to fetch products!");
-      setProducts([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchSpareparts = async () => {
+    try {
+      const res = await axios.get(`${API_BASE_URL}/spareparts/get`);
+      setSpareparts(Array.isArray(res.data) ? res.data : res.data.spareparts || []);
+    } catch {
+      toast.error("Failed to load spare parts!");
     }
   };
 
   const handleAddNewClick = () => {
     setEditingProductId(null);
     setProductName("");
+    setRequirementPerProduct("");
+    setProductTypeName("vci");
+    setSelectedSpareparts([]);
     setProductNameError(false);
     setShowModal(true);
   };
 
   const handleModalClose = () => {
     setShowModal(false);
-    setProductName("");
     setEditingProductId(null);
+    setProductName("");
+    setRequirementPerProduct("");
+    setProductTypeName("");
+    setSelectedSpareparts([]);
     setProductNameError(false);
   };
 
   const handleEdit = (product) => {
     setEditingProductId(product.id);
     setProductName(product.name);
-    setProductNameError(false);
+    setRequirementPerProduct(product.requirement_per_product || "");
+    setProductTypeName(product.product_type_name || "");
+
+    const mapped = product.spareparts?.map((sp) => ({
+      id: sp.id,
+      name: sp.name,
+      required_quantity: sp.required_per_product || 0,
+    })) || [];
+    setSelectedSpareparts(mapped);
     setShowModal(true);
   };
 
@@ -72,49 +110,37 @@ export default function ProductPage() {
       setProductNameError(true);
       return;
     }
-    setProductNameError(false);
 
-    const duplicate = products.some(
-      (p) =>
-        p.name.toLowerCase() === productName.trim().toLowerCase() &&
-        p.id !== editingProductId
-    );
-    if (duplicate) {
-      toast.error("Product already exists!");
-      return;
-    }
-
-    const payload = { name: productName.trim() };
+    const payload = {
+      name: productName.trim(),
+      requirement_per_product: requirementPerProduct || 0,
+      product_type_name: productTypeName || "",
+      sparepart_requirements: selectedSpareparts.map((sp) => ({
+        id: sp.id,
+        required_quantity: Number(sp.required_quantity || 0),
+      })),
+    };
 
     try {
-      const payload = { name: productName.trim() };
-
       if (editingProductId) {
         await axios.put(`${API_BASE_URL}/product/${editingProductId}`, payload);
         toast.success("Product updated successfully!");
-
-        // Update product in-place
-        setProducts((prev) =>
-          prev.map((p) => (p.id === editingProductId ? { ...p, ...payload } : p))
-        );
       } else {
-        const res = await axios.post(`${API_BASE_URL}/product`, payload);
+        await axios.post(`${API_BASE_URL}/product`, payload);
         toast.success("Product added successfully!");
-
-        // Add new product at end or start
-        const newProduct = { id: res.data.id, ...payload };
-        setProducts((prev) => [newProduct, ...prev]);
       }
-
+      await fetchProducts();
       handleModalClose();
-    } catch {
+    } catch (error) {
+      console.error(error);
       toast.error("Failed to save product!");
     }
-  }
+  };
+
   const handleDelete = async (id) => {
     MySwal.fire({
       title: "Are you sure?",
-      text: "You won't be able to revert this!",
+      text: "This will delete the product!",
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#d33",
@@ -148,10 +174,8 @@ export default function ProductPage() {
 
   const sortedProducts = [...filteredProducts].sort((a, b) => {
     if (!sortField) return 0;
-
     let valA = a[sortField];
     let valB = b[sortField];
-
     if (valA < valB) return sortDirection === "asc" ? -1 : 1;
     if (valA > valB) return sortDirection === "asc" ? 1 : -1;
     return 0;
@@ -175,6 +199,7 @@ export default function ProductPage() {
       <BreadCrumb title="Products" />
 
       <Card className="border-0 shadow-sm rounded-3 p-2 px-4 mt-2 bg-white">
+        {/* Header */}
         <div className="row mb-2">
           <div className="col-md-6 d-flex align-items-center mb-2 mb-md-0">
             <label className="me-2 fw-semibold mb-0">Records Per Page:</label>
@@ -188,9 +213,7 @@ export default function ProductPage() {
               }}
             >
               {[5, 10, 25, 50].map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
+                <option key={n} value={n}>{n}</option>
               ))}
             </Form.Select>
           </div>
@@ -205,9 +228,7 @@ export default function ProductPage() {
               >
                 <i className="bi bi-arrow-clockwise"></i>
               </Button>
-
               <Button
-                type="button"
                 size="sm"
                 onClick={handleAddNewClick}
                 style={{
@@ -224,54 +245,48 @@ export default function ProductPage() {
               </Button>
             </div>
 
-            <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center" }}>
+            <div className="d-flex justify-content-end align-items-center">
               <Search
                 search={search}
                 setSearch={setSearch}
                 perPage={perPage}
                 setPerPage={setPerPage}
                 setPage={setPage}
-                style={{ fontSize: "0.8rem" }}
               />
             </div>
           </div>
         </div>
 
+        {/* Table */}
         <div className="table-responsive">
           <Table className="table-sm align-middle mb-0" style={{ fontSize: "0.85rem" }}>
             <thead style={headerStyle}>
               <tr>
-                <th style={{ ...headerStyle, width: "60px", textAlign: "center" }}>S.No</th>
-                <th
-                  onClick={() => handleSort("name")}
-                  style={{ ...headerStyle, cursor: "pointer" }}
-                >
-                  Product Name{" "}
-                  {sortField === "name" && (sortDirection === "asc" ? "▲" : "▼")}
+                <th style={{ width: "60px", textAlign: "center", backgroundColor: "#2E3A59", color: "white" }}>S.No</th>
+                <th onClick={() => handleSort("name")} style={{ cursor: "pointer", backgroundColor: "#2E3A59", color: "white" }}>
+                  Product Name {sortField === "name" && (sortDirection === "asc" ? "▲" : "▼")}
                 </th>
-                <th style={{ ...headerStyle, width: "130px", textAlign: "center" }}>Action</th>
+                <th style={{ cursor: "pointer", backgroundColor: "#2E3A59", color: "white" }} onClick={() => handleSort("product_type_name")}>
+                  Product Type {sortField === "product_type_name" && (sortDirection === "asc" ? "▲" : "▼")}
+                </th>
+                <th style={{ width: "130px", textAlign: "center", backgroundColor: "#2E3A59", color: "white" }}>Action</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr>
-                  <td colSpan="3" className="text-center py-4">
-                    <Spinner animation="border" />
-                  </td>
-                </tr>
+                <tr><td colSpan="5" className="text-center py-4"><Spinner animation="border" /></td></tr>
               ) : paginatedProducts.length === 0 ? (
                 <tr>
-                  <td colSpan="3" className="text-center py-4 text-muted">
+                  <td colSpan="5" className="text-center py-4 text-muted">
                     <img src="/empty-box.png" alt="No products found" style={{ width: "80px", opacity: 0.6 }} />
                   </td>
                 </tr>
               ) : (
                 paginatedProducts.map((product, index) => (
                   <tr key={product.id}>
-                    <td className="text-center">
-                      {(page - 1) * perPage + index + 1}
-                    </td>
-                    <td style={{ fontSize: "0.90rem" }}>{product.name}</td>
+                    <td className="text-center">{(page - 1) * perPage + index + 1}</td>
+                    <td>{product.name}</td>
+                    <td>{product.product_type_name || "-"}</td>
                     <td className="text-center">
                       <Button
                         variant=""
@@ -310,14 +325,8 @@ export default function ProductPage() {
         />
       </Card>
 
-      {/* Modal Offcanvas */}
-      <Offcanvas
-        show={showModal}
-        onHide={handleModalClose}
-        placement="end"
-        backdrop="static"
-        style={{ width: "400px" }}
-      >
+      {/* Offcanvas Modal */}
+      <Offcanvas show={showModal} onHide={handleModalClose} placement="end" backdrop="static" style={{ width: "420px" }}>
         <Offcanvas.Header className="border-bottom d-flex justify-content-between align-items-center">
           <Offcanvas.Title className="m-0">
             {editingProductId ? "Edit Product" : "Add New Product"}
@@ -332,38 +341,83 @@ export default function ProductPage() {
           </Button>
         </Offcanvas.Header>
 
-        <Offcanvas.Body
-          className="d-flex flex-column justify-content-between"
-          style={{ fontSize: "0.85rem" }}
-        >
-          <div>
-            <Form.Group className="mb-3">
-              <Form.Label>Product Name</Form.Label>
-              <Form.Control
-                type="text"
-                placeholder="Enter Product Name"
-                value={productName}
-                onChange={(e) => {
-                  setProductName(e.target.value);
-                  if (productNameError && e.target.value.trim()) {
-                    setProductNameError(false);
-                  }
-                }}
-                isInvalid={productNameError}
-              />
-              {productNameError && (
-                <Form.Control.Feedback type="invalid" className="d-block">
-                  <i className="bi bi-exclamation-triangle-fill me-1"></i>
-                  Product name is required!
-                </Form.Control.Feedback>
-              )}
-            </Form.Group>
-          </div>
+        <Offcanvas.Body style={{ fontSize: "0.85rem" }}>
+          <Form.Group className="mb-3">
+            <Form.Label>Product Name</Form.Label>
+            <Form.Control
+              type="text"
+              placeholder="Enter Product Name"
+              value={productName}
+              onChange={(e) => setProductName(e.target.value)}
+              isInvalid={productNameError}
+            />
+            {productNameError && (
+              <Form.Control.Feedback type="invalid">
+                Product name is required
+              </Form.Control.Feedback>
+            )}
+          </Form.Group>
 
-          <div className="border-top pt-3 mt-2 d-flex justify-content-end gap-2">
-            {/* <Button variant="outline-danger" onClick={handleModalClose}>
-              Cancel
-            </Button> */}
+         <Form.Group className="mb-3">
+  <Form.Label>Product Type</Form.Label>
+  <Form.Select
+    value={productTypeName || "VCI"} // default to VCI
+    onChange={(e) => setProductTypeName(e.target.value)}
+  >
+    <option value="VCI">vci</option>
+    {/* Add more options as needed */}
+  </Form.Select>
+</Form.Group>
+
+
+          {/* <Form.Group className="mb-3">
+            <Form.Label>Requirement per Product</Form.Label>
+            <Form.Control
+              type="number"
+              placeholder="Enter Requirement Quantity"
+              value={requirementPerProduct}
+              onChange={(e) => setRequirementPerProduct(e.target.value)}
+            />
+          </Form.Group> */}
+
+          <Form.Group className="mb-3">
+            <Form.Label>Spareparts with Required Quantity</Form.Label>
+            <Select
+              isMulti
+              placeholder="Select Spareparts..."
+              value={selectedSpareparts.map((sp) => ({
+                value: sp.id,
+                label: `${sp.name} (${sp.required_quantity || 0})`,
+              }))}
+              onChange={(options) => {
+                const updated = options.map((opt) => {
+                  const existing = selectedSpareparts.find((sp) => sp.id === opt.value);
+                  return existing || { id: opt.value, name: opt.label, required_quantity: 0 };
+                });
+                setSelectedSpareparts(updated);
+              }}
+              options={spareparts.map((sp) => ({ value: sp.id, label: sp.name }))}
+            />
+            {selectedSpareparts.map((sp, idx) => (
+              <Row key={sp.id} className="align-items-center mt-2">
+                <Col xs={7}>{sp.name}</Col>
+                <Col xs={5}>
+                  <Form.Control
+                    type="number"
+                    value={sp.required_quantity}
+                    onChange={(e) => {
+                      const newList = [...selectedSpareparts];
+                      newList[idx].required_quantity = e.target.value;
+                      setSelectedSpareparts(newList);
+                    }}
+                    placeholder="Qty"
+                  />
+                </Col>
+              </Row>
+            ))}
+          </Form.Group>
+
+          <div className="border-top pt-3 mt-2 d-flex justify-content-end">
             <Button variant="success" onClick={handleSave}>
               {editingProductId ? "Update" : "Save"}
             </Button>

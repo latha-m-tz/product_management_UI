@@ -34,7 +34,7 @@ export default function EditAssemblePage() {
   const navigate = useNavigate();
 
   const [form, setForm] = useState({
-    productType: "",
+    // productType: "",
     product_id: "",
     firmwareVersion: "",
     testedBy: "",
@@ -44,19 +44,22 @@ export default function EditAssemblePage() {
     testedDate: "",
   });
 
-  const [productTypes, setProductTypes] = useState([]);
+  // const [productTypes, setProductTypes] = useState([]);
   const [allProducts, setAllProducts] = useState([]);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const [users, setUsers] = useState([]);
+
   const itemsPerPage = 10;
   const MySwal = withReactContent(Swal);
   const [editingSerials, setEditingSerials] = useState({});
   const getProductPrefix = (productName) => {
-    // Assumes product name starts with series number, e.g., "5-series"
     const match = productName.match(/^(\d+)/);
     return match ? match[1] : "";
   };
+  const [serialSearchType, setSerialSearchType] = useState('single'); // 'single' or 'range'
+
   const validateSerialMatchesProduct = (serial, productName) => {
     const prefix = getProductPrefix(productName);
     return serial.startsWith(prefix);
@@ -71,6 +74,8 @@ export default function EditAssemblePage() {
 
     const fromNum = deleteFrom ? parseInt(deleteFrom.match(/\d+/)?.[0], 10) : null;
     const toNum = deleteTo ? parseInt(deleteTo.match(/\d+/)?.[0], 10) : null;
+    const selectedProduct = allProducts.find(p => p.id === parseInt(form.product_id)) || {};
+    const prefix = selectedProduct.serial_prefix || "";
 
     const matchesSerialRange =
       (fromNum === null || serialNum >= fromNum) &&
@@ -157,12 +162,12 @@ export default function EditAssemblePage() {
     const fetchData = async () => {
       try {
         const [typesRes, productsRes, rangeRes] = await Promise.all([
-          axios.get(`${API_BASE_URL}/product-types`),
+           axios.get(`${API_BASE_URL}/product-types`),
           axios.get(`${API_BASE_URL}/product`),
           axios.get(`${API_BASE_URL}/inventory/serialrange/${routeFromSerial}/${routeToSerial}`),
         ]);
 
-        setProductTypes(typesRes.data);
+        // setProductTypes(typesRes.data);
         setAllProducts(productsRes.data);
 
         const data = rangeRes.data;
@@ -183,7 +188,7 @@ export default function EditAssemblePage() {
               : "";
 
         setForm({
-          productType: data.product_type?.id || "",
+          // productType: data.product_type?.id || "",
           product_id: data.product?.id || "",
           firmwareVersion: data.firmware_version || "",
           testedBy: data.tested_by || data.items[0]?.tested_by || "",
@@ -212,6 +217,17 @@ export default function EditAssemblePage() {
 
     fetchData();
   }, [routeFromSerial, routeToSerial]);
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const res = await axios.get(`${API_BASE_URL}/users`);
+        setUsers(res.data);
+      } catch (error) {
+        console.error("Error fetching users:", error);
+      }
+    };
+    fetchUsers();
+  }, []);
 
   useEffect(() => {
     setSelectedSerials((prev) => {
@@ -246,52 +262,6 @@ export default function EditAssemblePage() {
   };
 
 
-  const handleDelete = (index) => {
-    const updated = products.filter((_, i) => i !== index);
-
-    if (updated.length > 0) {
-      const serials = updated.map((p) => p.serial_no).sort();
-      const firstSerial = serials[0];
-      const lastSerial = serials[serials.length - 1];
-      const prefix = firstSerial.match(/[^\d]+/)?.[0] || "";
-      const startNum = parseInt(firstSerial.match(/\d+/)?.[0], 10);
-      const endNum = parseInt(lastSerial.match(/\d+/)?.[0], 10);
-
-      const fullRange = [];
-      for (let i = startNum; i <= endNum; i++) {
-        const serial = `${prefix}${i.toString().padStart(
-          firstSerial.length - prefix.length,
-          "0"
-        )}`;
-        const existing = updated.find((p) => p.serial_no === serial);
-        fullRange.push(
-          existing || {
-            serial_no: serial,
-            tested_by: form.testedBy,
-            tested_status: ["PENDING"],
-            test_remarks: "",
-            from_serial: firstSerial,
-            to_serial: lastSerial,
-            quantity: 1,
-          }
-        );
-      }
-
-
-      setProducts(fullRange);
-
-      setForm((prev) => ({
-        ...prev,
-        fromSerial: firstSerial,
-        toSerial: lastSerial,
-        quantity: fullRange.length,
-      }));
-    } else {
-      setProducts([]);
-      setForm((prev) => ({ ...prev, fromSerial: "", toSerial: "", quantity: "" }));
-    }
-    toast.info("Item deleted from list and range recalculated.");
-  };
 
 
 
@@ -329,17 +299,79 @@ export default function EditAssemblePage() {
   };
 
 
-  const validateSerialRange = (startSN, endSN) => {
-    const prefixStart = startSN.match(/[^\d]+/)?.[0] || "";
-    const prefixEnd = endSN.match(/[^\d]+/)?.[0] || "";
-    const startNum = parseInt(startSN.match(/\d+/)?.[0], 10);
-    const endNum = parseInt(endSN.match(/\d+/)?.[0], 10);
+  const handleAddProduct = () => {
+    const { fromSerial, toSerial, testedBy } = form;
 
-    if (prefixStart !== prefixEnd) return false;
-    if (isNaN(startNum) || isNaN(endNum) || startNum > endNum) return false;
 
-    return true;
+    if (!fromSerial) {
+      toast.error("Please enter a Serial Number or Range.");
+      return;
+    }
+
+    const prefix = fromSerial.match(/[^\d]+/)?.[0] || "";
+    const fromNum = parseInt(fromSerial.match(/\d+/)?.[0], 10);
+    const toNum = toSerial ? parseInt(toSerial.match(/\d+/)?.[0], 10) : fromNum;
+
+    if (isNaN(fromNum) || isNaN(toNum)) {
+      toast.error("Invalid serial number(s). Must end with digits.");
+      return;
+    }
+
+    if (fromSerial.slice(prefix.length).length !== 6 || (toSerial && toSerial.slice(prefix.length).length !== 6)) {
+      toast.error("Each serial must have exactly 6 digits after the prefix.");
+      return;
+    }
+
+    if (prefix !== (toSerial?.match(/[^\d]+/)?.[0] || prefix)) {
+      toast.error("From and To serials must have the same prefix.");
+      return;
+    }
+
+
+    if (toSerial && fromNum > toNum) {
+      toast.error("From Serial cannot be greater than To Serial.");
+      return;
+    }
+
+    const newSerials = [];
+    for (let i = fromNum; i <= toNum; i++) {
+      const sn = `${prefix}${i.toString().padStart(6, "0")}`;
+      newSerials.push(sn);
+    }
+
+    const existingSerials = new Set(products.map((p) => p.serial_no));
+    const freshSerials = newSerials.filter((sn) => !existingSerials.has(sn));
+
+    if (freshSerials.length === 0) {
+      toast.info("All entered serials already exist in the list.");
+      return;
+    }
+
+    const newProducts = freshSerials.map((sn) => ({
+      serial_no: sn,
+      tested_by: testedBy,
+      tested_status: ["PENDING"],
+      test_remarks: "",
+      from_serial: fromSerial,
+      to_serial: toSerial || fromSerial,
+      quantity: 1,
+    }));
+
+    const updatedList = [...products, ...newProducts].sort((a, b) =>
+      a.serial_no.localeCompare(b.serial_no)
+    );
+
+    setProducts(updatedList);
+    setForm((prev) => ({
+      ...prev,
+      fromSerial: updatedList[0].serial_no,
+      toSerial: updatedList[updatedList.length - 1].serial_no,
+      quantity: updatedList.length,
+    }));
+
+    toast.success(`${freshSerials.length} product(s) added successfully!`);
   };
+
   const handleDeleteSelected = () => {
     const serialsToDelete = currentItems
       .filter(p => selectedSerials[p.serial_no])
@@ -419,8 +451,8 @@ export default function EditAssemblePage() {
 
 
   const handleSubmit = async () => {
-    if (!form.productType || !form.product_id) {
-      toast.error("Please select both Product Type and Product.");
+    if (!form.product_id) {
+      toast.error("Please select a Product.");
       return;
     }
 
@@ -432,7 +464,7 @@ export default function EditAssemblePage() {
     try {
       const payload = {
         product_id: parseInt(form.product_id, 10),
-        product_type_id: parseInt(form.productType, 10),
+        // product_type_id: parseInt(form.productType, 10),
         firmware_version: form.firmwareVersion || "",
         tested_date: form.testedDate || new Date().toISOString().split("T")[0],
         tested_by: form.testedBy || "",
@@ -492,8 +524,7 @@ export default function EditAssemblePage() {
 
   return (
     <Container className="main-container">
-
-
+      {/* 🧭 Header */}
       <Row className="align-items-center mb-3">
         <Col>
           <h4>Edit New Inventory</h4>
@@ -510,114 +541,156 @@ export default function EditAssemblePage() {
         </Col>
       </Row>
 
-      <Card className="p-4 mb-3" style={{ position: "relative", backgroundColor: "rgb(244, 244, 248)" }}>
+      {/* 🧩 Product Details Card */}
+      <Card
+        className="p-4 mb-3"
+        style={{ position: "relative", backgroundColor: "rgb(244, 244, 248)" }}
+      >
         <h5 className="mb-4">Product Details</h5>
 
-        <div className="qr-scanner-button" onClick={() => setShowQrScanner(true)}>
+        {/* QR Scanner */}
+        {/* <div className="qr-scanner-button" onClick={() => setShowQrScanner(true)}>
           <div className="qr-scanner-icon-container">
             <FaQrcode />
           </div>
           <span className="qr-scanner-text">QR code scanner</span>
-        </div>
+        </div> */}
 
+        {/* Product Type / Product / Firmware */}
+        {/* 🧩 Product & Serial Fields */}
         <Row className="mb-3 g-3">
-          <Col md={4}>
-            <Form.Group>
-              <Form.Label>Product Type</Form.Label>
-              <Form.Select name="productType" value={form.productType} onChange={handleChange}>
-                <option value="">Select</option>
-                {productTypes.map((pt) => (
-                  <option key={pt.id} value={pt.id}>
-                    {pt.name}
-                  </option>
-                ))}
-              </Form.Select>
-            </Form.Group>
-          </Col>
-          <Col md={4}>
-            <Form.Group>
-              <Form.Label>Product</Form.Label>
-              <Form.Select name="product_id" value={form.product_id} onChange={handleChange}>
-                <option value="">Select</option>
-                {allProducts.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </Form.Select>
-            </Form.Group>
-          </Col>
-          <Col md={4}>
-            <Form.Group>
-              <Form.Label>Firmware Version</Form.Label>
-              <Form.Control name="firmwareVersion" value={form.firmwareVersion} onChange={handleChange} />
-            </Form.Group>
-          </Col>
-        </Row>
+     <Col md={4}>
+  <Form.Group>
+    <Form.Label>Product</Form.Label>
+    <Form.Select
+      name="product_id"
+      value={form.product_id}
+      onChange={handleChange}
+    >
+      <option value="">Select Product</option>
+      {allProducts.map((p) => (
+        <option key={p.id} value={p.id}>
+          {p.name}  {/* Only show product name, no type */}
+        </option>
+      ))}
+    </Form.Select>
+  </Form.Group>
+</Col>
 
-        <Row className="mb-3 g-3">
-          <Col md={4}>
-            <Form.Group>
-              <Form.Label>Quantity</Form.Label>
-              <Form.Control value={products.length} readOnly />
-            </Form.Group>
-          </Col>
           <Col md={4}>
             <Form.Group>
               <Form.Label>From Serial</Form.Label>
               <Form.Control
+                type="text"
                 name="fromSerial"
                 value={form.fromSerial}
-                readOnly
-                onChange={handleChange}
-                isInvalid={!!errors.fromSerial}
+                onChange={(e) => {
+                  let value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+
+                  // Validate: first 6 characters must be digits
+                  const firstSix = value.slice(0, 6);
+                  const rest = value.slice(6);
+
+                  if (!/^\d{0,6}$/.test(firstSix)) {
+                    return; // stop if first six aren't digits
+                  }
+
+                  // Allow letters after the first 6 digits
+                  const sanitized = firstSix + rest.replace(/[^A-Z]/g, "");
+
+                  setForm((prev) => ({
+                    ...prev,
+                    fromSerial: sanitized,
+                    toSerial:
+                      !prev.toSerial || prev.toSerial === prev.fromSerial
+                        ? sanitized
+                        : prev.toSerial,
+                  }));
+                }}
+                placeholder="Enter From Serial"
+                maxLength={10}
               />
-              <Form.Control.Feedback type="invalid">{errors.fromSerial}</Form.Control.Feedback>
             </Form.Group>
           </Col>
+
           <Col md={4}>
             <Form.Group>
               <Form.Label>To Serial</Form.Label>
               <Form.Control
+                type="text"
                 name="toSerial"
                 value={form.toSerial}
-                readOnly
-                onChange={handleChange}
-                isInvalid={!!errors.toSerial}
+                onChange={(e) => {
+                  let value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+
+                  const firstSix = value.slice(0, 6);
+                  const rest = value.slice(6);
+
+                  if (!/^\d{0,6}$/.test(firstSix)) {
+                    return;
+                  }
+
+                  const sanitized = firstSix + rest.replace(/[^A-Z]/g, "");
+
+                  setForm((prev) => ({ ...prev, toSerial: sanitized }));
+                }}
+                placeholder="Enter To Serial"
+                maxLength={10}
               />
-              <Form.Control.Feedback type="invalid">{errors.toSerial}</Form.Control.Feedback>
             </Form.Group>
           </Col>
+
         </Row>
 
+        {/* 🧩 Firmware / Tested Date / Tested By */}
         <Row className="mb-3 g-3">
           <Col md={4}>
             <Form.Group>
-              <Form.Label>Tested By</Form.Label>
+              <Form.Label>Firmware Version</Form.Label>
               <Form.Control
-                name="testedBy"
-                value={form.testedBy}
+                name="firmwareVersion"
+                value={form.firmwareVersion}
                 onChange={handleChange}
-                isInvalid={!!errors.testedBy}
               />
-              <Form.Control.Feedback type="invalid">{errors.testedBy}</Form.Control.Feedback>
             </Form.Group>
           </Col>
+
           <Col md={4}>
             <Form.Group>
               <Form.Label>Tested Date</Form.Label>
               <Form.Control
                 type="date"
                 name="testedDate"
-                value={form.testedDate}
+                value={
+                  form.testedDate ||
+                  new Date().toISOString().split("T")[0] // default today
+                }
                 onChange={handleChange}
               />
             </Form.Group>
           </Col>
+          <Col md={4}>
+            <Form.Group>
+              <Form.Label>Tested By</Form.Label>
+              <Form.Select
+                name="testedBy"
+                value={form.testedBy || localStorage.getItem("authName") || ""}
+                onChange={handleChange}
+              >
+                <option value="">Select</option>
+                {users.map((user) => (
+                  <option key={user.id} value={user.name || user.username}>
+                    {user.name || user.username}
+                  </option>
+                ))}
+              </Form.Select>
+            </Form.Group>
+          </Col>
+
           <Col md={2} className="d-flex align-items-end">
-            {/* <Button variant="success" onClick={handleAddProductRange} className="w-100">
+            <Button variant="success" onClick={handleAddProduct} className="w-100">
               Add product
-            </Button> */}
+            </Button>
           </Col>
         </Row>
       </Card>
@@ -769,15 +842,22 @@ export default function EditAssemblePage() {
                         />
                       </td>
 
-                      <td>
-                        <Form.Control
-                          type="text"
-                          value={product.tested_by || ""}
-                          onChange={(e) =>
-                            handleRowChange(absoluteIndex, "tested_by", e.target.value)
-                          }
-                        />
-                      </td>
+<td>
+  <Form.Select
+    value={product.tested_by || ""}
+    onChange={(e) =>
+      handleRowChange(absoluteIndex, "tested_by", e.target.value)
+    }
+  >
+    <option value="">Select</option>
+    {users.map((user) => (
+      <option key={user.id} value={user.name || user.username}>
+        {user.name || user.username}
+      </option>
+    ))}
+  </Form.Select>
+</td>
+
 
                       <td>
                         <Form.Check
@@ -865,11 +945,11 @@ export default function EditAssemblePage() {
         </Button>
       </div>
 
-      <QrScannerPage
+      {/* <QrScannerPage
         show={showQrScanner}                // passes the visibility state
         onScanSuccess={handleScan}          // passes your scan handler
         onClose={() => setShowQrScanner(false)} // closes the modal
-      />
+      /> */}
     </Container>
   );
 }

@@ -9,7 +9,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 
 import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../api";
-import BreadCrumb from "../components/BreadCrumb"; // Added from ProductPage
+import BreadCrumb from "../components/BreadCrumb"; 
 import ActionButtons from "../components/ActionButton";
 import Pagination from "../components/Pagination";
 import Search from "../components/Search";
@@ -77,10 +77,19 @@ export default function SalesListPage() {
 
   const paginatedSales = filteredSales.slice((page - 1) * perPage, page * perPage);
 
-  const headerStyle = {
-    backgroundColor: "#2E3A59",
-    color: "white",
-  };
+const headerStyle = {
+  backgroundColor: "#2E3A59",
+  color: "white",
+  padding: "2px 6px", // reduce vertical space
+  height: "28px", // total header height
+  lineHeight: "1.2", // compact spacing
+};
+const rowStyle = {
+  fontSize: "0.85rem",  // smaller text
+  padding: "4px 6px",   // tighter cell spacing
+  lineHeight: "1.2rem", // compact vertical spacing
+};
+
 
   const columns = [
     { header: "Customer", accessor: (row) => row.customer?.customer },
@@ -100,7 +109,7 @@ export default function SalesListPage() {
   ];
 
   return (
-    <div className="px-4" style={{ fontSize: "0.75rem" }}>
+    <div className="px-4" style={{ fontSize: "0.95rem" ,fontFamily:"productsans-serif"}}>
       <BreadCrumb title="Sales List" />
 
       <Card className="border-0 shadow-sm rounded-3 p-2 px-4 mt-2 bg-white">
@@ -110,7 +119,7 @@ export default function SalesListPage() {
             <label className="me-2 fw-semibold mb-0">Records Per Page:</label>
             <Form.Select
               size="sm"
-              style={{ width: "100px" }}
+              style={{ width: "50px" }}
               value={perPage}
               onChange={(e) => {
                 setPerPage(Number(e.target.value));
