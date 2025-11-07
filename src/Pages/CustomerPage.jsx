@@ -228,11 +228,11 @@ const formatMobileNumber = (number, defaultCountry = "IN") => {
                     <td className="text-center">
                       {(page - 1) * perPage + index + 1}
                     </td>
-                    <td>{c.customer || "N/A"}</td>
-                    <td>{c.email || "N/A"}</td>
-<td>{formatMobileNumber(c.mobile_no || "N/A")}</td>
-                    <td>{c.gst_no || "N/A"}</td>
-                    <td>{c.city || "N/A"}</td>
+                    <td style={{ fontSize: "0.90rem",fontFamily:"product-sans,sans-serif" }}>{c.customer || "N/A" }</td>
+                    <td style={{ fontSize: "0.90rem",fontFamily:"product-sans,sans-serif" }}>{c.email || "N/A"}</td>
+                    <td style={{ fontSize: "0.90rem",fontFamily:"product-sans,sans-serif" }}>{formatMobileNumber(c.mobile_no || "N/A")}</td>
+                    <td style={{ fontSize: "0.90rem",fontFamily:"product-sans,sans-serif" }}>{c.gst_no || "N/A"}</td>
+                    <td style={{ fontSize: "0.90rem",fontFamily:"product-sans,sans-serif" }}>{c.city || "N/A"}</td>
                     <td>
                       <span
                         className={`badge ${c.status === "active" ? "bg-success" : "bg-danger"

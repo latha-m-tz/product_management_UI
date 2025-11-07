@@ -150,7 +150,7 @@ const filteredData = purchaseData.filter((item) => {
                   { label: "Vendor", field: "vendor.name" },
                   { label: "Challan No", field: "challan_no" },
                   { label: "Challan Date", field: "challan_date" },
-                  { label: "Total Qty", field: "total_quantity" },
+                  // { label: "Total Qty", field: "total_quantity" },
                 ].map(({ label, field }) => (
                   <th key={field} onClick={() => handleSort(field)} style={{ cursor: "pointer", backgroundColor: "#2E3A59", color: "white" }}>
                     {label} {sortField === field && (sortDirection === "asc" ? "▲" : "▼")}
@@ -176,10 +176,10 @@ const filteredData = purchaseData.filter((item) => {
                 paginatedData.map((item, index) => (
                   <tr key={item.purchase_id}>
                     <td className="text-center">{(page - 1) * perPage + index + 1}</td>
-                    <td>{item.vendor.name}</td>
-                    <td>{item.challan_no}</td>
-                    <td>{item.challan_date}</td>
-                    <td>{item.total_quantity}</td>
+                    <td style={{ fontSize: "0.90rem" }}>{item.vendor.name}</td>
+                    <td style={{ fontSize: "0.90rem" }}>{item.challan_no}</td>
+                    <td style={{ fontSize: "0.90rem" }}>{item.challan_date}</td>
+                    {/* <td style={{ fontSize: "0.90rem" }}>{item.total_quantity}</td> */}
                     <td className="text-center" style={{ width: "130px" }}>
                       <div className="d-flex justify-content-center">
                         <ActionButton

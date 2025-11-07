@@ -71,13 +71,13 @@ export default function ViewCustomerPage() {
           </Button>
         </div>
 
-        <Row className="mb-3">
+        <Row className="mb-3" style={{ fontSize: "0.9rem" ,fontFamily:"product-sans, sans-serif"}}>
           <Col md={4}><strong>Name:</strong> {customer.customer}</Col>
           <Col md={4}><strong>GST No:</strong> {customer.gst_no}</Col>
           <Col md={4}><strong>Email:</strong> {customer.email}</Col>
         </Row>
 
-        <Row className="mb-3">
+        <Row className="mb-3" style={{ fontSize: "0.9rem" ,fontFamily:"product-sans, sans-serif"}}>
           <Col md={4}>
             <strong>Mobile:</strong> {formatMobileNumber(customer.mobile_no)}
           </Col>
@@ -85,7 +85,7 @@ export default function ViewCustomerPage() {
           <Col md={4}><strong>City:</strong> {customer.city}</Col>
         </Row>
 
-        <Row className="mb-3">
+        <Row className="mb-3 " style={{ fontSize: "0.9rem" ,fontFamily:"product-sans, sans-serif"}}>
           <Col md={4}><strong>District:</strong> {customer.district}</Col>
           <Col md={4}><strong>State:</strong> {customer.state}</Col>
           <Col md={4}>
@@ -96,7 +96,7 @@ export default function ViewCustomerPage() {
           </Col>
         </Row>
 
-        <Row className="mb-3">
+        <Row className="mb-3 " style={{ fontSize: "0.9rem" ,fontFamily:"product-sans, sans-serif"}}>
           <Col md={12}>
             <strong>Address:</strong>
             <p>{customer.address}</p>

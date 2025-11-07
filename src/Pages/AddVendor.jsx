@@ -38,6 +38,8 @@ export default function AddVendor() {
   const MySwal = withReactContent(Swal);
   const [panelKey, setPanelKey] = useState(0);
   const [contactCountry, setContactCountry] = useState("IN");
+  const emailPattern = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i;
+
   const capitalizeWords = (str) =>
     str.replace(/\b\w/g, (char) => char.toUpperCase());
 
@@ -93,12 +95,25 @@ export default function AddVendor() {
     }
   };
 
-
   const validateVendor = () => {
     const errors = {};
 
-    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; // basic valid email pattern
     const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+
+    if (vendor.email) {
+      const emailTrimmed = vendor.email.trim();
+
+      if (/\s/.test(emailTrimmed)) {
+        errors.email = "Email cannot contain spaces";
+      } else if (emailTrimmed !== emailTrimmed.toLowerCase()) {
+        errors.email = "Email must be in lowercase (e.g. name@example.com)";
+      } else if (!emailPattern.test(emailTrimmed)) {
+        errors.email = "Invalid email format (e.g. name@example.com)";
+      }
+    }
+
+
 
     if (!vendor.vendor?.trim()) {
       errors.vendor = "Vendor name is required";
@@ -108,16 +123,6 @@ export default function AddVendor() {
       errors.mobile_no = "Mobile number is required";
     } else if (!isValidPhoneNumber(vendor.mobile_no)) {
       errors.mobile_no = "Invalid mobile number for selected country";
-    }
-
-    // Email validation: allow spaces before/after, but not inside
-    if (vendor.email) {
-      const emailTrimmed = vendor.email.trim();
-      if (/\s/.test(emailTrimmed.replace(/^\s+|\s+$/g, ""))) {
-        errors.email = "Invalid email format (spaces are not allowed inside email)";
-      } else if (!emailPattern.test(emailTrimmed)) {
-        errors.email = "Invalid email format";
-      }
     }
 
     if (vendor.gst_no) {
@@ -138,6 +143,7 @@ export default function AddVendor() {
     setVendorErrors(errors);
     return Object.keys(errors).length === 0;
   };
+
 
   const handleVendorChange = (e) => {
     const { name, value } = e.target;
@@ -233,62 +239,102 @@ export default function AddVendor() {
     toast.error("Could not fetch details. Please enter City, District, and State manually.");
   };
 
-  const addContactPerson = () => {
-    if (!validateContact()) return;
+const addContactPerson = () => {
+  if (!validateContact()) return;
 
-    const contactToSave = { ...contact };
-    let updatedContacts = [...contactPersons];
+  const errors = {};
 
-    // 🔹 Check if already has a main contact person (when adding or editing)
-    const hasMainContact =
-      updatedContacts.some((c, idx) => c.isMain && idx !== editingIndex);
+  // 🔹 Email validation rules
+  if (contact.email) {
+    const emailTrimmed = contact.email.trim();
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    if (contactToSave.isMain && hasMainContact) {
-      toast.error("A main contact person already exists!");
-      return;
+    if (/\s/.test(emailTrimmed)) {
+      errors.email = "Email cannot contain spaces";
+    } else if (emailTrimmed !== emailTrimmed.toLowerCase()) {
+      errors.email = "Email must be in lowercase (e.g. name@example.com)";
+    } else if (!emailPattern.test(emailTrimmed)) {
+      errors.email = "Invalid email format (e.g. name@example.com)";
+    } else if (
+      vendor.email &&
+      emailTrimmed.toLowerCase() === vendor.email.trim().toLowerCase()
+    ) {
+      errors.email = "Contact email cannot be the same as company email";
     }
+  }
 
-    // 🔹 Check for duplicate mobile numbers
-    const duplicateInContacts = updatedContacts.some(
-      (c, idx) => c.mobile_no === contactToSave.mobile_no && idx !== editingIndex
+  // 🔹 Check if this email was previously flagged by backend as already taken
+  if (contact.email && vendor?.backendErrors) {
+    const backendErrorKey = Object.keys(vendor.backendErrors).find((key) =>
+      key.includes(contact.email)
     );
-
-    const duplicateWithVendor = contactToSave.mobile_no === vendor.mobile_no;
-
-    if (duplicateInContacts || duplicateWithVendor) {
-      toast.error(`Mobile number ${contactToSave.mobile_no} is already used!`);
-      return;
+    if (backendErrorKey) {
+      errors.email = "This email address is already taken.";
     }
+  }
 
-    // 🔹 If this is marked as main, clear all others
-    if (contactToSave.isMain) {
-      updatedContacts = updatedContacts.map((c) => ({ ...c, isMain: false }));
-    }
+  // 🔹 Stop if any email error found
+  if (errors.email) {
+    toast.error(errors.email);
+    setContactErrors(errors);
+    return;
+  }
 
-    // 🔹 Update or Add contact
-    if (editingIndex !== null) {
-      updatedContacts[editingIndex] = contactToSave;
-      setContactPersons(updatedContacts);
-      toast.success(`Contact person "${contactToSave.name}" updated successfully!`);
-    } else {
-      setContactPersons([...updatedContacts, contactToSave]);
-      toast.success(`Contact person "${contactToSave.name}" added successfully!`);
-    }
+  const contactToSave = { ...contact };
+  let updatedContacts = [...contactPersons];
 
-    // 🔹 Reset contact form and panel
-    setContact({
-      name: "",
-      designation: "",
-      mobile_no: "",
-      email: "",
-      status: "Active",
-      isMain: false,
-    });
-    setContactErrors({});
-    setEditingIndex(null);
-    setShowPanel(false);
-    setTimeout(() => setShowPanel(false), 0);
-  };
+  // 🔹 Check if already has a main contact person (when adding or editing)
+  const hasMainContact = updatedContacts.some(
+    (c, idx) => c.isMain && idx !== editingIndex
+  );
+
+  if (contactToSave.isMain && hasMainContact) {
+    toast.error("A main contact person already exists!");
+    return;
+  }
+
+  // 🔹 Check for duplicate mobile numbers
+  const duplicateInContacts = updatedContacts.some(
+    (c, idx) => c.mobile_no === contactToSave.mobile_no && idx !== editingIndex
+  );
+
+  const duplicateWithVendor = contactToSave.mobile_no === vendor.mobile_no;
+
+  if (duplicateInContacts || duplicateWithVendor) {
+    toast.error(`Mobile number ${contactToSave.mobile_no} is already used!`);
+    return;
+  }
+
+  // 🔹 If this is marked as main, clear all others
+  if (contactToSave.isMain) {
+    updatedContacts = updatedContacts.map((c) => ({ ...c, isMain: false }));
+  }
+
+  // 🔹 Update or Add contact
+  if (editingIndex !== null) {
+    updatedContacts[editingIndex] = contactToSave;
+    setContactPersons(updatedContacts);
+    toast.success(`Contact person "${contactToSave.name}" updated successfully!`);
+  } else {
+    setContactPersons([...updatedContacts, contactToSave]);
+    toast.success(`Contact person "${contactToSave.name}" added successfully!`);
+  }
+
+  // 🔹 Reset contact form and panel
+  setContact({
+    name: "",
+    designation: "",
+    mobile_no: "",
+    email: "",
+    status: "Active",
+    isMain: false,
+  });
+  setContactErrors({});
+  setEditingIndex(null);
+  setShowPanel(false);
+  setTimeout(() => setShowPanel(false), 0);
+};
+
 
 
   const editContact = (index) => {
@@ -356,7 +402,7 @@ export default function AddVendor() {
       // ✅ Valid number: store E.164 format
       setContact(prev => ({
         ...prev,
-        mobile_no: phone.number,           // +91XXXXXXXXXX
+        mobile_no: phone.number,
         country_code: phone.countryCallingCode
       }));
 
@@ -371,7 +417,6 @@ export default function AddVendor() {
 
     if (!contact.name.trim()) errors.name = "Name is required";
 
-    // Use the value directly from CountryPhoneInput
     const mobileToValidate = contact.mobile_no;
 
     if (!mobileToValidate) {
@@ -380,14 +425,19 @@ export default function AddVendor() {
       errors.mobile_no = "Invalid mobile number for selected country";
     }
 
-    // Email validation
+    // ✅ Email validation with lowercase check
     if (contact.email) {
       const emailCleaned = contact.email.trim();
       if (/\s/.test(emailCleaned)) {
         errors.email = "Email cannot contain spaces inside";
+      } else if (/[A-Z]/.test(emailCleaned)) {
+        errors.email = "Email must be in lowercase (e.g. name@example.com)";
       } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailCleaned)) {
-        errors.email = "Invalid email format";
-      } else if (vendor.email && emailCleaned.toLowerCase() === vendor.email.trim().toLowerCase()) {
+        errors.email = "Invalid email format (e.g. name@example.com)";
+      } else if (
+        vendor.email &&
+        emailCleaned.toLowerCase() === vendor.email.trim().toLowerCase()
+      ) {
         errors.email = "Contact email cannot be the same as company email";
       }
     }
@@ -395,45 +445,77 @@ export default function AddVendor() {
     setContactErrors(errors);
     return Object.keys(errors).length === 0;
   };
-  const saveVendor = async () => {
-    if (!validateVendor()) {
-      return;
-    }
-    if (contactPersons.length === 0) {
-      toast.error("Please add at least one contact person.");
-      return;
-    }
-    try {
-      const response = await fetch(`${API_BASE_URL}/vendors/new`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ...vendor,
-          contact_persons: contactPersons,
-        }),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        if (data.errors) {
-          if (data.errors.vendor) toast.error("Company name already exists");
-          if (data.errors.email) toast.error(`Email already taken: ${data.errors.email}`);
-          if (data.errors.mobile_no) toast.error(`Mobile number already taken: ${data.errors.mobile_no}`);
-        } else if (data.message) {
-          toast.error(data.message);
-        } else {
-          toast.error("Error saving vendor!");
-        }
-        return;
+const saveVendor = async () => {
+  if (!validateVendor()) {
+    return;
+  }
+
+  // if (contactPersons.length === 0) {
+  //   toast.error("Please add at least one contact person.");
+  //   return;
+  // }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/vendors/new`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        ...vendor,
+        contact_persons: contactPersons,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      if (data.errors) {
+        // 🔹 Loop through all validation errors dynamically
+        Object.entries(data.errors).forEach(([key, messages]) => {
+          const message = Array.isArray(messages) ? messages.join(", ") : messages;
+
+          if (key === "vendor") {
+            toast.error("Company name already exists");
+          } else if (key === "email") {
+            toast.error(`Email already taken`);
+          } else if (key === "mobile_no") {
+            toast.error(`Mobile number already taken`);
+          } else if (key === "gst_no") {
+            toast.error(`GST number already exists`);
+          } else if (key.startsWith("contact_persons")) {
+            // Example key: contact_persons.0.email
+            const parts = key.split(".");
+            const index = parts[1] || "?";
+            const field = parts[2] || "field";
+            const contactName =
+              contactPersons[index]?.name || `#${parseInt(index) + 1}`;
+            toast.error(
+              `Contact person ${contactName} ${field.replace(
+                "_",
+                " "
+              )} error: ${message}`
+            );
+          } else {
+            // fallback for any other unknown field
+            toast.error(`${key.replace("_", " ")}: ${message}`);
+          }
+        });
+      } else if (data.message) {
+        toast.error(data.message);
+      } else {
+        toast.error("Error saving vendor!");
       }
-      toast.success("Vendor added successfully!");
-      navigate("/vendor");
-    } catch (err) {
-      console.error(err);
-      toast.error("Error saving vendor!");
+      return;
     }
-  };
+
+    toast.success("Vendor added successfully!");
+    navigate("/vendor");
+  } catch (err) {
+    console.error(err);
+    toast.error("Error saving vendor!");
+  }
+};
 
   const feedbackStyle = { color: "red", fontSize: "0.85rem", marginTop: "4px" };
   const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
@@ -598,19 +680,34 @@ export default function AddVendor() {
                   type="email"
                   name="email"
                   value={vendor.email}
-                  onChange={(e) => setVendor({ ...vendor, email: e.target.value })}
                   placeholder="Enter Email"
+                  onChange={(e) => {
+                    const value = e.target.value;
+
+                    // ✅ Update email value
+                    setVendor({ ...vendor, email: value });
+
+                    // ✅ Remove the email error when the user corrects input
+                    if (vendorErrors.email) {
+                      setVendorErrors((prev) => ({
+                        ...prev,
+                        email: "", // Clear only email error
+                      }));
+                    }
+                  }}
                 />
 
-                {vendorErrors.email && <div style={feedbackStyle}>{vendorErrors.email}</div>}
-
+                {vendorErrors.email && (
+                  <div style={feedbackStyle}>{vendorErrors.email}</div>
+                )}
               </Form.Group>
+
             </Col>
             <Col md={4}>
               <Form.Group className="mb-3 form-field">
                 <CountryPhoneInput
                   label="Mobile No"
-                  value={vendor.mobile_no} // ✅ vendor's mobile
+                  value={vendor.mobile_no}
                   onChange={handleVendorMobileChange} // ✅ correct handler
                   country={contactCountry}
                   onCountryChange={setContactCountry}
@@ -645,6 +742,7 @@ export default function AddVendor() {
               "city",
               "state",
               "district",
+              "address",
             ];
 
             const emptyField = requiredFields.find((field) => {
@@ -872,14 +970,25 @@ export default function AddVendor() {
                       type="email"
                       name="email"
                       value={contact.email}
-                      onChange={(e) => {
-                        let input = e.target.value;
-                        setContact({ ...contact, email: input });
-                      }}
                       placeholder="Enter Email"
+                      onChange={(e) => {
+                        const input = e.target.value;
+                        setContact({ ...contact, email: input });
+
+                        // ✅ Clear email error instantly when user changes input
+                        if (contactErrors.email) {
+                          setContactErrors((prev) => ({
+                            ...prev,
+                            email: "",
+                          }));
+                        }
+                      }}
                     />
-                    {contactErrors.email && <div style={feedbackStyle}>{contactErrors.email}</div>}
+                    {contactErrors.email && (
+                      <div style={feedbackStyle}>{contactErrors.email}</div>
+                    )}
                   </Form.Group>
+
                 </Col>
 
                 <Col md={6}>

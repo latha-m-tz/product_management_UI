@@ -28,8 +28,8 @@ const ViewServicePage = () => {
   });
 
   const [loading, setLoading] = useState(false);
-  const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(10);
+  // const [page, setPage] = useState(1);
+  // const [perPage, setPerPage] = useState(10);
 
   useEffect(() => {
     const fetchService = async () => {

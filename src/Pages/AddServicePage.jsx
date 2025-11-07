@@ -23,7 +23,7 @@ const AddServicePage = () => {
   const [serialNumbersByProduct, setSerialNumbersByProduct] = useState({});
   const [alreadySoldSerials, setAlreadySoldSerials] = useState([]);
   const MySwal = withReactContent(Swal);
-  const [challanFiles, setChallanFiles] = useState([null]);
+  // const [challanFiles, setChallanFiles] = useState([null]);
   const [recipientFiles, setRecipientFiles] = useState([null]);
 
   const [formData, setFormData] = useState({
@@ -37,8 +37,8 @@ const AddServicePage = () => {
     sent_date: "",
     received_date: "",
     remarks: "",
-    challan_1: null,
-    challan_2: null,
+    // challan_1: null,
+    // challan_2: null,
     receipt_upload: null,
     items: [
       {
@@ -70,6 +70,8 @@ const AddServicePage = () => {
       newErrors.quantity = "Quantity is required";
     } else if (isNaN(formData.quantity) || Number(formData.quantity) <= 0) {
       newErrors.quantity = "Quantity must be positive";
+    } else if (Number(formData.quantity) !== formData.items.length) {
+      newErrors.quantity = `You must add exactly ${formData.quantity} service items (currently added ${formData.items.length})`;
     }
 
     formData.items.forEach((item, index) => {
@@ -147,7 +149,7 @@ const AddServicePage = () => {
         toast.error("Failed to fetch serial numbers!");
       }
     }
-  }
+  };
   // Add new file input
   const addFileField = (type) => {
     if (type === "challan") {
@@ -159,22 +161,24 @@ const AddServicePage = () => {
 
   // Remove file input
   const removeFileField = (type, index) => {
-    if (type === "challan") {
-      setChallanFiles((prev) => prev.filter((_, i) => i !== index));
-    } else if (type === "recipient") {
+    // if (type === "challan") {
+    //   setChallanFiles((prev) => prev.filter((_, i) => i !== index));
+    // } else
+     if (type === "recipient") {
       setRecipientFiles((prev) => prev.filter((_, i) => i !== index));
     }
   };
 
   // Handle file change
   const handleFileChange = (type, index, file) => {
-    if (type === "challan") {
-      setChallanFiles((prev) => {
-        const updated = [...prev];
-        updated[index] = file;
-        return updated;
-      });
-    } else if (type === "recipient") {
+    // if (type === "challan") {
+    //   setChallanFiles((prev) => {
+    //     const updated = [...prev];
+    //     updated[index] = file;
+    //     return updated;
+    //   });
+    // } else 
+    if (type === "recipient") {
       setRecipientFiles((prev) => {
         const updated = [...prev];
         updated[index] = file;
@@ -249,9 +253,9 @@ const AddServicePage = () => {
     });
 
     // ✅ Append multiple challan files
-    challanFiles.forEach((file, i) => {
-      if (file) payload.append(`challan_files[${i}]`, file);
-    });
+    // challanFiles.forEach((file, i) => {
+    //   if (file) payload.append(`challan_files[${i}]`, file);
+    // });
 
     try {
       await axios.post(`${API_BASE_URL}/service-vci`, payload, {
@@ -386,13 +390,19 @@ const AddServicePage = () => {
         <Row className="mb-3">
           <Col md={4}>
             <RequiredLabel>Quantity</RequiredLabel>
-            <Form.Control
-              type="number"
-              name="quantity"
-              value={formData.quantity}
-              onChange={handleChange}
-              isInvalid={!!errors.quantity}
-            />
+            <Form.Group>
+              <Form.Control
+                type="number"
+                name="quantity"
+                value={formData.quantity}
+                min="0" // 🔒 Prevents negative input
+                onChange={(e) => {
+                  const { name, value } = e.target;
+                  if (value < 0) return;
+                  setFormData({ ...formData, [name]: value });
+                }}
+              />
+            </Form.Group>
             <Form.Control.Feedback type="invalid">
               {errors.quantity}
             </Form.Control.Feedback>
@@ -458,7 +468,7 @@ const AddServicePage = () => {
           </Col>
 
           {/* CHALLAN FILES */}
-          <Col md={6}>
+          {/* <Col md={6}>
             <Form.Group className="mb-2">
               <Form.Label>
                 Challan Documents
@@ -493,7 +503,7 @@ const AddServicePage = () => {
                 </div>
               ))}
             </Form.Group>
-          </Col>
+          </Col> */}
         </Row>
 
 
@@ -534,7 +544,7 @@ const AddServicePage = () => {
                 <td>
                   <Form.Control
                     as="select"
-                    name="product_id" // ← changed
+                    name="product_id"
                     value={item.product_id}
                     onChange={(e) => handleItemChange(index, e)}
                     isInvalid={!!errors[`product_id_${index}`]}
@@ -647,15 +657,14 @@ const AddServicePage = () => {
             ))}
           </tbody>
         </Table>
-
-        <Button
-          variant="success"
-          onClick={addRow}
-          disabled={formData.quantity <= formData.items.length}
-        >
-          + Add Row
-        </Button>
-
+<Button
+  type="button"
+  variant="success"
+  onClick={addRow}
+  disabled={formData.quantity <= formData.items.length}
+>
+  + Add Row
+</Button>
         <div className="mt-4 d-flex justify-content-end">
           <Button
             variant="secondary"

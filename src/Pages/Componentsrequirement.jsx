@@ -1,10 +1,9 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, Spinner, Form, Button, Table } from "react-bootstrap";
+import { Button, Form, Card, Row, Col, Table, Spinner } from "react-bootstrap";
 import { toast } from "react-toastify";
 import axios from "axios";
 import BreadCrumb from "../components/BreadCrumb";
-import Pagination from "../components/Pagination";
 import Search from "../components/Search";
 import { API_BASE_URL } from "../api";
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -14,51 +13,87 @@ export default function ComponentsRequirement() {
 
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [vciCount, setVciCount] = useState("");
   const [search, setSearch] = useState("");
   const [seriesList, setSeriesList] = useState([]);
-  const [selectedSeries, setSelectedSeries] = useState("");
-  const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(10);
-  const [sortField, setSortField] = useState(null);
-  const [sortDirection, setSortDirection] = useState("asc");
+  const [selectedSeries, setSelectedSeries] = useState([]);
+  const [vciCounts, setVciCounts] = useState({});
+
+  // Mapping label to actual series for consistent keying
+  const [labelToSeriesMap, setLabelToSeriesMap] = useState({});
+
+  const calculatedSeriesData = useMemo(() => {
+    const remainingMap = {};
+
+    return data.map((seriesData) => {
+      const updatedParts = seriesData.spare_parts.map((part) => {
+        const partKey = part.name.toLowerCase();
+        const availableQty = remainingMap[partKey] ?? part.available_quantity ?? 0;
+
+        const totalRequired =
+          (vciCounts[seriesData.series] || 0) * (part.required_per_vci || 1);
+        const shortage = totalRequired > availableQty ? totalRequired - availableQty : 0;
+        const remaining = Math.max(availableQty - totalRequired, 0);
+
+        remainingMap[partKey] = remaining;
+
+        return {
+          ...part,
+          totalRequired,
+          shortage,
+          effectiveAvailable: availableQty,
+        };
+      });
+
+      return { ...seriesData, spare_parts: updatedParts };
+    });
+  }, [data, vciCounts]);
 
   useEffect(() => {
     fetchSeriesList();
   }, []);
 
-  useEffect(() => {
-    if (selectedSeries) fetchSeriesData(selectedSeries);
-  }, [selectedSeries]);
-
   const fetchSeriesList = async () => {
     try {
-      const res = await axios.get(`${API_BASE_URL}/product-types`);
+      const res = await axios.get(`${API_BASE_URL}/product`);
+      const labelMap = {};
       const seriesNames = res.data.map((item) => {
-        const typeName = item.name || "";
-        const productName = item.product?.name || "";
-        return `${typeName}(${productName})`;
+        const label = `${item.name} (${item.product_type_name})`;
+        labelMap[label] = item.name; // Map displayed label to actual series name
+        return label;
       });
       setSeriesList(seriesNames);
-      if (seriesNames.length > 0) setSelectedSeries(seriesNames[0]);
+      setLabelToSeriesMap(labelMap);
     } catch (err) {
       toast.error("Failed to fetch series list!");
     }
   };
 
-  const fetchSeriesData = async (series) => {
-    if (!series) return;
+  const fetchMultipleSeriesData = async (seriesArray) => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE_URL}/counts/${series}`);
-      setData([res.data]);
+      const responses = await Promise.all(
+        seriesArray.map((seriesLabel) =>
+          axios.get(`${API_BASE_URL}/products/series/${labelToSeriesMap[seriesLabel]}`)
+        )
+      );
+      const combined = responses.map((res) => res.data);
+      setData(combined);
     } catch (err) {
-      toast.error("Failed to fetch spare parts data!");
+      console.error(err);
+      toast.error("Failed to fetch spare parts for selected series!");
       setData([]);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (selectedSeries.length > 0) {
+      fetchMultipleSeriesData(selectedSeries);
+    } else {
+      setData([]);
+    }
+  }, [selectedSeries]);
 
   const filterParts = (parts) => {
     if (!parts) return [];
@@ -66,101 +101,35 @@ export default function ComponentsRequirement() {
     return parts.filter(
       (part) =>
         part.name.toLowerCase().includes(lower) ||
-        part.available_quantity.toString().includes(lower) ||
-        part.required_per_vci.toString().includes(lower)
+        part.available_quantity?.toString().includes(lower) ||
+        part.required_per_vci?.toString().includes(lower)
     );
   };
+  const shortageOverview = useMemo(() => {
+    const shortageMap = {};
 
-  const combinedData = useMemo(() => {
-    if (!data.length) return { commonParts: [], seriesPartsMap: {} };
-
-    const commonPartsMap = {};
-    const seriesPartsMap = {};
-
-    data.forEach((seriesData) => {
-      const seriesName = seriesData.series?.trim().toLowerCase() || "unknown";
-      if (!seriesPartsMap[seriesName]) seriesPartsMap[seriesName] = [];
-
-      seriesData.spare_parts.forEach((part) => {
-        if (part.sparepart_usages === "common") {
-          if (!commonPartsMap[part.name.toLowerCase()]) {
-            commonPartsMap[part.name.toLowerCase()] = { ...part };
-          } else {
-            const existing = commonPartsMap[part.name.toLowerCase()];
-            existing.purchased_quantity += part.purchased_quantity || 0;
-            existing.used_quantity += part.used_quantity || 0;
-            existing.available_quantity += part.available_quantity || 0;
+    calculatedSeriesData.forEach((series) => {
+      series.spare_parts.forEach((part) => {
+        if (part.shortage > 0) {
+          const key = part.name.toLowerCase();
+          if (!shortageMap[key]) {
+            shortageMap[key] = {
+              name: part.name,
+              totalShortage: 0,
+            };
           }
-        } else {
-          seriesPartsMap[seriesName].push(part);
+          shortageMap[key].totalShortage += part.shortage;
         }
       });
     });
 
-    return {
-      commonParts: Object.values(commonPartsMap),
-      seriesPartsMap,
-    };
-  }, [data]);
+    return Object.values(shortageMap);
+  }, [calculatedSeriesData]);
 
-  const computePerVCI = (part) => part.required_per_vci || 0;
-  const computeTotalRequired = (part) => (vciCount || 0) * computePerVCI(part);
-  const computeShortage = (part) =>
-    computeTotalRequired(part) - (part.available_quantity || 0);
-
-  const maxVCIsPossible = useMemo(() => {
-    let minVCIs = Infinity;
-    combinedData.commonParts.forEach((part) => {
-      const possible = Math.floor(
-        (part.available_quantity || 0) / (part.required_per_vci || 1)
-      );
-      if (possible < minVCIs) minVCIs = possible;
-    });
-    Object.values(combinedData.seriesPartsMap).forEach((parts) =>
-      parts.forEach((part) => {
-        const possible = Math.floor(
-          (part.available_quantity || 0) / (part.required_per_vci || 1)
-        );
-        if (possible < minVCIs) minVCIs = possible;
-      })
-    );
-    return minVCIs === Infinity ? 0 : minVCIs;
-  }, [combinedData]);
-
-  const filteredCommonParts = useMemo(
-    () => filterParts(combinedData.commonParts),
-    [combinedData, search]
+  const filteredParts = useMemo(
+    () => filterParts(data.flatMap((d) => d.spare_parts || [])),
+    [data, search]
   );
-
-  const filteredSeriesPartsMap = useMemo(() => {
-    if (!combinedData.seriesPartsMap) return {};
-    const map = {};
-    Object.keys(combinedData.seriesPartsMap).forEach((seriesName) => {
-      if (selectedSeries && seriesName !== selectedSeries.toLowerCase()) return;
-      map[seriesName] = filterParts(combinedData.seriesPartsMap[seriesName]);
-    });
-    return map;
-  }, [combinedData, search, selectedSeries]);
-
-  const handleSort = (field) => {
-    if (sortField === field)
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
-    else {
-      setSortField(field);
-      setSortDirection("asc");
-    }
-  };
-
-  const sortParts = (parts) => {
-    if (!sortField) return parts;
-    return [...parts].sort((a, b) => {
-      let valA = a[sortField];
-      let valB = b[sortField];
-      if (valA < valB) return sortDirection === "asc" ? -1 : 1;
-      if (valA > valB) return sortDirection === "asc" ? 1 : -1;
-      return 0;
-    });
-  };
 
   const headerStyle = {
     backgroundColor: "#2E3A59",
@@ -176,39 +145,115 @@ export default function ComponentsRequirement() {
       <BreadCrumb title="Spare Parts Requirement" />
 
       <Card className="border-0 shadow-sm rounded-3 p-2 px-4 mt-2 bg-white">
-        <div className="row mb-2">
-          <div className="col-md-6 d-flex align-items-center mb-2 mb-md-0">
-            <label className="me-2 fw-semibold mb-0">Records Per Page:</label>
-            <Form.Select
-              size="sm"
-              style={{ width: "100px" }}
-              value={perPage}
-              onChange={(e) => {
-                setPerPage(Number(e.target.value));
-                setPage(1);
-              }}
-            >
-              {[5, 10, 25, 50].map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </Form.Select>
+        {/* Filters */}
+        <div className="row mb-3">
+          <div className="col-md-6">
+            <Form.Group>
+              <Form.Label className="fw-semibold">
+                How many products to make? (Per selected product)
+              </Form.Label>
+              <div
+                style={{
+                  maxHeight: "200px",
+                  overflowY: "auto",
+                  border: "1px solid #dee2e6",
+                  borderRadius: "6px",
+                  padding: "8px",
+                  backgroundColor: "#fff",
+                }}
+              >
+                {seriesList.map((label, idx) => (
+                  <div
+                    key={idx}
+                    className="d-flex align-items-center justify-content-between mb-1"
+                  >
+                    <Form.Check
+                      type="checkbox"
+                      label={label}
+                      value={label}
+                      checked={selectedSeries.includes(label)}
+                      onChange={(e) => {
+                        const seriesLabel = e.target.value;
+                        if (e.target.checked) {
+                          setSelectedSeries((prev) => [...prev, seriesLabel]);
+                          // ✅ Default quantity 1 when selected
+                          setVciCounts((prev) => ({
+                            ...prev,
+                            [labelToSeriesMap[seriesLabel]]: 1,
+                          }));
+                        } else {
+                          setSelectedSeries((prev) =>
+                            prev.filter((s) => s !== seriesLabel)
+                          );
+                          setVciCounts((prev) => {
+                            const newCounts = { ...prev };
+                            delete newCounts[labelToSeriesMap[seriesLabel]];
+                            return newCounts;
+                          });
+                        }
+                      }}
+                    />
+
+                    {selectedSeries.includes(label) && (
+                      <Form.Control
+                        type="number"
+                        min="1"
+                        size="sm"
+                        value={
+                          vciCounts[labelToSeriesMap[label]] !== undefined
+                            ? vciCounts[labelToSeriesMap[label]]
+                            : 1
+                        }
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value, 10);
+                          setVciCounts((prev) => ({
+                            ...prev,
+                            [labelToSeriesMap[label]]: isNaN(val) || val < 1 ? 1 : val,
+                          }));
+                        }}
+                        style={{
+                          width: "80px",
+                          fontSize: "0.8rem",
+                          marginLeft: "10px",
+                        }}
+                        placeholder="Qty"
+                      />
+                    )}
+                    {/* 
+            {selectedSeries.includes(label) && (
+              <Form.Control
+                type="number"
+                min="0"
+                size="sm"
+                value={
+                  vciCounts[labelToSeriesMap[label]] !== undefined
+                    ? vciCounts[labelToSeriesMap[label]]
+                    : ""
+                }
+                onChange={(e) => {
+                  const val = parseInt(e.target.value, 10);
+                  setVciCounts((prev) => ({
+                    ...prev,
+                    [labelToSeriesMap[label]]: isNaN(val) ? 0 : val,
+                  }));
+                }}
+                style={{
+                  width: "80px",
+                  fontSize: "0.8rem",
+                  marginLeft: "10px",
+                }}
+                placeholder="Qty"
+              />
+            )} */}
+                  </div>
+                ))}
+              </div>
+            </Form.Group>
           </div>
 
-          <div className="col-md-6 text-md-end" style={{ fontSize: "0.8rem" }}>
-            <div className="mt-2 d-inline-block mb-2">
+          <div className="col-md-6 d-flex flex-column align-items-end">
+            <div className="d-flex gap-2 mb-2">
               <Button
-                variant="outline-secondary"
-                size="sm"
-                className="me-2"
-                onClick={() => fetchSeriesData(selectedSeries)}
-              >
-                <i className="bi bi-arrow-clockwise"></i>
-              </Button>
-
-              <Button
-                type="button"
                 size="sm"
                 onClick={() => navigate("/spare-parts")}
                 style={{
@@ -223,175 +268,124 @@ export default function ComponentsRequirement() {
               >
                 + Add Spare Part
               </Button>
+
+              <Button
+                variant="outline-secondary"
+                size="sm"
+                onClick={() => fetchMultipleSeriesData(selectedSeries)}
+              >
+                <i className="bi bi-arrow-clockwise"></i>
+              </Button>
             </div>
 
-            <div className="d-flex justify-content-end align-items-center">
-              <Search
-                search={search}
-                setSearch={setSearch}
-                perPage={perPage}
-                setPerPage={setPerPage}
-                setPage={setPage}
-              />
+            <div className="w-100">
+              <Search search={search} setSearch={setSearch} />
             </div>
           </div>
         </div>
-
-        {/* Input Filters */}
-        <div className="row mb-3">
-          <div className="col-md-4">
-            <Form.Group>
-              <Form.Label className="fw-semibold">How many products to make?</Form.Label>
-              <Form.Control
-                type="number"
-                placeholder="e.g. 400"
-                value={vciCount}
-                onChange={(e) =>
-                  setVciCount(e.target.value ? parseInt(e.target.value, 10) : "")
-                }
-              />
-            </Form.Group>
-          </div>
-          <div className="col-md-4">
-            <Form.Group>
-              <Form.Label className="fw-semibold">Select Series</Form.Label>
-              <Form.Select
-                value={selectedSeries}
-                onChange={(e) => setSelectedSeries(e.target.value)}
-              >
-                {seriesList.map((series, idx) => (
-                  <option key={idx} value={series}>
-                    {series}
-                  </option>
-                ))}
-              </Form.Select>
-            </Form.Group>
-          </div>
-          {maxVCIsPossible > 0 && (
-            <div className="col-md-4 d-flex align-items-end justify-content-end">
-              <span
-                className="badge text-dark"
-                style={{
-                  fontSize: "1rem",
-                  fontWeight: "600",
-                  backgroundColor: "#f8f9fa",
-                }}
-              >
-                Max VCIs Possible: {maxVCIsPossible}
-              </span>
-            </div>
-          )}
-        </div>
-
+        {/* Tables Section */}
         {loading ? (
           <div className="text-center py-5">
             <Spinner animation="border" />
           </div>
-        ) : (
-          <>
-            {/* COMMON PARTS */}
-            <div className="table-responsive mb-4">
-              <h6 className="fw-bold mb-2 mt-3">Common Spare Parts</h6>
-              <Table className="table-sm align-middle mb-0" style={{ fontSize: "0.85rem" }}>
-                <thead>
-                  <tr>
-                    <th style={headerStyle}>S.No</th>
-                    <th style={headerStyle} onClick={() => handleSort("name")}>
-                      Spare Part Name{" "}
-                      {sortField === "name" && (sortDirection === "asc" ? "▲" : "▼")}
-                    </th>
-                    <th style={headerStyle}>Purchased Qty</th>
-                    <th style={headerStyle}>Used Qty</th>
-                    <th style={headerStyle}>Available Qty</th>
-                    <th style={headerStyle}>Required / VCI</th>
-                    <th style={headerStyle}>Total Required</th>
-                    <th style={headerStyle}>Shortage</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortParts(filteredCommonParts)
-                    .slice((page - 1) * perPage, page * perPage)
-                    .map((part, idx) => (
-                      <tr key={idx}>
-                        <td>{(page - 1) * perPage + idx + 1}</td>
-                        <td style={{ fontSize: "0.90rem" }}>{part.name}</td>
-                        <td style={{ fontSize: "0.90rem" }}>{part.purchased_quantity}</td>
-                        <td style={{ fontSize: "0.90rem" }}>{part.used_quantity}</td>
-                        <td style={{ fontSize: "0.90rem" }}>{part.available_quantity}</td>
-                        <td style={{ fontSize: "0.90rem" }}>{computePerVCI(part)}</td>
-                        <td style={{ fontSize: "0.90rem" }}>{computeTotalRequired(part)}</td>
-                        <td style={{ color: computeShortage(part) > 0 ? "red" : "green" }}>
-                          {computeShortage(part) > 0 ? computeShortage(part) : "OK"}
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </Table>
-              <Pagination
-                page={page}
-                setPage={setPage}
-                perPage={perPage}
-                totalEntries={filteredCommonParts.length}
-              />
-            </div>
+        ) : selectedSeries.length > 0 ? (
+          <Row>
+            {/* LEFT COLUMN – Series Wise Tables */}
+            <Col md={8}>
+              {calculatedSeriesData.map((seriesData, idx) => {
+                const filtered = filterParts(seriesData.spare_parts);
+                return (
+                  <div key={idx} className="mb-4">
+                    <h6 className="fw-bold mb-2 mt-3 text-primary">
+                      {seriesData.series}
+                    </h6>
+                    <Table
+                      className="table-sm align-middle mb-0"
+                      style={{ fontSize: "0.85rem" }}
+                      bordered
+                    >
+                      <thead>
+                        <tr>
+                          <th style={headerStyle}>S.No</th>
+                          <th style={headerStyle}>Spare Part Name</th>
+                          <th style={headerStyle}>Available Qty</th>
+                          <th style={headerStyle}>Required For One</th>
+                          <th style={headerStyle}>Total Required</th>
+                          <th style={headerStyle}>Shortage</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filtered.length > 0 ? (
+                          filtered.map((part, i) => (
+                            <tr key={i}>
+                              <td>{i + 1}</td>
+                              <td>{part.name}</td>
+                              <td>{part.effectiveAvailable}</td>
+                              <td>{part.required_per_vci}</td>
+                              <td>{part.totalRequired}</td>
+                              <td style={{ color: part.shortage > 0 ? "red" : "green" }}>
+                                {part.shortage > 0 ? part.shortage : "OK"}
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan="6" className="text-center text-muted py-3">
+                              No spare parts found for this series.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </Table>
+                  </div>
+                );
+              })}
+            </Col>
 
-            {/* SERIES PARTS */}
-            {Object.keys(filteredSeriesPartsMap).map((seriesName) => {
-              const parts = filteredSeriesPartsMap[seriesName];
-              if (!parts.length) return null;
-
-              return (
-                <div key={seriesName} className="table-responsive mb-4">
-                  <h6 className="fw-bold mb-2 mt-3 text-uppercase">
-                    {seriesName} Spare Parts
+            {/* RIGHT COLUMN – Shortage Overview */}
+            <Col md={4}>
+              {shortageOverview.length > 0 ? (
+                <div className="mt-3">
+                  <h6 className="fw-bold mb-2 text-danger text-center fs-6">
+                    Shortage Overview
                   </h6>
-                  <Table className="table-sm align-middle mb-0" style={{ fontSize: "0.85rem" }}>
+                  <Table bordered hover size="sm" style={{ fontSize: "0.85rem" }}>
                     <thead>
                       <tr>
                         <th style={headerStyle}>S.No</th>
-                        <th style={headerStyle}>Spare Part Name</th>
-                        <th style={headerStyle}>Purchased Qty</th>
-                        <th style={headerStyle}>Used Qty</th>
-                        <th style={headerStyle}>Available Qty</th>
-                        <th style={headerStyle}>Required / VCI</th>
-                        <th style={headerStyle}>Total Required</th>
-                        <th style={headerStyle}>Shortage</th>
+                        <th style={headerStyle}>Spare Part</th>
+                        <th style={headerStyle}>Total Shortage</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {sortParts(parts)
-                        .slice((page - 1) * perPage, page * perPage)
-                        .map((part, idx) => (
-                          <tr key={idx}>
-                            <td>{(page - 1) * perPage + idx + 1}</td>
-                            <td style={{ fontSize: "0.90rem" }}>{part.name}</td>
-                            <td style={{ fontSize: "0.90rem" }}>{part.purchased_quantity}</td>
-                            <td style={{ fontSize: "0.90rem" }}>{part.used_quantity}</td>
-                            <td style={{ fontSize: "0.90rem" }}>{part.available_quantity}</td>
-                            <td style={{ fontSize: "0.90rem" }}>{computePerVCI(part)}</td>
-                            <td style={{ fontSize: "0.90rem" }}>{computeTotalRequired(part)}</td>
-                            <td
-                              style={{
-                                color: computeShortage(part) > 0 ? "red" : "green",
-                              }}
-                            >
-                              {computeShortage(part) > 0 ? computeShortage(part) : "OK"}
-                            </td>
-                          </tr>
-                        ))}
+                      {shortageOverview.map((item, idx) => (
+                        <tr key={idx}>
+                          <td>{idx + 1}</td>
+                          <td>{item.name}</td>
+                          <td style={{ color: "red", fontWeight: "600" }}>
+                            {item.totalShortage}
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </Table>
-                  <Pagination
-                    page={page}
-                    setPage={setPage}
-                    perPage={perPage}
-                    totalEntries={parts.length}
-                  />
                 </div>
-              );
-            })}
-          </>
+              ) : (
+                <div className="text-center text-muted mt-5">
+                  <em>No shortages found.</em>
+                </div>
+              )}
+            </Col>
+          </Row>
+        ) : (
+          <div className="text-center py-5 text-muted">
+            <em>
+              Please select at least one series and enter a quantity to view spare
+              parts requirement.
+            </em>
+          </div>
         )}
+
       </Card>
     </div>
   );

@@ -4,12 +4,10 @@ import { toast } from 'react-toastify';
 import axios from "axios";
 import { Table, Button, Form, Card, Row, Col, Container } from "react-bootstrap";
 import { IoArrowBack, IoTrashOutline, IoChevronBack, IoChevronForward } from "react-icons/io5";
-import { FaQrcode } from "react-icons/fa";
 import "datatables.net-dt/css/dataTables.dataTables.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import '../index.css';
 import { API_BASE_URL } from "../api";
-import QrScannerPage from "./QrScannerPage";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
 
@@ -34,11 +32,11 @@ const headerStyle = {
 };
 export default function AddAssemblePage() {
     const [form, setForm] = useState({
-        productType: "",
+        // productType: "",
         product_id: "",
         firmwareVersion: "",
         testedBy: "",
-        quantity: "",
+        // quantity: "",
         fromSerial: "",
         toSerial: "",
         testedDate: "",
@@ -49,30 +47,32 @@ export default function AddAssemblePage() {
     const [productTypes, setProductTypes] = useState([]);
     const [productOptions, setProductOptions] = useState([]);
     const [products, setProducts] = useState([]);
-    const [showQrScanner, setShowQrScanner] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
     const [searchTerm, setSearchTerm] = useState("");
     const [itemsPerPage, setItemsPerPage] = useState(10);
     const totalPages = Math.ceil(products.length / itemsPerPage);
     const navigate = useNavigate();
-    const [technicians, setTechnicians] = useState([]);
     const [checkedForDelete, setCheckedForDelete] = useState({});
+    const [users, setUsers] = useState([]);
+
     const MySwal = withReactContent(Swal);
 
-    const displayedProducts = form.productType
-        ? productOptions
-        : allProducts;
     const RequiredLabel = ({ children }) => (
         <Form.Label>
             {children}
             <span style={{ color: "red" }}> *</span>
         </Form.Label>
     );
-    const [selectedRows, setSelectedRows] = useState([]);
-    const [serialSearchType, setSerialSearchType] = useState('single'); // 'single' or 'range'
+    const [serialSearchType, setSerialSearchType] = useState('single'); 
     const [fromSerialSearch, setFromSerialSearch] = useState('');
     const [toSerialSearch, setToSerialSearch] = useState('');
     const [isAddDisabled, setIsAddDisabled] = useState(false);
+    useEffect(() => {
+        const loggedInName = localStorage.getItem("authName");
+        if (loggedInName) {
+            setForm(prev => ({ ...prev, testedBy: loggedInName }));
+        }
+    }, []);
 
     useEffect(() => {
         axios.get(`${API_BASE_URL}/product`)
@@ -80,17 +80,34 @@ export default function AddAssemblePage() {
             .catch(err => console.error("Error fetching products:", err));
     }, []);
     useEffect(() => {
-        const fetchTechnicians = async () => {
+        const fetchUsers = async () => {
             try {
-                const res = await axios.get(`${API_BASE_URL}/technicians`);
-                setTechnicians(res.data);
+                const res = await axios.get(`${API_BASE_URL}/users`);
+                setUsers(res.data);
             } catch (error) {
-                console.error("Error fetching technicians:", error);
+                console.error("Error fetching users:", error);
             }
         };
-        fetchTechnicians();
+        fetchUsers();
     }, []);
-
+    useEffect(() => {
+        const fetchUsers = async () => {
+            try {
+                const res = await axios.get(`${API_BASE_URL}/users`);
+                setUsers(res.data);
+            } catch (error) {
+                console.error("Error fetching users:", error);
+            }
+        };
+        fetchUsers();
+    }, []);
+    useEffect(() => {
+        const today = new Date().toISOString().split("T")[0]; 
+        setForm((prev) => ({
+            ...prev,
+            testedDate: prev.testedDate || today, // only set if empty
+        }));
+    }, []);
     const handleDeleteRange = () => {
         const from = parseInt(fromSerialSearch, 10);
         const to = parseInt(toSerialSearch, 10);
@@ -181,28 +198,7 @@ export default function AddAssemblePage() {
         }
     }, [form.productType, productTypes, allProducts]);
 
-    const customStyles = {
-        control: (provided) => ({
-            ...provided,
-            height: "38px",
-            minHeight: "38px",
-            borderRadius: "0.25rem",
-            borderColor: "#ced4da",
-        }),
-        option: (provided, state) => ({
-            ...provided,
-            color: state.isFocused ? "#888" : "#000",
-            backgroundColor: state.isFocused ? "#f0f0f0" : "#fff",
-        }),
-        singleValue: (provided) => ({
-            ...provided,
-            color: "#000",
-        }),
-        placeholder: (provided) => ({
-            ...provided,
-            color: "#888",
-        }),
-    };
+
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -213,13 +209,12 @@ export default function AddAssemblePage() {
             }
         }
         if (name === "product_id") {
-            const [productId, productTypeId] = value.split("|");
+            const [productId] = value.split("|");
             setForm((prev) => ({
                 ...prev,
                 product_id: productId || "",
-                productType: productTypeId || "",
             }));
-            setErrors((prev) => ({ ...prev, product_id: null, productType: null }));
+            setErrors((prev) => ({ ...prev, product_id: null }));
         } else {
             setForm((prev) => ({
                 ...prev,
@@ -229,138 +224,118 @@ export default function AddAssemblePage() {
         }
         setIsAddDisabled(false);
     };
+// const duplicateSerials = serialsToAdd.filter(s => 
+//     products.some(p => p.serial_no === s)
+// );
 
-    const handleScan = (serialNumber) => {
-        const newProduct = {
-            serial_no: serialNumber || "",
-            tested_by: form.testedBy || "",
-            tested_status: ["PASS"],
-            test_remarks: "",
-            from_serial: serialNumber || "",
-            to_serial: serialNumber || "",
-            quantity: 1,
-        };
-        setProducts((prevProducts) => {
-            const updatedProducts = [...prevProducts, newProduct];
-            setForm((prev) => ({
-                ...prev,
-                fromSerial: updatedProducts[0]?.serial_no || serialNumber,
-                toSerial: updatedProducts[updatedProducts.length - 1]?.serial_no || serialNumber,
-                quantity: updatedProducts.length,
-            }));
-            return updatedProducts;
-        });
-    };
+// if (duplicateSerials.length > 0) {
+//     toast.error(`Serial(s) ${duplicateSerials.join(", ")} already exists in the list.`);
+//     return;
+// }
 
-    const validateSerialRange = (startSN, endSN) => {
-        const prefixStart = startSN.match(/[^\d]+/)?.[0] || "";
-        const prefixEnd = endSN.match(/[^\d]+/)?.[0] || "";
-        const startNum = parseInt(startSN.match(/\d+/)?.[0], 10);
-        const endNum = parseInt(endSN.match(/\d+/)?.[0], 10);
 
-        if (prefixStart !== prefixEnd) {
-            return false;
-        }
-        if (isNaN(startNum) || isNaN(endNum) || startNum > endNum) {
-            return false;
-        }
-        return true;
-    };
+const handleAddProduct = async () => {
+    const { fromSerial, toSerial, testedBy, product_id } = form;
+    let newErrors = {};
 
-    const handleAddProduct = () => {
-        const { fromSerial, toSerial, testedBy, product_id } = form;
-        let newErrors = {};
+    if (!product_id) newErrors.product_id = "Product is required.";
+    if (!fromSerial) newErrors.fromSerial = "From Serial is required.";
+    if (!toSerial) newErrors.toSerial = "To Serial is required.";
 
-        if (!form.productType) newErrors.productType = "Product Type is required.";
-        if (!product_id) newErrors.product_id = "Product is required.";
-        if (!fromSerial) newErrors.fromSerial = "From Serial is required.";
-        if (!toSerial) newErrors.toSerial = "To Serial is required.";
+    if (Object.keys(newErrors).length > 0) {
+        setErrors(newErrors);
+        return;
+    }
 
-        if (Object.keys(newErrors).length > 0) {
-            setErrors(newErrors);
-            return;
-        }
+    const selectedProduct = productOptions.find(
+        (p) => p.id === parseInt(product_id)
+    ) || {};
+    const prefix = selectedProduct.serial_prefix || "";
 
-        const selectedProduct = productOptions.find(p => p.id === parseInt(form.product_id)) || {};
-        const prefix = selectedProduct.serial_prefix || "";
+    const serialsToAdd = [];
+    const isRange = toSerial && fromSerial !== toSerial;
 
-        // Prefix check
-        if (!fromSerial.startsWith(prefix) || !toSerial.startsWith(prefix)) {
-            toast.error(`Product does not match the selected serial range prefix "${prefix}"`);
-            return;
-        }
-
-        // Only allow 6 digits after prefix
-        const fromDigits = fromSerial.slice(prefix.length);
-        const toDigits = toSerial.slice(prefix.length);
-        if (fromDigits.length !== 6 || toDigits.length !== 6) {
-            toast.error("Serial numbers must have exactly 6 digits after the prefix.");
-            return;
-        }
-
-        // Extract numeric parts after prefix
+    if (isRange) {
+        const fromDigits = fromSerial.replace(prefix, '').replace(/\D/g, '');
+        const toDigits = toSerial.replace(prefix, '').replace(/\D/g, '');
         const startNum = parseInt(fromDigits, 10);
         const endNum = parseInt(toDigits, 10);
 
         if (isNaN(startNum) || isNaN(endNum) || startNum > endNum) {
-            toast.error("Invalid serial range! 'From Serial' must be less than or equal to 'To Serial'.");
+            toast.error("Invalid serial range! 'From Serial' must be <= 'To Serial'.");
             return;
         }
 
-        // Check duplicates
-        const existingSerials = products.map(p => p.serial_no);
         for (let i = startNum; i <= endNum; i++) {
-            const serial = `${prefix}${i.toString().padStart(6, "0")}`;
-            if (existingSerials.includes(serial)) {
-                toast.warn(`Serial ${serial} already added`);
-                return;
-            }
+            serialsToAdd.push(`${prefix}${i.toString().padStart(6, "0")}`);
+        }
+    } else {
+        serialsToAdd.push(fromSerial.trim().toUpperCase());
+    }
+
+    // 🔹 Check for duplicates locally in the table
+    const duplicateSerials = serialsToAdd.filter(s => 
+        products.some(p => p.serial_no === s)
+    );
+    if (duplicateSerials.length > 0) {
+        toast.error(`Serial(s) ${duplicateSerials.join(", ")} already exists in the list.`);
+        // Remove duplicates from serialsToAdd
+        serialsToAdd = serialsToAdd.filter(s => !duplicateSerials.includes(s));
+        if (serialsToAdd.length === 0) return;
+    }
+
+    try {
+        // 🔹 Check serials with API
+        const checkRes = await axios.post(`${API_BASE_URL}/check-serials-purchased`, {
+            product_id: parseInt(product_id, 10),
+            serials: serialsToAdd,
+        });
+
+        const purchasedSerials = checkRes.data.purchased || [];
+        const notPurchasedSerials = checkRes.data.not_purchased || [];
+        const items = checkRes.data.items || [];
+
+        // 🔹 Toast for serials already in inventory
+        const existsSerials = items
+            .filter(i => i.status === "exists")
+            .map(i => i.serial_no);
+        if (existsSerials.length > 0) {
+            toast.info(`Serial(s) ${existsSerials.join(", ")} already exist in inventory.`);
         }
 
-        // Create new products
-        const newProducts = [];
-        for (let i = startNum; i <= endNum; i++) {
-            const serial = `${prefix}${i.toString().padStart(6, "0")}`;
-            newProducts.push({
-                serial_no: serial,
-                tested_by: testedBy,
-                tested_status: ["PASS"],
-                test_remarks: "",
-                from_serial: fromSerial,
-                to_serial: toSerial,
-                quantity: 1,
-            });
+        // 🔹 Toast for serials not purchased
+        if (notPurchasedSerials.length > 0) {
+            toast.error(
+                `Serial(s) ${notPurchasedSerials.join(", ")} are not purchased. Cannot add to list.`,
+                { autoClose: 8000 }
+            );
         }
 
-        const updatedProducts = [...products, ...newProducts];
-        setProducts(updatedProducts);
+        // 🔹 Filter serials: only purchased and not already in inventory
+        const validSerials = purchasedSerials.filter(
+            s => !existsSerials.includes(s)
+        );
 
-        setForm(prev => ({
-            ...prev,
-            fromSerial: updatedProducts[0]?.serial_no || fromSerial,
-            toSerial: updatedProducts[updatedProducts.length - 1]?.serial_no || toSerial,
-            quantity: updatedProducts.length,
+        if (validSerials.length === 0) return; // nothing new to add
+
+        const newProducts = validSerials.map(s => ({
+            serial_no: s,
+            tested_by: testedBy,
+            tested_status: ["PASS"],
+            test_remarks: "",
+            from_serial: fromSerial,
+            to_serial: toSerial || s,
         }));
 
-        setErrors({});
-        setIsAddDisabled(true);
-    };
+        setProducts([...products, ...newProducts]);
+        setForm(prev => ({ ...prev, fromSerial: "", toSerial: "" }));
+        toast.success(`${newProducts.length} purchased serial(s) added to list.`);
 
-    const disableAdd = (() => {
-        if (!form.fromSerial || !form.toSerial) return true;
-        const prefix = form.fromSerial.match(/[^\d]+/)?.[0] || "";
-        const start = parseInt(form.fromSerial.match(/\d+/)?.[0], 10);
-        const end = parseInt(form.toSerial.match(/\d+/)?.[0], 10);
-
-        for (let i = start; i <= end; i++) {
-            const serial = `${prefix}${i.toString().padStart(6, "0")}`;
-            if (products.some(p => p.serial_no === serial)) {
-                return true;
-            }
-        }
-        return false;
-    })();
-
+    } catch (error) {
+        console.error("Error checking serials:", error);
+        toast.error(error.response?.data?.message || "Error checking serials. Please try again.");
+    }
+};
     const handleRowChange = (index, field, value) => {
         const updated = [...products];
         const globalIndex = products.findIndex(
@@ -422,98 +397,71 @@ export default function AddAssemblePage() {
         });
     };
 
-
     const handleSubmit = async () => {
         try {
             if (products.length === 0) {
                 toast.error("Add at least one product before saving.");
                 return;
             }
-            const payload = {
+
+            // Prepare payload to check purchase status first
+            const serialsToCheck = products.map(p => p.serial_no);
+
+            const checkPayload = {
                 product_id: parseInt(form.product_id, 10),
-                product_type_id: parseInt(form.productType, 10),
-                firmware_version: form.firmwareVersion,
-                tested_date: form.testedDate,
-                items: products
-                    .filter((v, i, a) => a.findIndex(t => t.serial_no === v.serial_no) === i)
-                    .map(p => ({
-                        serial_no: p.serial_no,
-                        tested_by: p.tested_by || null,
-                        tested_status: Array.isArray(p.tested_status) ? p.tested_status.join(",") : p.tested_status || "PASS",
-                        test_remarks: p.test_remarks || "",
-                        from_serial: p.from_serial,
-                        to_serial: p.to_serial,
-                        quantity: parseInt(p.quantity, 10),
-                        tested_date: form.testedDate
-                    })),
+                serials: serialsToCheck,
             };
-            const response = await axios.post(`${API_BASE_URL}/inventory`, payload);
-            if (response.data.items && Array.isArray(response.data.items)) {
-                const existsItems = response.data.items.filter(i => i.status === "exists");
-                const notPurchasedItems = response.data.items.filter(i => i.status === "not_purchased");
 
-                if (notPurchasedItems.length > 0) {
-                    toast.error(
-                        <div>
-                            <strong>Some serials were not added</strong>
-                            <ul className="mb-0 mt-1 small">
-                                {notPurchasedItems.map((item, i) => (
-                                    <li key={i}>
-                                        Serial {item.serial_no}: {item.message}
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>,
-                        { autoClose: 8000 }
-                    );
-                } else if (existsItems.length > 0) {
-                    toast.warn(
-                        <div>
-                            <strong>{response.data.message}</strong>
-                            <ul className="mb-0 mt-1 small">
-                                {existsItems.slice(0, 5).map((item, i) => (
-                                    <li key={i}>
-                                        Serial {item.serial_no}: {item.message}
-                                    </li>
-                                ))}
-                                {existsItems.length > 5 && (
-                                    <li>...and {existsItems.length - 5} more</li>
-                                )}
-                            </ul>
-                        </div>,
-                        { autoClose: 8000 }
-                    );
-                } else {
-                    toast.success(response.data.message || "Inventory saved successfully!");
-                    navigate("/assemble");
-                }
-            } else {
-                toast.success(response.data.message || "Inventory saved successfully!");
-                navigate("/assemble");
+            // ✅ Call API to check if serials are purchased
+            const checkRes = await axios.post(`${API_BASE_URL}/check-serials-purchased`, checkPayload);
 
+            const purchasedSerials = checkRes.data.purchased || [];
+            const notPurchasedSerials = checkRes.data.not_purchased || [];
 
-            }
-        } catch (error) {
-            console.error(error);
-            if (error.response?.data?.errors) {
-                const messages = [];
-                Object.entries(error.response.data.errors).forEach(([key, msgs]) => {
-                    msgs.forEach(m => messages.push(m));
-                });
+            if (notPurchasedSerials.length > 0) {
                 toast.error(
-                    <div>
-                        <strong>{error.response.data.message || "Validation Error"}</strong>
-                        {messages.map((m, i) => <p key={i} className="mb-0 small">{m}</p>)}
-                    </div>,
+                    `Serial(s) ${notPurchasedSerials.join(", ")} are not purchased. Only purchased serials can be added.`,
                     { autoClose: 8000 }
                 );
-            } else if (error.response?.data?.message) {
-                toast.error(error.response.data.message);
-            } else {
-                toast.error("Error saving inventory. Please try again.");
             }
+
+            if (purchasedSerials.length === 0) {
+                toast.error("No purchased serials to save.");
+                return;
+            }
+
+            // Filter products to only include purchased serials
+            const productsToSave = products.filter(p => purchasedSerials.includes(p.serial_no));
+
+            const payload = {
+                product_id: parseInt(form.product_id, 10),
+                firmware_version: form.firmwareVersion,
+                tested_date: form.testedDate,
+                items: productsToSave.map(p => ({
+                    serial_no: p.serial_no,
+                    tested_by: p.tested_by || null,
+                    tested_status: Array.isArray(p.tested_status)
+                        ? p.tested_status.join(",")
+                        : p.tested_status || "PASS",
+                    test_remarks: p.test_remarks || "",
+                    from_serial: p.from_serial,
+                    to_serial: p.to_serial,
+                    tested_date: form.testedDate,
+                })),
+            };
+
+            // ✅ Save purchased serials to inventory
+            const response = await axios.post(`${API_BASE_URL}/inventory`, payload);
+
+            toast.success(response.data.message || "Inventory saved successfully!");
+            navigate("/assemble");
+
+        } catch (error) {
+            console.error(error);
+            toast.error(error.response?.data?.message || "Error saving inventory. Please try again.");
         }
     };
+
 
     const filteredProducts = products.filter((p) => {
         const lowerCaseSearchTerm = searchTerm.toLowerCase();
@@ -581,33 +529,27 @@ export default function AddAssemblePage() {
             </Row>
             <Card className="p-4 mb-3 shadow-sm rounded-3 card-custom" style={{ position: "relative" }}>
                 <h5 className="mb-4">Product Details</h5>
-                <div className="qr-scanner-button" onClick={() => setShowQrScanner(true)}>
+                {/* <div className="qr-scanner-button" onClick={() => setShowQrScanner(true)}>
                     <div className="qr-scanner-icon-container">
                         <FaQrcode />
                     </div>
                     <span className="qr-scanner-text">QR code scanner</span>
-                </div>
+                </div> */}
                 <Row className="mb-3 g-3">
                     <Col md={4}>
                         <Form.Group>
-                            <Form.Label>Select Product</Form.Label>
+                            <Form.Label>Select Product  <span style={{ color: "red" }}>*</span>
+</Form.Label>
                             <Form.Select
                                 name="product_id"
-                                value={
-                                    form.product_id && form.productType
-                                        ? `${form.product_id}|${form.productType}`
-                                        : ""
-                                }
+                                value={form.product_id || ""}
                                 onChange={handleChange}
                                 isInvalid={!!errors.product_id}
                             >
                                 <option value="">Select Product</option>
-                                {productTypes.map((pt) => (
-                                    <option
-                                        key={pt.product.id}
-                                        value={`${pt.product.id}|${pt.id}`}
-                                    >
-                                        {pt.name} ({pt.product.name})
+                                {allProducts.map((p) => (
+                                    <option key={p.id} value={p.id}>
+                                        {p.name}
                                     </option>
                                 ))}
                             </Form.Select>
@@ -616,88 +558,61 @@ export default function AddAssemblePage() {
                             </Form.Control.Feedback>
                         </Form.Group>
                     </Col>
-                    <Col md={4}>
-                        <Form.Group>
-                            <Form.Label>Firmware Version</Form.Label>
-                            <Form.Control
-                                name="firmwareVersion"
-                                value={form.firmwareVersion}
-                                onChange={handleChange}
-                                isInvalid={!!errors.firmwareVersion}
-                                placeholder="Enter Firmware Version"
-                            />
-                            <Form.Control.Feedback type="invalid">
-                                {errors.firmwareVersion}
-                            </Form.Control.Feedback>
-                        </Form.Group>
-                    </Col>
-                </Row>
-                <Row className="mb-3 g-3">
-                    <Col md={4}>
-                        <Form.Group>
-                            <Form.Label>Quantity</Form.Label>
-                            <Form.Control name="quantity" value={products.length} readOnly />
-                        </Form.Group>
-                    </Col>
+
+
                     <Col md={4}>
                         <Form.Group>
                             <RequiredLabel>From Serial</RequiredLabel>
                             <Form.Control
                                 name="fromSerial"
                                 value={form.fromSerial}
+                                placeholder="Enter Serial"
                                 onChange={(e) => {
                                     let value = e.target.value.toUpperCase();
 
                                     if (prefix && value.startsWith(prefix)) {
-                                        let digits = value.slice(prefix.length).replace(/\D/g, "");
-                                        digits = digits.slice(0, 6);
+                                        let digits = value.slice(prefix.length).replace(/\D/g, "").slice(0, 6);
                                         value = prefix + digits;
                                     } else if (prefix) {
                                         if (value.length > 0 && !value.startsWith(prefix)) {
-                                            toast.error(`From Serial must start with "${prefix}"`);
+                                            toast.error(`Serial must start with "${prefix}"`);
                                         }
                                         value = value.slice(0, prefix.length);
                                     } else {
                                         value = value.replace(/[^A-Z0-9]/g, "").slice(0, 6);
                                     }
 
-                                    setForm(prev => ({ ...prev, fromSerial: value }));
+                                    setForm(prev => ({
+                                        ...prev,
+                                        fromSerial: value,
+                                        toSerial: (!prev.toSerial || prev.toSerial === prev.fromSerial) ? value : prev.toSerial
+                                    }));
                                     setErrors(prev => ({ ...prev, fromSerial: null }));
-                                }}
-                                onBlur={(e) => {
-                                    const value = e.target.value; // ✅ use current value
-                                    if (prefix && !value.startsWith(prefix)) {
-                                        toast.error(`From Serial must start with "${prefix}"`);
-                                    }
-                                    if (prefix && value.slice(prefix.length).length !== 6) {
-                                        toast.error("From Serial must have exactly 6 digits after the prefix.");
-                                    }
                                 }}
                                 isInvalid={!!errors.fromSerial}
                             />
-
-
                             <Form.Control.Feedback type="invalid">
                                 {errors.fromSerial}
                             </Form.Control.Feedback>
                         </Form.Group>
                     </Col>
+
                     <Col md={4}>
                         <Form.Group>
                             <RequiredLabel>To Serial</RequiredLabel>
                             <Form.Control
                                 name="toSerial"
                                 value={form.toSerial}
+                                placeholder="Enter Serial"
                                 onChange={(e) => {
                                     let value = e.target.value.toUpperCase();
 
                                     if (prefix && value.startsWith(prefix)) {
-                                        let digits = value.slice(prefix.length).replace(/\D/g, "");
-                                        digits = digits.slice(0, 6);
+                                        let digits = value.slice(prefix.length).replace(/\D/g, "").slice(0, 6);
                                         value = prefix + digits;
                                     } else if (prefix) {
                                         if (value.length > 0 && !value.startsWith(prefix)) {
-                                            toast.error(`To Serial must start with "${prefix}"`);
+                                            toast.error(`Serial must start with "${prefix}"`);
                                         }
                                         value = value.slice(0, prefix.length);
                                     } else {
@@ -705,26 +620,32 @@ export default function AddAssemblePage() {
                                     }
 
                                     setForm(prev => ({ ...prev, toSerial: value }));
-                                    setErrors(prev => ({ ...prev, toSerial: null }));
                                 }}
-                                onBlur={() => {
-                                    if (form.toSerial && prefix && !form.toSerial.startsWith(prefix)) {
-                                        toast.error(`To Serial must start with "${prefix}"`);
-                                    }
-                                    if (form.toSerial && prefix && form.toSerial.slice(prefix.length).length !== 6) {
-                                        toast.error("To Serial must have exactly 6 digits after the prefix.");
-                                    }
-                                }}
-                                isInvalid={!!errors.toSerial}
+                                // isInvalid={!!errors.toSerial}
                             />
-
                             <Form.Control.Feedback type="invalid">
                                 {errors.toSerial}
                             </Form.Control.Feedback>
                         </Form.Group>
                     </Col>
+
+
                 </Row>
-                <Row className="mb-3 g-3 align-items-end">
+
+
+                <Row className="mb-3 g-3">
+                    <Col md={4}>
+                        <Form.Group>
+                            <Form.Label>Firmware Version</Form.Label>
+                            <Form.Control
+                                name="firmwareVersion"
+                                value={form.firmwareVersion}
+                                onChange={handleChange}
+                                placeholder="Enter Firmware Version"
+                            />
+                        </Form.Group>
+                    </Col>
+
                     <Col md={4}>
                         <Form.Group>
                             <Form.Label>Tested Date</Form.Label>
@@ -733,46 +654,43 @@ export default function AddAssemblePage() {
                                 name="testedDate"
                                 value={form.testedDate}
                                 onChange={handleChange}
-                                isInvalid={!!errors.testedDate}
                             />
-                            <Form.Control.Feedback type="invalid">
-                                {errors.testedDate}
-                            </Form.Control.Feedback>
                         </Form.Group>
                     </Col>
+
                     <Col md={4}>
                         <Form.Group>
-                            <Form.Label>Tested By</Form.Label>
+                            <RequiredLabel>Tested By</RequiredLabel>
                             <Form.Select
                                 name="testedBy"
                                 value={form.testedBy}
-                                onChange={handleChange}
-                                isInvalid={!!errors.testedBy}
+                                onChange={(e) => setForm({ ...form, testedBy: e.target.value })}
                             >
-                                <option value="">Select Technician</option>
-                                {technicians.map((tech) => (
-                                    <option key={tech.id} value={tech.name}>
-                                        {tech.name}
+                                <option value="">Select tester</option>
+                                {users.map((user) => (
+                                    <option key={user.id} value={user.username}>
+                                        {user.username}
                                     </option>
                                 ))}
                             </Form.Select>
-                            <Form.Control.Feedback type="invalid">
-                                {errors.testedBy}
-                            </Form.Control.Feedback>
                         </Form.Group>
+
                     </Col>
+
+                </Row>
+
+                <Row className="mb-3">
                     <Col md={2}>
                         <Button
                             variant="success"
                             size="sm"
                             onClick={handleAddProduct}
-                            className="w-10"
-                            disabled={isAddDisabled}
                         >
                             + Add Product
                         </Button>
                     </Col>
                 </Row>
+
             </Card>
             {products.length > 0 && (
                 <Card className="p-2 px-4 mt-2 card-custom border-0 shadow-sm rounded-3">
@@ -850,14 +768,7 @@ export default function AddAssemblePage() {
                                 <></>
                             ) : (
                                 <>
-                                    <Button
-                                        variant="outline-danger"
-                                        size="sm"
-                                        onClick={handleDeleteRange}
-                                        disabled={!fromSerialSearch || !toSerialSearch}
-                                    >
-                                        <IoTrashOutline className="me-1" /> Delete Range
-                                    </Button>
+
                                 </>
                             )}
                         </Col>
@@ -902,14 +813,21 @@ export default function AddAssemblePage() {
                                                 ) : null}
                                             </td>
                                             <td className="text-center">{row.serial_no}</td>
-                                            <td>
-                                                <Form.Control
-                                                    type="text"
-                                                    size="sm"
-                                                    value={row.tested_by}
-                                                    onChange={(e) => handleRowChange(i, "tested_by", e.target.value)}
-                                                />
-                                            </td>
+<td>
+  <Form.Select
+    size="sm"
+    value={row.tested_by}
+    onChange={(e) => handleRowChange(i, "tested_by", e.target.value)}
+  >
+    <option value="">Select tester</option>
+    {users.map((user) => (
+      <option key={user.id} value={user.username}>
+        {user.username}
+      </option>
+    ))}
+  </Form.Select>
+</td>
+
                                             <td className="text-center">
                                                 <div className="d-flex justify-content-center gap-2">
                                                     <Form.Check
@@ -1004,7 +922,6 @@ export default function AddAssemblePage() {
                         variant="secondary"
                         className="me-2"
                         onClick={() => {
-                            // Add cancel logic if needed
                         }}
                     >
                         Cancel
@@ -1014,7 +931,7 @@ export default function AddAssemblePage() {
                     </Button>
                 </div>
             )}
-            <QrScannerPage show={showQrScanner} onClose={() => setShowQrScanner(false)} onScanSuccess={handleScan} />
+            {/* <QrScannerPage show={showQrScanner} onClose={() => setShowQrScanner(false)} onScanSuccess={handleScan} /> */}
         </Container>
     );
 }

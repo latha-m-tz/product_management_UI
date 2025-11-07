@@ -14,7 +14,7 @@ import CountrySelect from "../components/CountrySelect";
 import CountryPhoneInput from "../components/CountryPhoneInput";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
-
+import '../index.css';
 
 export default function EditVendor() {
   const { id } = useParams();
@@ -48,7 +48,6 @@ export default function EditVendor() {
 
 
 
-  const [panelKey, setPanelKey] = useState(0);
 
   const [vendor, setVendor] = useState({
     vendor: "",
@@ -151,13 +150,12 @@ export default function EditVendor() {
       pincode: newValue,
       state: "",       // clear old state
       district: "",    // clear old district
-      city: "",        // clear old city
+      city: "",       // clear old city
     }));
 
     // Reset city options
     setCityOptions([]);
 
-    // Validate pincode
     if (!newValue) {
       setErrors(prev => ({ ...prev, pincode: "Pincode is required" }));
       return;
@@ -168,7 +166,6 @@ export default function EditVendor() {
       setErrors(prev => ({ ...prev, pincode: "" }));
     }
 
-    // Fetch state/district/city for valid 6-digit pincode
     try {
       const res = await fetch(`https://api.postalpincode.in/pincode/${newValue}`);
       const data = await res.json();
@@ -198,55 +195,115 @@ export default function EditVendor() {
     }
   };
 
-
   const handleVendorChange = async (e) => {
     const { name, value } = e.target;
     let newValue = value;
 
-    // Auto-capitalize first letter for text fields
+    // Auto-capitalize certain fields
     const capitalizeFields = ["vendor", "city", "state", "district", "address"];
     if (capitalizeFields.includes(name)) {
       newValue = capitalizeFirstLetter(value);
     }
 
-    // Handle pincode separately (digits only)
+    // --- Dynamic error handling ---
+    setErrors((prev) => {
+      const updated = { ...prev };
+
+      if (["vendor", "address", "pincode", "city", "state", "district"].includes(name)) {
+        if (!newValue.trim()) {
+          updated[name] = `${capitalizeFirstLetter(name)} is required`;
+        } else {
+          delete updated[name]; // ✅ clear error immediately if valid
+        }
+      }
+
+      // Email validation logic (special)
+      if (name === "email") {
+        const trimmed = value.trim();
+        let error = "";
+
+        const lowercaseEmailRegex = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/;
+
+        if (trimmed === "") {
+          error = "";
+        } else if (/\s/.test(trimmed)) {
+          error = "Email cannot contain spaces";
+        } else if (/[A-Z]/.test(trimmed)) {
+          error = "Only lowercase letters are allowed (e.g. name@example.com)";
+        } else if (!lowercaseEmailRegex.test(trimmed)) {
+          error = "Invalid email format (e.g. name@example.com)";
+        }
+
+        if (error) updated.email = error;
+        else delete updated.email;
+      }
+
+      // GST number validation
+      if (name === "gst_no") {
+        const rawValue = value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 15);
+        const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+
+        if (!rawValue) updated.gst_no = "GST No is required";
+        else if (rawValue.length !== 15) updated.gst_no = "GST No must be 15 characters";
+        else if (!gstRegex.test(rawValue)) updated.gst_no = "Invalid GST No format";
+        else delete updated.gst_no;
+      }
+
+      return updated;
+    });
+
+    // --- Update vendor state ---
     if (name === "pincode") {
       const cleanValue = value.replace(/[^0-9]/g, "").slice(0, 6);
-      setVendor(prev => ({ ...prev, [name]: cleanValue }));
+      setVendor((prev) => ({ ...prev, [name]: cleanValue }));
       return;
     }
 
-    // Update vendor object
-    setVendor(prev => ({ ...prev, [name]: newValue }));
+    setVendor((prev) => ({ ...prev, [name]: newValue }));
   };
 
-const handleContactChange = (e) => {
-  const { name, value } = e.target;
-  let newValue = value;
 
-  if (["name", "designation"].includes(name)) {
-    newValue = capitalizeFirstLetter(value);
-  }
 
-  // existing validation logic continues here...
-  let newErrors = { ...contactErrors };
+  const handleContactChange = (e) => {
+    const { name, value } = e.target;
+    let newValue = value;
 
-  if (name === "name") newValue.trim() ? delete newErrors.name : newErrors.name = "Name is required";
-  if (name === "mobile_no") {
-    if (!/^\d*$/.test(newValue)) newErrors.mobile_no = "Only digits are allowed";
-    else if (newValue.length > 10) newErrors.mobile_no = "Mobile number cannot exceed 10 digits";
-    else if (newValue.length > 0 && newValue.length < 10) newErrors.mobile_no = "Enter a valid 10-digit mobile number";
-    else delete newErrors.mobile_no;
-  }
-  if (name === "email") {
-    if (!newValue.trim()) delete newErrors.email;
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newValue)) newErrors.email = "Enter a valid email";
-    else delete newErrors.email;
-  }
+    if (["name", "designation"].includes(name)) {
+      newValue = capitalizeFirstLetter(value);
+    }
 
-  setContact({ ...contact, [name]: newValue });
-  setContactErrors(newErrors);
-};
+    // existing validation logic continues here...
+    let newErrors = { ...contactErrors };
+
+    if (name === "name") newValue.trim() ? delete newErrors.name : newErrors.name = "Name is required";
+    if (name === "mobile_no") {
+      if (!newValue.trim()) {
+        newErrors.mobile_no = "Mobile number is required";
+      } else if (!/^\d*$/.test(newValue)) {
+        newErrors.mobile_no = "Only digits are allowed";
+      } else if (newValue.length > 10) {
+        newErrors.mobile_no = "Mobile number cannot exceed 10 digits";
+      } else if (newValue.length < 10) {
+        newErrors.mobile_no = "Enter a valid 10-digit mobile number";
+      } else {
+        delete newErrors.mobile_no;
+      }
+    }
+    if (name === "email") {
+      if (!newValue.trim()) {
+        delete newErrors.email;
+      } else if (/[A-Z]/.test(newValue)) {
+        newErrors.email = "Email must be in lowercase letters only";
+      } else if (!/^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i.test(newValue)) {
+        newErrors.email = "Enter a valid email";
+      } else {
+        delete newErrors.email;
+      }
+    }
+
+    setContact({ ...contact, [name]: newValue });
+    setContactErrors(newErrors);
+  };
 
 
 
@@ -375,69 +432,129 @@ const handleContactChange = (e) => {
   };
 
 
-const addContactPerson = () => {
-  if (!contact.name.trim()) {
-    setContactErrors({ name: "Name is required" });
-    return;
-  }
-  if (!contact.mobile_no.trim()) {
-    setContactErrors({ mobile_no: "Mobile number is required" });
-    return;
-  }
+  const addContactPerson = () => {
+    const newErrors = {};
 
-  const contactToSave = { ...contact };
-  let updatedContacts = [...contactPersons];
+    // 🔸 Name validation
+    if (!contact.name || contact.name.trim() === "") {
+      newErrors.name = "Name is required";
+    }
 
-  // 🔹 Check if already has a main contact person (when adding or editing)
-  const hasMainContact =
-    updatedContacts.some((c, idx) => c.isMain && idx !== editingIndex);
+    // 🔸 Mobile number validation
+    if (!contact.mobile_no || contact.mobile_no.trim() === "") {
+      newErrors.mobile_no = "Mobile number is required";
+    } else {
+      try {
+        const phoneNumber = parsePhoneNumberFromString(contact.mobile_no);
+        if (!phoneNumber || !isValidPhoneNumber(contact.mobile_no)) {
+          newErrors.mobile_no = "Enter a valid mobile number";
+        }
+      } catch {
+        newErrors.mobile_no = "Invalid mobile number";
+      }
+    }
 
-  if (contactToSave.isMain && hasMainContact) {
-    toast.error("A main contact person already exists!");
-    return;
-  }
+    // 🔸 Email validation
+    if (contact.email && contact.email.trim() !== "") {
+      const emailTrimmed = contact.email.trim();
+      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-  // 🔹 Check for duplicate mobile numbers
-  const duplicateInContacts = updatedContacts.some(
-    (c, idx) => c.mobile_no === contactToSave.mobile_no && idx !== editingIndex
-  );
+      if (/\s/.test(emailTrimmed)) {
+        newErrors.email = "Email cannot contain spaces";
+      } else if (/[A-Z]/.test(emailTrimmed)) {
+        newErrors.email = "Email must be in lowercase (e.g. name@example.com)";
+      } else if (!emailPattern.test(emailTrimmed)) {
+        newErrors.email = "Invalid email format (e.g. name@example.com)";
+      } else if (
+        vendor.email &&
+        emailTrimmed.toLowerCase() === vendor.email.trim().toLowerCase()
+      ) {
+        newErrors.email = "Contact email cannot be the same as company email";
+      }
+    }
 
-  const duplicateWithVendor = contactToSave.mobile_no === vendor.mobile_no;
+    // ✅ Stop here if any field-level validation errors
+    if (Object.keys(newErrors).length > 0) {
+      setContactErrors(newErrors);
+      return;
+    }
 
-  if (duplicateInContacts || duplicateWithVendor) {
-    toast.error(`Mobile number ${contactToSave.mobile_no} is already used!`);
-    return;
-  }
+    // ✅ Prepare contact object
+    const contactToSave = { ...contact };
+    let updatedContacts = [...contactPersons];
 
-  // 🔹 If this is marked as main, clear all others
-  if (contactToSave.isMain) {
-    updatedContacts = updatedContacts.map((c) => ({ ...c, isMain: false }));
-  }
+    // 🔹 Check if already has a main contact person
+    const hasMainContact = updatedContacts.some(
+      (c, idx) => c.isMain && idx !== editingIndex
+    );
 
-  // 🔹 Update or Add contact
-  if (editingIndex !== null) {
-    updatedContacts[editingIndex] = contactToSave;
-    setContactPersons(updatedContacts);
-    toast.success(`Contact person "${contactToSave.name}" updated successfully!`);
-  } else {
-    setContactPersons([...updatedContacts, contactToSave]);
-    toast.success(`Contact person "${contactToSave.name}" added successfully!`);
-  }
+    if (contactToSave.isMain && hasMainContact) {
+      toast.error("A main contact person already exists!");
+      return;
+    }
 
-  // 🔹 Reset contact form and panel
-  setContact({
-    name: "",
-    designation: "",
-    mobile_no: "",
-    email: "",
-    status: "Active",
-    isMain: false,
-  });
-  setContactErrors({});
-  setEditingIndex(null);
-  setShowPanel(false);
-  setTimeout(() => setShowPanel(false), 0);
-};
+    // 🔹 Duplicate mobile number check
+    const duplicateMobileInContacts = updatedContacts.some(
+      (c, idx) =>
+        c.mobile_no?.trim() === contactToSave.mobile_no.trim() &&
+        idx !== editingIndex
+    );
+    const duplicateMobileWithVendor =
+      contactToSave.mobile_no.trim() === vendor.mobile_no?.trim();
+
+    if (duplicateMobileInContacts || duplicateMobileWithVendor) {
+      toast.error(`Mobile number ${contactToSave.mobile_no} is already used!`);
+      return;
+    }
+
+    // 🔹 Duplicate email check
+    if (contactToSave.email && contactToSave.email.trim() !== "") {
+      const emailTrimmed = contactToSave.email.trim().toLowerCase();
+
+      const duplicateEmailInContacts = updatedContacts.some(
+        (c, idx) =>
+          c.email?.trim().toLowerCase() === emailTrimmed && idx !== editingIndex
+      );
+
+      const duplicateEmailWithVendor =
+        vendor.email &&
+        vendor.email.trim().toLowerCase() === emailTrimmed;
+
+      if (duplicateEmailInContacts || duplicateEmailWithVendor) {
+        toast.error(`Email ${emailTrimmed} is already used!`);
+        return;
+      }
+    }
+
+    // 🔹 If this is marked as main, clear all others
+    if (contactToSave.isMain) {
+      updatedContacts = updatedContacts.map((c) => ({ ...c, isMain: false }));
+    }
+
+    // 🔹 Add or update contact person
+    if (editingIndex !== null) {
+      updatedContacts[editingIndex] = contactToSave;
+      setContactPersons(updatedContacts);
+      toast.success(`Contact person "${contactToSave.name}" updated successfully!`);
+    } else {
+      setContactPersons([...updatedContacts, contactToSave]);
+      toast.success(`Contact person "${contactToSave.name}" added successfully!`);
+    }
+
+    // ✅ Reset form
+    setContact({
+      name: "",
+      designation: "",
+      mobile_no: "",
+      email: "",
+      status: "Active",
+      isMain: false,
+    });
+    setContactErrors({});
+    setEditingIndex(null);
+    setShowPanel(false);
+  };
+
 
 
 
@@ -500,11 +617,56 @@ const addContactPerson = () => {
       }
     });
   };
+  const validateVendor = () => {
+    const newErrors = {};
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+    if (vendor.email) {
+      const emailTrimmed = vendor.email.trim();
+
+      if (/\s/.test(emailTrimmed)) {
+        newErrors.email = "Email cannot contain spaces";
+      } else if (/[A-Z]/.test(emailTrimmed)) {
+        newErrors.email = "Email must be in lowercase (e.g. name@example.com)";
+      } else if (!emailPattern.test(emailTrimmed)) {
+        newErrors.email = "Invalid email format (e.g. name@example.com)";
+      }
+    }
+
+    const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+
+    if (!vendor.vendor?.trim()) newErrors.vendor = "Vendor name is required";
+    if (!vendor.mobile_no) newErrors.mobile_no = "Mobile number is required";
+    if (!vendor.pincode?.trim()) newErrors.pincode = "Pincode is required";
+    if (!vendor.city?.trim()) newErrors.city = "City is required";
+    if (!vendor.district?.trim()) newErrors.district = "District is required";
+    if (!vendor.state?.trim()) newErrors.state = "State is required";
+    if (!vendor.address?.trim()) newErrors.address = "Address is required";
+
+    if (vendor.gst_no) {
+      const gst = vendor.gst_no.trim().toUpperCase();
+      if (gst.length !== 15) {
+        newErrors.gst_no = "GST No must be 15 characters";
+      } else if (!gstRegex.test(gst)) {
+        newErrors.gst_no = "Invalid GST No format";
+      }
+    }
+
+    // ✅ Save into one unified error state
+    setErrors(newErrors);
+
+    // ✅ Return false if any errors
+    return Object.keys(newErrors).length === 0;
+  };
   const saveVendor = async () => {
+    if (!validateVendor()) {
+      toast.error("Please correct the errors before saving.");
+      return;
+    }
+
     const payload = {
       ...vendor,
-      contact_persons: contactPersons.map(c => ({
+      contact_persons: contactPersons.map((c) => ({
         name: c.name.replace(" (Main)", ""),
         designation: c.designation,
         mobile_no: c.mobile_no,
@@ -532,48 +694,67 @@ const addContactPerson = () => {
       console.log("Response status:", res.status);
       console.log("Raw response:", rawText);
 
-      // ✅ CASE 1: Laravel validation error (422)
+      // ✅ CASE 1: Laravel validation errors (status 422)
       if (res.status === 422 && data?.errors) {
-        const flat = Object.values(data.errors).flat();
-        const message = flat.join("\n");
+        Object.entries(data.errors).forEach(([key, messages]) => {
+          const message = Array.isArray(messages) ? messages.join(", ") : messages;
 
-        if (data.errors.vendor) {
-          setErrors(prev => ({ ...prev, vendor: data.errors.vendor.join(" ") }));
-        }
+          if (key === "vendor") {
+            toast.error("Company name already exists");
+          } else if (key === "email") {
+            toast.error("Email already taken");
+          } else if (key === "mobile_no") {
+            toast.error("Mobile number already taken");
+          } else if (key === "gst_no") {
+            toast.error("GST number already exists");
+          } else if (key.startsWith("contact_persons")) {
+            // Example: contact_persons.1.email
+            const parts = key.split(".");
+            const index = parts[1] || "?";
+            const field = parts[2] || "field";
+            const contactName =
+              contactPersons[index]?.name || `#${parseInt(index) + 1}`;
 
-        toast.error(message, { position: "top-right" });
+            const cleanMessage = message.replace(/contact_persons\.\d+\./g, "");
+            toast.error(
+              `Contact person ${contactName} ${field.replace("_", " ")} ${cleanMessage}`
+            );
+          } else {
+            toast.error(`${key.replace("_", " ")}: ${message}`);
+          }
+        });
         return;
       }
 
-      // ✅ CASE 2: SQL unique violation
+      // ✅ CASE 2: SQL unique violation (if backend sends this)
       if (data?.error && data.error.includes("duplicate key value violates unique constraint")) {
         const match = data.error.match(/\(vendor\)=\(([^)]+)\)/);
         const duplicateVendor = match ? match[1] : "This vendor";
-
         const message = `${duplicateVendor} name already exists.`;
-        setErrors(prev => ({ ...prev, vendor: message }));
-        toast.error(message, { position: "top-right" });
+        setErrors((prev) => ({ ...prev, vendor: message }));
+        toast.error(message);
         return;
       }
 
-      // ✅ CASE 3: General non-OK
+      // ✅ CASE 3: Any other error
       if (!res.ok) {
-        toast.error(data?.message || "Something went wrong while updating vendor.", {
-          position: "top-right",
-        });
+        const msg =
+          data?.message ||
+          (typeof data === "string" ? data : "Something went wrong while updating vendor.");
+        toast.error(msg);
         return;
       }
 
       // ✅ CASE 4: Success
       setErrors({});
-      toast.success("Vendor updated successfully!", { position: "top-right" });
+      toast.success("Vendor updated successfully!");
       setTimeout(() => navigate("/vendor"), 1000);
-
     } catch (err) {
       console.error("Network or unexpected error:", err);
-      toast.error("Network error! Please try again.", { position: "top-right" });
+      toast.error("Network error! Please try again.");
     }
   };
+
 
 
 
@@ -641,7 +822,6 @@ const addContactPerson = () => {
 
                   setVendor({ ...vendor, gst_no: rawValue });
 
-                  // Live validation
                   if (!rawValue.trim()) {
                     setErrors((prev) => ({ ...prev, gst_no: "GST No is required" }));
                   } else if (rawValue.length !== 15) {
@@ -748,16 +928,20 @@ const addContactPerson = () => {
         <Row>
 
           <Col md={4}>
-            <Form.Group className="mb-3  form-field">
+            <Form.Group className="mb-3 form-field">
               <Form.Label>Email</Form.Label>
               <Form.Control
                 type="email"
                 name="email"
                 value={vendor.email ?? ""}
                 onChange={handleVendorChange}
-                isInvalid={!!errors.email}
+                isInvalid={!!errors.email} // ✅ changed
               />
-              {/* <Form.Control.Feedback type="invalid">{errors.email}</Form.Control.Feedback> */}
+              {errors.email && (
+                <div style={{ color: "red", fontSize: "0.85rem", marginTop: "4px" }}>
+                  {errors.email}
+                </div>
+              )}
             </Form.Group>
           </Col>
           <Col md={4}>
@@ -765,6 +949,7 @@ const addContactPerson = () => {
               <Form.Label>
                 Mobile No<span style={{ color: "red" }}> *</span>
               </Form.Label>
+
               <CountryPhoneInput
                 country={countryCode.toLowerCase()}
                 international
@@ -774,11 +959,11 @@ const addContactPerson = () => {
                 defaultCountry={countryCode}
                 className="form-control"
               />
-              {/* {vendorErrors.mobile_no && (
+              {vendorErrors.mobile_no && (
                 <div style={{ color: "red", fontSize: "0.85rem", marginTop: "4px" }}>
                   {vendorErrors.mobile_no}
                 </div>
-              )} */}
+              )}
 
             </Form.Group>
           </Col>
@@ -814,6 +999,31 @@ const addContactPerson = () => {
       <Button
         variant="success"
         onClick={() => {
+          // ✅ Check if vendor details are filled before adding contact person
+          const requiredFields = [
+            "vendor",
+            "mobile_no",
+            "pincode",
+            "city",
+            "state",
+            "district",
+            "address",
+          ];
+
+          const emptyField = requiredFields.find((field) => {
+            const value = vendor[field];
+            if (value === undefined || value === null) return true;
+            if (typeof value === "string" && value.trim() === "") return true;
+            if (typeof value === "number" && value === 0) return true;
+            return false;
+          });
+
+          if (emptyField) {
+            toast.error("Please fill the company details first!");
+            return;
+          }
+
+          // ✅ Only open panel if all required company details are filled
           setContact({
             name: "",
             designation: "",
@@ -824,13 +1034,13 @@ const addContactPerson = () => {
           });
           setContactErrors({});
           setEditingIndex(null);
-          setContactKey(prev => prev + 1); // 👈 force re-render
+          setContactKey(prev => prev + 1);
           setShowPanel(true);
         }}
-
       >
         + Add Contact Person
       </Button>
+
 
 
       {contactPersons.length > 0 && (
@@ -941,7 +1151,7 @@ const addContactPerson = () => {
           padding: "20px",
         }}
       >
-        <h5>{editingIndex !== null ? "Edit Contact" : "Edit Contact"}</h5>
+        <h5>{editingIndex !== null ? "Add Contact" : "Edit Contact"}</h5>
         <Button
           variant="outline-secondary"
           size="sm"
@@ -1004,32 +1214,40 @@ const addContactPerson = () => {
             </Col>
             {/* </Row> */}
 
-            {/* Row 2: Mobile + Email */}
-            {/* <Row className="mb-3 p-2" style={{ background: "#f5f5f5", borderRadius: "6px" }}> */}
             <Col md={12}>
               <Form.Group>
                 <Form.Label>
                   Mobile No<span style={{ color: "red" }}> *</span>
                 </Form.Label>
-                <CountryPhoneInput
-                  key={contactKey}   // 👈 important!
-                  country={countryCode.toLowerCase()}
-                  international
-                  value={contact.mobile_no ?? ""}
-                  onChange={handleContactMobileChange}
-                  enableSearch
-                  defaultCountry={countryCode}
-                  className="form-control"
-                />
 
-                {/* {contactErrors.mobile_no && (
-                  <div className="invalid-feedback" style={{ display: "block" }}>
+                <div
+                  className={`country-phone-wrapper ${contactErrors.mobile_no ? "is-invalid" : ""
+                    }`}
+                >
+                  <CountryPhoneInput
+                    key={contactKey} // 👈 keep this
+                    country={countryCode.toLowerCase()}
+                    international
+                    value={contact.mobile_no ?? ""}
+                    onChange={handleContactMobileChange}
+                    enableSearch
+                    defaultCountry={countryCode}
+                    className={`form-control ${contactErrors.mobile_no ? "is-invalid" : ""
+                      }`}
+                  />
+                </div>
+
+                {contactErrors.mobile_no && (
+                  <div
+                    className="invalid-feedback"
+                    style={{ display: "block", fontSize: "0.875rem" }}
+                  >
                     {contactErrors.mobile_no}
                   </div>
-                )} */}
-
+                )}
               </Form.Group>
             </Col>
+
 
             <Col md={6}>
               <Form.Group>

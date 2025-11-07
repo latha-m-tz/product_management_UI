@@ -21,20 +21,28 @@ export default function DataTable({
     <div className="table-responsive">
       <Table
         className="table-sm align-middle mb-0"
-       style={{ fontSize: "1rem" }}
+        style={{
+          fontSize: "0.9rem",
+          fontFamily: "'Product Sans', sans-serif",
+        }}
       >
         <thead
           style={{
             backgroundColor: "#2E3A59",
-            color: "#2E3A59",
-          fontSize: "1rem", // ✅ match body font
-            height: "60px",
+            color: "#ffffff",
+            fontSize: "0.9rem",
+            fontFamily: "'Product Sans', sans-serif",
+            height: "35px",
             verticalAlign: "middle",
           }}
         >
           <tr>
             <th
-              style={{ ...headerStyle, width: "120px", textAlign: "center" }}
+              style={{
+                ...headerStyle,
+                width: "70px",
+                textAlign: "center",
+              }}
             >
               S.No
             </th>
@@ -43,12 +51,11 @@ export default function DataTable({
                 {col.header}
               </th>
             ))}
-            {/* only render default Action column if not already in columns */}
             {!hasActionsColumn && (onEdit || onDelete) && (
               <th
                 style={{
                   ...headerStyle,
-                  width: "130px",
+                  width: "100px",
                   textAlign: "center",
                 }}
               >
@@ -92,7 +99,14 @@ export default function DataTable({
                   {(page - 1) * perPage + index + 1}
                 </td>
                 {columns.map((col, idx) => (
-                  <td key={idx} style={col.style || {}}>
+                  <td
+                    key={idx}
+                    style={{
+                      fontSize: "0.9rem",
+                      fontFamily: "'Product Sans', sans-serif",
+                      ...(col.style || {}),
+                    }}
+                  >
                     {typeof col.accessor === "function"
                       ? col.accessor(row)
                       : row[col.accessor]}

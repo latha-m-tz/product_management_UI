@@ -14,6 +14,7 @@ import Search from "../components/Search.jsx";
 import Pagination from "../components/Pagination.jsx";
 import { useLocation, useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../api";
+import Select from "react-select";
 
 const MySwal = withReactContent(Swal);
 
@@ -39,7 +40,7 @@ export default function App() {
       name: "",
       code: "",
       sparepart_type: "",
-      sparepart_usages: "common",
+      sparepart_usages: [],
       required_per_vci: 1,
 
     };
@@ -113,17 +114,20 @@ export default function App() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-
-    // No restriction for name
     setFormData((prev) => ({ ...prev, [name]: value }));
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
 
+  const handleMultiSelectChange = (selectedOptions, name) => {
+    const values = selectedOptions ? selectedOptions.map((opt) => opt.value) : [];
+    setFormData((prev) => ({ ...prev, [name]: values }));
+    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
+  };
 
   const validateForm = () => {
     const newErrors = {};
-    if (!formData.code || !formData.code.trim()) newErrors.code = "Spare Part Code is required.";
+    // if (!formData.code || !formData.code.trim()) newErrors.code = "Spare Part Code is required.";
     if (!formData.name || !formData.name.trim()) newErrors.name = "Spare Part Name is required.";
     if (!formData.sparepart_type || !formData.sparepart_type.trim()) newErrors.sparepart_type = "Spare part Type is required.";
     return newErrors;
@@ -137,11 +141,12 @@ export default function App() {
       return;
     }
     const payload = {
-      code: formData.code.trim(),
+      code: formData.code.trim()|| "",
       name: formData.name.trim(),
-      sparepart_type: formData.sparepart_type.trim(),
-      sparepart_usages: formData.sparepart_usages.trim(),
-      required_per_vci: formData.required_per_vci ?? 1, // new
+       sparepart_type: formData.sparepart_type.trim(),
+      // sparepart_usages: Array.isArray(formData.sparepart_usages)
+      //   ? formData.sparepart_usages.join(",")
+      //   : formData.sparepart_usages,
 
     };
     await saveSparepart(payload);
@@ -189,8 +194,8 @@ export default function App() {
       name: part.name || "",
       code: part.code || "",
       sparepart_type: part.sparepart_type || "",
-      sparepart_usages: part.sparepart_usages || "common",
-      required_per_vci: part.required_per_vci ?? 1,
+      // sparepart_usages: (part.sparepart_usages ? part.sparepart_usages.split(",") : []),
+      // required_per_vci: part.required_per_vci ?? 1,
     });
     setShowForm(true);
     setErrors({});
@@ -404,12 +409,13 @@ export default function App() {
                 </div>
 
                 <div className="mb-2 col-12 form-field">
-                  <Form.Label className="mb-1" style={{ fontSize: "13px", fontWeight: 500 }}>Spare Part Code <span style={{ color: "red" }}>*</span></Form.Label>
+<Form.Label className="mb-1" style={{ fontSize: "13px", fontWeight: 500 }}>
+  Spare Part Code
+</Form.Label>
                   <Form.Control type="text" name="code" value={formData.code} onChange={handleChange} className="custom-placeholder" placeholder="Enter Code" isInvalid={!!errors.code} style={{ height: "34px", fontSize: "13px" }} />
                   <Form.Control.Feedback type="invalid" style={errorStyle}>{errors.code}</Form.Control.Feedback>
                 </div>
-
-                <div className="mb-2 col-12 form-field">
+                                <div className="mb-2 col-12 form-field">
                   <Form.Label className="mb-1" style={{ fontSize: "13px", fontWeight: 500 }}>Spare part Type <span style={{ color: "red" }}>*</span></Form.Label>
                   <Form.Select name="sparepart_type" value={formData.sparepart_type} onChange={handleChange} className="custom-placeholder" isInvalid={!!errors.sparepart_type} style={{ height: "34px", fontSize: "13px" }}>
                     <option value="">-- Select Type --</option>
@@ -419,40 +425,95 @@ export default function App() {
                   </Form.Select>
                   <Form.Control.Feedback type="invalid" style={errorStyle}>{errors.sparepart_type}</Form.Control.Feedback>
                 </div>
+{/* 
 
                 <div className="mb-2 col-12 form-field">
                   <Form.Label className="mb-1" style={{ fontSize: "13px", fontWeight: 500 }}>
-                    Spare Part Usage
+                    Spare Part Usage <span style={{ color: "red" }}>*</span>
                   </Form.Label>
 
-                  {formData.sparepart_usages === "common" ? (
-                    <Form.Control
-                      type="text"
-                      name="sparepart_usages"
-                      value={formData.sparepart_usages}
-                      onChange={handleChange}
-                      className="custom-placeholder"
-                      placeholder="Enter Usage (default: common)"
-                      style={{ height: "34px", fontSize: "13px" }}
-                    />
-                  ) : (
-                    <Form.Select
-                      name="sparepart_usages"
-                      value={formData.sparepart_usages}
-                      onChange={handleChange}
-                      className="custom-placeholder"
-                      style={{ height: "34px", fontSize: "13px" }}
-                    >
-                      <option value="">-- Select Product Type --</option>
-                      {productTypes.map((pt) => (
-                        <option key={pt.id} value={pt.name}>
-                          {pt.name}
-                        </option>
-                      ))}
-                    </Form.Select>
-                  )}
+                  <Select
+                    isMulti
+                    name="sparepart_usages"
+                    value={formData.sparepart_usages.map((val) => ({
+                      value: val,
+                      label: val,
+                    }))}
+                    onChange={(selected) => handleMultiSelectChange(selected, "sparepart_usages")}
+                    options={productTypes.map((pt) => {
+                      const usage =
+                        pt.product?.name ? `${pt.product.name} (${pt.name})` : pt.name;
+                      return { value: usage, label: usage };
+                    })}
+                    placeholder="Select or search usage..."
+                    classNamePrefix="react-select"
+                    styles={{
+                      control: (base, state) => ({
+                        ...base,
+                        minHeight: "34px",
+                        height: "34px",
+                        fontSize: "13px",
+                        borderColor: errors.sparepart_usages ? "red" : base.borderColor,
+                        boxShadow: state.isFocused ? "0 0 0 1px #0f1010ff" : "none",
+                        "&:hover": { borderColor: "#0f1010ff" },
+                      }),
+                      valueContainer: (base) => ({
+                        ...base,
+                        padding: "0 6px",
+                        display: "flex",
+                        flexWrap: "nowrap",
+                        overflowX: "auto",
+                        scrollbarWidth: "none", // Firefox
+                        msOverflowStyle: "none", // IE
+                        "&::-webkit-scrollbar": { display: "none" }, // Chrome/Safari
+                      }),
+                      multiValue: (base) => ({
+                        ...base,
+                        backgroundColor: "#E8F5E9",
+                        borderRadius: "12px",
+                        padding: "0 4px",
+                        margin: "1px 2px",
+                      }),
+                      multiValueLabel: (base) => ({
+                        ...base,
+                        fontSize: "12px",
+                        color: "#2E3A59",
+                        padding: "2px 4px",
+                      }),
+                      multiValueRemove: (base) => ({
+                        ...base,
+                        color: "#2E3A59",
+                        cursor: "pointer",
+                        ":hover": { backgroundColor: "#0f1010ff", color: "white" },
+                      }),
+                      indicatorsContainer: (base) => ({
+                        ...base,
+                        height: "32px",
+                      }),
+                      dropdownIndicator: (base) => ({
+                        ...base,
+                        padding: "0 4px",
+                      }),
+                      clearIndicator: (base) => ({
+                        ...base,
+                        padding: "0 4px",
+                      }),
+                      menu: (base) => ({
+                        ...base,
+                        fontSize: "13px",
+                        zIndex: 9999,
+                      }),
+                    }}
+                  />
 
+
+                  {errors.sparepart_usages && (
+                    <div style={{ color: "red", fontSize: "12px" }}>
+                      {errors.sparepart_usages}
+                    </div>
+                  )}
                 </div>
+
 
                 <div className="mb-2 col-12 form-field">
                   <Form.Label className="mb-1" style={{ fontSize: "13px", fontWeight: 500 }}>
@@ -472,7 +533,7 @@ export default function App() {
                   <Form.Control.Feedback type="invalid" style={errorStyle}>
                     {errors.required_per_vci}
                   </Form.Control.Feedback>
-                </div>
+                </div> */}
 
               </div>
 

@@ -26,7 +26,8 @@ export default function EditSparepartPurchase({ purchaseId }) {
   const [showModal, setShowModal] = useState(false);
   const [trackingNumber, setTrackingNumber] = useState("");
   const [recipientFiles, setRecipientFiles] = useState([null]);
-  const [challanFiles, setChallanFiles] = useState([null]);
+  const [courier_name, setCourierName] = useState("");
+  // const [challanFiles, setChallanFiles] = useState([null]);
 
   const [initialItems, setInitialItems] = useState([]);
 
@@ -36,12 +37,14 @@ export default function EditSparepartPurchase({ purchaseId }) {
   const [deletedItems, setDeletedItems] = useState([]);
   const [deletedItemIds, setDeletedItemIds] = useState([]);
   const [receivedDate, setReceivedDate] = useState("");
-  const [documentRecipient, setDocumentRecipient] = useState("");
-  const [documentChallan1, setDocumentChallan1] = useState("");
-  const [documentChallan2, setDocumentChallan2] = useState("");
-  const [documentRecipientFile, setDocumentRecipientFile] = useState(null);
-  const [documentChallan1File, setDocumentChallan1File] = useState(null);
-  const [documentChallan2File, setDocumentChallan2File] = useState(null);
+
+  // const [existingChallanFiles, setExistingChallanFiles] = useState([]); 
+  const [removedFiles, setRemovedFiles] = useState({
+    recipient: [],
+    // challan: [],
+  });
+  const [vendorIdOnly, contactPersonId] = String(vendorId || "").split("-");
+
 
   const MySwal = withReactContent(Swal);
 
@@ -181,9 +184,6 @@ export default function EditSparepartPurchase({ purchaseId }) {
   };
 
 
-
-
-
   const handleSerialConfirm = (selected) => {
     if (modalIndex === null) return;
 
@@ -219,32 +219,32 @@ export default function EditSparepartPurchase({ purchaseId }) {
 
 
 
-  const handleRemoveRow = async (index, sp) => {
-    if (sp?.sparepart_id) {
-      try {
-        await axios.delete(
-          `${API_BASE_URL}/purchase-items/${purchaseKey}/${sp.sparepart_id}`
-        );
-        toast.success("spare part  deleted successfully");
-      } catch (err) {
-        toast.error("Failed to delete");
-        console.error(err);
-        return;
-      }
-    }
+  // const handleRemoveRow = async (index, sp) => {
+  //   if (sp?.sparepart_id) {
+  //     try {
+  //       await axios.delete(
+  //         `${API_BASE_URL}/purchase-items/${purchaseKey}/${sp.sparepart_id}`
+  //       );
+  //       toast.success("spare part  deleted successfully");
+  //     } catch (err) {
+  //       toast.error("Failed to delete");
+  //       console.error(err);
+  //       return;
+  //     }
+  //   }
 
-    // Remove from frontend state
-    const updated = [...spareparts];
-    updated.splice(index, 1);
-    setSpareparts(updated);
+  //   // Remove from frontend state
+  //   const updated = [...spareparts];
+  //   updated.splice(index, 1);
+  //   setSpareparts(updated);
 
-    // Cleanup validation errors
-    setErrors((prev) => {
-      const items = { ...(prev.items || {}) };
-      if (items[index]) delete items[index];
-      return { ...prev, items };
-    });
-  };
+  //   // Cleanup validation errors
+  //   setErrors((prev) => {
+  //     const items = { ...(prev.items || {}) };
+  //     if (items[index]) delete items[index];
+  //     return { ...prev, items };
+  //   });
+  // };
 
 
   useEffect(() => {
@@ -261,6 +261,7 @@ export default function EditSparepartPurchase({ purchaseId }) {
 
         const p = purchaseRes.data || {}; // or purchaseRes.data.purchase if wrapped
         setVendorId(p.vendor_id || "");
+        // setVendorId(`${p.vendor_id}-${p.contact_person_id || 0}`);
         setChallanNo(p.challan_no || "");
         const convertToInputDate = (dateStr) => {
           if (!dateStr) return "";
@@ -271,8 +272,33 @@ export default function EditSparepartPurchase({ purchaseId }) {
         setChallanDate(convertToInputDate(p.challan_date) || "");
         setReceivedDate(convertToInputDate(p.received_date) || "");
         setTrackingNumber(p.tracking_number || "");
-        setRecipientFiles(p.recipient_files ? p.recipient_files.map(() => null) : [null]);
-        setChallanFiles(p.challan_files ? p.challan_files.map(() => null) : [null]);
+        setCourierName(p.courier_name || "");
+        // Map backend arrays to local state
+        // setRecipientFiles(
+        //   Array.isArray(p.document_recipient) ? p.document_recipient : []
+        // );
+        // setChallanFiles(
+        //   Array.isArray(p.document_challan) ? p.document_challan : []
+        // );
+
+        setRecipientFiles(
+          Array.isArray(p.document_recipient) && p.document_recipient.length > 0
+            ? p.document_recipient
+            : [null]   // 👈 add one empty input by default
+        );
+
+        // setChallanFiles(
+        //   Array.isArray(p.document_challan) && p.document_challan.length > 0
+        //     ? p.document_challan
+        //     : [null]   
+        // );
+
+
+        // Also keep existing files separately for display/download
+        // setExistingChallanFiles(
+        //   Array.isArray(p.document_challan) ? p.document_challan : []
+        // );
+
         setInitialItems(p.items || []);
 
 
@@ -300,9 +326,9 @@ export default function EditSparepartPurchase({ purchaseId }) {
           }
 
           // save first ID as representative
-          if (!groups[key].id && item.id) {
-            groups[key].id = item.id;
-          }
+          if (!groups[key].ids) groups[key].ids = [];
+          if (item.id) groups[key].ids.push(item.id);
+
         });
 
         const mappedBackend = Object.values(groups).map((g) => {
@@ -362,17 +388,37 @@ export default function EditSparepartPurchase({ purchaseId }) {
   // Add file field dynamically
   const addFileField = (type) => {
     if (type === "recipient") setRecipientFiles((prev) => [...prev, null]);
-    if (type === "challan") setChallanFiles((prev) => [...prev, null]);
+    // if (type === "challan") setChallanFiles((prev) => [...prev, null]);
   };
 
-  // Remove file field
   const removeFileField = (type, index) => {
-    if (type === "recipient") {
-      setRecipientFiles((prev) => prev.filter((_, i) => i !== index));
-    } else if (type === "challan") {
-      setChallanFiles((prev) => prev.filter((_, i) => i !== index));
+    // Pick the right file array
+    // const key = type === "recipient" ? "recipientFiles" : "challanFiles";
+
+    // const updated = [...(type === "recipient" ? recipientFiles : challanFiles)];
+    const removedFile = updated[index];
+
+    // 🟢 Track files that are already in DB (strings)
+    if (typeof removedFile === "string") {
+      setRemovedFiles((prev) => ({
+        ...prev,
+        [type]: [...(prev[type] || []), removedFile],
+      }));
     }
+
+    updated.splice(index, 1);
+
+    if (type === "recipient") setRecipientFiles(updated);
+    // else setChallanFiles(updated);
   };
+
+
+
+
+  // const handleRemoveFile = (fileName) => {
+  //   setRemovedFiles((prev) => [...prev, fileName]);
+  // };
+
 
   // Handle file change
   const handleFileChange = (type, index, file) => {
@@ -381,11 +427,14 @@ export default function EditSparepartPurchase({ purchaseId }) {
       updated[index] = file;
       setRecipientFiles(updated);
     } else if (type === "challan") {
-      const updated = [...challanFiles];
-      updated[index] = file;
-      setChallanFiles(updated);
+      // const updated = [...challanFiles];
+      // updated[index] = file;
+      // setChallanFiles(updated);
     }
+
   };
+
+
 
   const sparepartTypeOf = (id) => {
     if (!id) return "";
@@ -416,58 +465,81 @@ export default function EditSparepartPurchase({ purchaseId }) {
   };
 
 
+const handleInputChange = (index, field, value) => {
+  const type = sparepartTypeOf(spareparts[index].sparepart_id);
+  const updated = [...spareparts];
 
-  const handleInputChange = (index, field, value) => {
-    const type = sparepartTypeOf(spareparts[index].sparepart_id);
-    const updated = [...spareparts];
+  // Handle serial-based spareparts
+  if (type.includes("serial") && (field === "from_serial" || field === "to_serial")) {
+    value = value.replace(/\D/g, "").slice(0, 6);
+    updated[index][field] = value;
 
-    if (type.includes("serial") && (field === "from_serial" || field === "to_serial")) {
-      const productId = updated[index].product_id;
+    const fromSerial = updated[index].from_serial;
+    const toSerial = updated[index].to_serial;
 
-      if (!productId) {
-        toast.error("Please choose product first");
-        updated[index][field] = "";
-        setSpareparts(updated);
-        return;
+    // Only validate after both fields are filled
+    if (fromSerial && toSerial) {
+      const fromNum = parseInt(fromSerial, 10);
+      const toNum = parseInt(toSerial, 10);
+
+      if (toNum < fromNum) {
+        toast.error("To Serial must be greater than From Serial");
+        updated[index].qty = "";
+      } else {
+        updated[index].qty = toNum - fromNum + 1;
       }
+    }
 
-      const product = availableCategories.find(p => String(p.id) === String(productId));
-      const seriesPrefix = (product?.seriesPrefix || product?.series || "").replace(/[-\s]/g, "");
+    setSpareparts(updated);
+    return;
+  }
 
-      // Only keep prefix + numeric digits
-      if (!value.startsWith(seriesPrefix)) {
-        toast.error(`Serial must start with product prefix (${seriesPrefix})`);
-        return; // Block typing invalid prefix
-      }
+  // Handle other field types
+  updated[index][field] = value;
+  if (field === "qty") {
+    let qty = Number(value);
+    if (qty < 1) qty = 1;
+    updated[index][field] = qty;
+  }
 
-      let numericPart = value.slice(seriesPrefix.length).replace(/\D/g, "").slice(0, 6);
-      updated[index][field] = seriesPrefix + numericPart;
+  setSpareparts(updated);
+  clearError(field, index);
+};
+// 🆕 Automatically rebuild serial range when from_serial / to_serial change
+useEffect(() => {
+  const updated = [...spareparts];
+  let changed = false;
 
-      const fromSerial = updated[index].from_serial;
-      const toSerial = updated[index].to_serial;
+  updated.forEach((sp, idx) => {
+    const type = sparepartTypeOf(sp.sparepart_id);
+    if (!type.includes("serial")) return;
 
-      if (fromSerial && toSerial) {
-        const prefixFrom = fromSerial.slice(0, seriesPrefix.length);
-        const prefixTo = toSerial.slice(0, seriesPrefix.length);
+    const { from_serial, to_serial } = sp;
+    if (from_serial && to_serial) {
+      const m1 = parseSerial(from_serial);
+      const m2 = parseSerial(to_serial);
 
-        if (prefixFrom !== prefixTo) {
-          toast.error("From Serial and To Serial must start with the same prefix");
+      // If both valid numeric parts and new range differs from existing serials
+      if (m1.num !== null && m2.num !== null && m2.num >= m1.num) {
+        const newSerials = [];
+        for (let n = m1.num; n <= m2.num; n++) {
+          const paddedNum = String(n).padStart(6, "0");
+          newSerials.push(`${m1.prefix}${paddedNum}`);
+        }
+
+        // Only update if changed
+        if (JSON.stringify(sp.serials) !== JSON.stringify(newSerials)) {
+          updated[idx] = { ...sp, serials: newSerials, qty: newSerials.length };
+          changed = true;
         }
       }
-
-      setSpareparts(updated);
-      return;
     }
+  });
 
-    updated[index][field] = value;
-    if (field === "qty") {
-      let qty = Number(value);
-      if (qty < 1) qty = "";
-      updated[index][field] = qty;
-    }
-    setSpareparts(updated);
-    clearError(field, index);
-  };
+  if (changed) setSpareparts(updated);
+}, [spareparts.map(sp => `${sp.from_serial}-${sp.to_serial}`).join("|")]);
+
+
 
 
 
@@ -481,7 +553,7 @@ export default function EditSparepartPurchase({ purchaseId }) {
         sparepart_id: "",
         qty: "",
         warranty_status: "Active",
-        product_id: "",
+        // product_id: "",
         from_serial: "",
         to_serial: "",
         // serials: [],   // <-- add this
@@ -493,10 +565,12 @@ export default function EditSparepartPurchase({ purchaseId }) {
     const updated = [...spareparts];
     const removed = updated[index];
 
-    // Track deleted sparepart IDs only if it exists in DB
-    if (removed?.id) {
+    if (removed?.ids?.length) {
+      setDeletedSparepartIds((prev) => [...prev, ...removed.ids]);
+    } else if (removed?.id) {
       setDeletedSparepartIds((prev) => [...prev, removed.id]);
     }
+
 
     // Remove the row from state
     updated.splice(index, 1);
@@ -536,7 +610,7 @@ export default function EditSparepartPurchase({ purchaseId }) {
       if (!sp.sparepart_id) itemErr.sparepart_id = "Select sparepart";
 
       if (type.includes("serial")) {
-        if (!sp.product_id) itemErr.product_id = "Select product";
+        // if (!sp.product_id) itemErr.product_id = "Select product";
         if (!sp.from_serial) itemErr.from_serial = "From Serial required";
         if (!sp.to_serial) itemErr.to_serial = "To Serial required";
 
@@ -554,12 +628,12 @@ export default function EditSparepartPurchase({ purchaseId }) {
             itemErr.to_serial = "To Serial must have exactly 6 digits after prefix";
           }
 
-          const productData = availableCategories.find(c => c.id === sp.product_id);
-          const prefix = (productData?.seriesPrefix || productData?.series || "").replace(/[-\s]/g, "");
-          if (!sp.from_serial.startsWith(prefix) || !sp.to_serial.startsWith(prefix)) {
-            itemErr.from_serial = `Serial must start with product prefix (${prefix})`;
-            itemErr.to_serial = `Serial must start with product prefix (${prefix})`;
-          }
+          // const productData = availableCategories.find(c => c.id === sp.product_id);
+          // const prefix = (productData?.seriesPrefix || productData?.series || "").replace(/[-\s]/g, "");
+          // if (!sp.from_serial.startsWith(prefix) || !sp.to_serial.startsWith(prefix)) {
+          //   itemErr.from_serial = `Serial must start with product prefix (${prefix})`;
+          //   itemErr.to_serial = `Serial must start with product prefix (${prefix})`;
+          // }
         }
       }
 
@@ -589,6 +663,8 @@ export default function EditSparepartPurchase({ purchaseId }) {
       payload.append("_method", "PUT");
 
       payload.append("vendor_id", String(vendorId || ""));
+      payload.append("vendor_id", vendorIdOnly || "");
+      payload.append("contact_person_id", contactPersonId && contactPersonId !== "0" ? contactPersonId : "");
       payload.append("challan_no", String(challanNo || ""));
       const formatDateForBackend = (dateStr) => {
         if (!dateStr) return "";
@@ -597,11 +673,12 @@ export default function EditSparepartPurchase({ purchaseId }) {
       payload.append("challan_date", formatDateForBackend(challanDate));
       payload.append("received_date", formatDateForBackend(receivedDate));
       payload.append("tracking_number", String(trackingNumber || ""));
+      payload.append("courier_name", String(courier_name || ""));
 
       spareparts.forEach((sp, i) => {
         payload.append(`items[${i}][id]`, sp.id || "");
         payload.append(`items[${i}][sparepart_id]`, sp.sparepart_id || "");
-        payload.append(`items[${i}][product_id]`, sp.product_id || "");
+        // payload.append(`items[${i}][product_id]`, sp.product_id || "");
         payload.append(`items[${i}][from_serial]`, sp.from_serial || "");
         payload.append(`items[${i}][to_serial]`, sp.to_serial || "");
         payload.append(`items[${i}][warranty_status]`, sp.warranty_status || "");
@@ -616,18 +693,30 @@ export default function EditSparepartPurchase({ purchaseId }) {
         });
       });
 
-      // ✅ Deleted IDs as proper arrays
-      deletedItemIds.forEach((id, i) => payload.append(`deleted_ids[${i}]`, id));
+      deletedSparepartIds.forEach((id, i) => payload.append(`deleted_ids[${i}]`, id));
+      // ✅ Send document_recipient (array)
+      if (recipientFiles && recipientFiles.length > 0) {
+        recipientFiles.forEach((file, i) => {
+          if (file instanceof File) {
+            payload.append(`document_recipient[${i}]`, file);
+          }
+        });
+      }
 
-      // ✅ Append Images
-      if (recipientFiles?.[0] instanceof File)
-        payload.append("image_recipient", recipientFiles[0]);
+      // ✅ Send document_challan (array)
+      // if (challanFiles && challanFiles.length > 0) {
+      //   challanFiles.forEach((file, i) => {
+      //     if (file instanceof File) {
+      //       payload.append(`document_challan[${i}]`, file);
+      //     }
+      //   });
+      // }
 
-      if (challanFiles?.[0] instanceof File)
-        payload.append("image_challan_1", challanFiles[0]);
 
-      if (challanFiles?.[1] instanceof File)
-        payload.append("image_challan_2", challanFiles[1]);
+      // // ✅ Append removed files as JSON string
+      payload.append("removed_recipient_files", JSON.stringify(removedFiles.recipient || []));
+      // payload.append("removed_challan_files", JSON.stringify(removedFiles.challan || []));
+
 
 
       const res = await axios.post(
@@ -686,22 +775,19 @@ export default function EditSparepartPurchase({ purchaseId }) {
                   Vendor<span style={{ color: "red" }}> *</span>
                 </Form.Label>
 
-                <Form.Select value={vendorId} onChange={(e) => setVendorId(e.target.value)}>
+                <Form.Select
+                  value={vendorId}
+                  onChange={(e) => setVendorId(e.target.value)}
+                >
                   <option value="">Select Vendor</option>
-                  {availableVendors.map((v) =>
-                    v.contact_persons?.length > 0
-                      ? v.contact_persons.map((c, idx) => (
-                        <option key={`${v.id}-${c.id}`} value={v.id}>
-                          {v.vendor} – {c.name} {idx === 0 ? " (Main person)" : ""}
-                        </option>
-                      ))
-                      : (
-                        <option key={v.id} value={v.id}>
-                          {v.vendor}
-                        </option>
-                      )
-                  )}
+                  {availableVendors.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.vendor}
+                    </option>
+                  ))}
                 </Form.Select>
+
+
                 {errors.vendor_id && <div style={feedbackStyle}>{errors.vendor_id}</div>}
               </Form.Group>
             </Col>
@@ -749,8 +835,17 @@ export default function EditSparepartPurchase({ purchaseId }) {
                 />
               </Form.Group>
             </Col>
-
-            {/* RECEIPT FILES */}
+            <Col md={4}>
+              <Form.Group className="mb-2">
+                <Form.Label>Courier Name</Form.Label>
+                <Form.Control
+                  type="text"
+                  placeholder="Enter Courier Name"
+                  value={courier_name}
+                  onChange={(e) => setCourierName(e.target.value)}
+                />
+              </Form.Group>
+            </Col>
             <Col md={6}>
               <Form.Group className="mb-2">
                 <Form.Label>
@@ -766,28 +861,51 @@ export default function EditSparepartPurchase({ purchaseId }) {
                 </Form.Label>
 
                 {recipientFiles.map((file, idx) => (
-                  <div key={idx} className="d-flex align-items-center mb-1">
-                    <Form.Control
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => handleFileChange("recipient", idx, e.target.files[0])}
-                    />
-                    {recipientFiles.length > 1 && (
-                      <Button
-                        variant="link"
-                        size="sm"
-                        className="text-danger ms-2 p-0"
-                        onClick={() => removeFileField("recipient", idx)}
-                      >
-                        <i className="bi bi-x-circle"></i>
-                      </Button>
-                    )}
+                  <div key={idx} className="d-flex align-items-center gap-2 mb-2">
+                    <div className="file-input-wrapper flex-grow-1 d-flex align-items-center border rounded overflow-hidden">
+                      <label className="custom-file-label mb-0">
+                        <span className="btn btn-outline-secondary btn-sm">Choose File</span>
+                        <input
+                          type="file"
+                          accept="image/*,application/pdf"
+                          onChange={(e) => handleFileChange("recipient", idx, e.target.files[0])}
+                          style={{ display: "none" }}
+                        />
+                      </label>
+
+                      <div className="file-display px-2 text-truncate">
+                        {typeof file === "string" ? (
+                          <a
+                            href={`${API_BASE_URL.replace("/api", "")}/${file}`}
+
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary text-truncate"
+                            style={{ maxWidth: "100%" }}
+                          >
+                            {file.split("/").pop()}
+                          </a>
+                        ) : file ? (
+                          file.name
+                        ) : (
+                          "No file chosen"
+                        )}
+                      </div>
+                    </div>
+
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="text-danger p-0"
+                      onClick={() => removeFileField("recipient", idx)}
+                    >
+                      <i className="bi bi-x-circle"></i>
+                    </Button>
                   </div>
                 ))}
               </Form.Group>
             </Col>
-
-            {/* CHALLAN FILES */}
+            {/* 
             <Col md={6}>
               <Form.Group className="mb-2">
                 <Form.Label>
@@ -803,251 +921,281 @@ export default function EditSparepartPurchase({ purchaseId }) {
                 </Form.Label>
 
                 {challanFiles.map((file, idx) => (
-                  <div key={idx} className="d-flex align-items-center mb-1">
-                    <Form.Control
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => handleFileChange("challan", idx, e.target.files[0])}
-                    />
-                    {challanFiles.length > 1 && (
-                      <Button
-                        variant="link"
-                        size="sm"
-                        className="text-danger ms-2 p-0"
-                        onClick={() => removeFileField("challan", idx)}
-                      >
-                        <i className="bi bi-x-circle"></i>
-                      </Button>
-                    )}
+                  <div key={idx} className="d-flex align-items-center gap-2 mb-2">
+                    <div className="file-input-wrapper flex-grow-1 d-flex align-items-center border rounded overflow-hidden">
+                      <label className="custom-file-label mb-0">
+                        <span className="btn btn-outline-secondary btn-sm">Choose File</span>
+                        <input
+                          type="file"
+                          accept="image/*,application/pdf"
+                          onChange={(e) => handleFileChange("challan", idx, e.target.files[0])}
+                          style={{ display: "none" }}
+                        />
+                      </label>
+
+                      <div className="file-display px-2 text-truncate">
+                        {typeof file === "string" ? (
+                          <a
+                            href={`${API_BASE_URL.replace("/api", "")}/${file}`}
+
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary text-truncate"
+                            style={{ maxWidth: "100%" }}
+                          >
+                            {file.split("/").pop()}
+                          </a>
+                        ) : file ? (
+                          file.name
+                        ) : (
+                          "No file chosen"
+                        )}
+                      </div>
+                    </div>
+
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="text-danger p-0"
+                      onClick={() => removeFileField("challan", idx)}
+                    >
+                      <i className="bi bi-x-circle"></i>
+                    </Button>
                   </div>
                 ))}
               </Form.Group>
-            </Col>
-
+            </Col> */}
 
           </Row>
 
         </Card.Body>
       </Card>
 
-      {/* Sparepart Items (grouped -> single row per sparepart) */}
-      {spareparts.map((sp, idx) => {
-        const type = sparepartTypeOf(sp.sparepart_id);
-        return (
-          <Card key={idx} className="mb-3" style={{ background: "#F4F4F8", borderRadius: 6 }}>
-            <Card.Body>
-              <Row className="mb-2 align-items-center">
-                <Col>
-                  <h6 className="mb-0">Spare part Details</h6>
-                </Col>
-                <Col xs="auto">
+      {/* Sparepart Section */}
+      {spareparts.length > 0 && (
+        <Card className="mb-3" style={{ background: "#F4F4F8", borderRadius: 6 }}>
+          <Card.Body>
+            <div className="d-flex justify-content-between align-items-center mb-3">
+              <h6 className="mb-0">Spare Parts Details</h6>
+            </div>
 
+            {spareparts.map((sp, idx) => {
+              const type = sparepartTypeOf(sp.sparepart_id);
 
-                  <Col xs="auto">
-                    <Button variant="danger" size="sm" onClick={() => handleDelete(sp.id, sp)}>
-                      <i className="bi bi-trash"></i>
-                    </Button>
+              return (
+                <div
+                  key={idx}
+                  className="p-3 mb-3 position-relative"
+                  style={{
+                    border: "1px solid #dee2e6",
+                    borderRadius: "6px",
+                    backgroundColor: "#fff",
+                  }}
+                >
+                  {/* Delete Button */}
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={() => handleDelete(sp.id, sp)}
+                    className="position-absolute"
+                    style={{ top: "50px", right: "8px" }}
+                  >
+                    <i className="bi bi-trash"></i>
+                  </Button>
 
-                  </Col>
-
-
-                </Col>
-              </Row>
-
-              {/* Sparepart Item Row */}
-              <Row className="align-items-end mb-2">
-                {/* Spareparts dropdown */}
-                <Col md={4}>
-                  <Form.Group className="mb-2">
-                    <Form.Label>Spare parts</Form.Label>
-                    <Form.Select
-                      value={sp.sparepart_id}
-                      onChange={(e) => handleSparepartChange(idx, e.target.value)}
-                    >
-                      <option value="">Select Spare part</option>
-                      {availableSpareparts.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name}
-                        </option>
-                      ))}
-                    </Form.Select>
-                    {errors.items?.[idx]?.sparepart_id && (
-                      <div style={feedbackStyle}>{errors.items[idx].sparepart_id}</div>
-                    )}
-                  </Form.Group>
-                </Col>
-
-                {/* --- Serial Based --- */}
-                {type.includes("serial") && (
-                  <>
-                    {/* Product + fetch serials */}
-                    <Col md={4}>
+                  <Row className="align-items-end mt-3">
+                    {/* Spare Parts Dropdown */}
+                    <Col md={3}>
                       <Form.Group className="mb-2">
-                        <Form.Label>Product</Form.Label>
-                        <div className="d-flex">
-                          <Form.Select
-                            value={sp.product_id || ""}
-                            onChange={(e) => handleInputChange(idx, "product_id", e.target.value)}
-                          >
-                            <option value="">Select Product</option>
-                            {availableCategories.map((cat) => (
-                              <option key={cat.id} value={String(cat.id)}>
-                                {cat.series} {cat.name ? `${cat.name}` : ""}
-                              </option>
-                            ))}
-                          </Form.Select>
-
-
-
-
-                          <Button
-                            title="Fetch Serials"
-                            onClick={() => fetchAvailableSerials(idx)}
-                            size="sm"
-                            variant="outline-primary"
-                            className="ms-2"
-                          >
-                            <i className="bi bi-cloud-download" />
-                          </Button>
-                        </div>
-                        {errors.items?.[idx]?.product_id && (
-                          <div style={feedbackStyle}>{errors.items[idx].product_id}</div>
-                        )}
-                      </Form.Group>
-                    </Col>
-
-                    {/* From Serial */}
-                    <Col md={4}>
-                      <Form.Group className="mb-2">
-                        <Form.Label>From Serial</Form.Label>
-                        <Form.Control
-                          type="text"
-                          value={sp.from_serial}
-                          onChange={(e) => handleInputChange(idx, "from_serial", e.target.value)}
-                          style={serialInputStyle}
-                        />
-                        {errors.items?.[idx]?.from_serial && (
-                          <div style={feedbackStyle}>{errors.items[idx].from_serial}</div>
-                        )}
-                      </Form.Group>
-                    </Col>
-
-                    {/* To Serial */}
-                    <Col md={4}>
-                      <Form.Group className="mb-2">
-                        <Form.Label>To Serial</Form.Label>
-                        <Form.Control
-                          type="text"
-                          value={sp.to_serial}
-                          onChange={(e) => handleInputChange(idx, "to_serial", e.target.value)}
-                          style={serialInputStyle}
-                        />
-                        {errors.items?.[idx]?.to_serial && (
-                          <div style={feedbackStyle}>{errors.items[idx].to_serial}</div>
-                        )}
-                      </Form.Group>
-                    </Col>
-
-                    {/* Quantity */}
-                    <Col md={4}>
-                      <Form.Group className="mb-2">
-                        <Form.Label>Quantity</Form.Label>
-                        <Form.Control
-                          type="number"
-                          min={""}
-                          value={sp.qty}
-                          onChange={(e) => handleInputChange(idx, "qty", e.target.value)}
-                        />
-                        {errors.items?.[idx]?.qty && (
-                          <div style={feedbackStyle}>{errors.items[idx].qty}</div>
-                        )}
-                      </Form.Group>
-                    </Col>
-
-                    {/* Warranty */}
-                    <Col md={4}>
-                      <Form.Group className="mb-2">
-                        <Form.Label>Warranty</Form.Label>
+                        <Form.Label>
+                          Spare Parts<span style={{ color: "red" }}> *</span>
+                        </Form.Label>
                         <Form.Select
-                          value={sp.warranty_status}
-                          onChange={(e) => handleInputChange(idx, "warranty_status", e.target.value)}
+                          value={sp.sparepart_id}
+                          onChange={(e) => handleSparepartChange(idx, e.target.value)}
                         >
-                          <option value="Active">Active</option>
-                          <option value="Inactive">Inactive</option>
+                          <option value="">Select Spare Part</option>
+                          {availableSpareparts.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.name}
+                            </option>
+                          ))}
                         </Form.Select>
-                        {errors.items?.[idx]?.warranty_status && (
-                          <div style={feedbackStyle}>{errors.items[idx].warranty_status}</div>
+                        {errors.items?.[idx]?.sparepart_id && (
+                          <div style={feedbackStyle}>{errors.items[idx].sparepart_id}</div>
                         )}
                       </Form.Group>
                     </Col>
-                  </>
-                )
-                }
 
-                {/* --- Warranty Based --- */}
-                {
-                  type.includes("warranty") && (
-                    <>
-                      {/* Quantity */}
-                      <Col md={4}>
-                        <Form.Group className="mb-2">
-                          <Form.Label>Quantity</Form.Label>
-                          <Form.Control
-                            type="number"
-                            value={sp.qty}
-                            onChange={(e) => handleInputChange(idx, "qty", e.target.value)}
-                          />
-                          {errors.items?.[idx]?.qty && (
-                            <div style={feedbackStyle}>{errors.items[idx].qty}</div>
-                          )}
-                        </Form.Group>
-                      </Col>
+                    {/* Conditional Fields */}
+                    {sp.sparepart_id && (() => {
+                      // Serial Based
+                      if (type.includes("serial")) {
+                        return (
+                          <>
+                            {/* <Col md={2}>
+                              <Form.Group className="mb-2">
+                                <Form.Label>Product</Form.Label>
+                                <div className="d-flex">
+                                  <Form.Select
+                                    value={sp.product_id || ""}
+                                    onChange={(e) =>
+                                      handleInputChange(idx, "product_id", e.target.value)
+                                    }
+                                  >
+                                    <option value="">Select Product</option>
+                                    {availableCategories.map((cat) => (
+                                      <option key={cat.id} value={String(cat.id)}>
+                                        {cat.series} {cat.name ? `${cat.name}` : ""}
+                                      </option>
+                                    ))}
+                                  </Form.Select>
 
-                      {/* Warranty */}
-                      <Col md={4}>
-                        <Form.Group className="mb-2">
-                          <Form.Label>Warranty</Form.Label>
-                          <Form.Select
-                            value={sp.warranty_status}
-                            onChange={(e) => handleInputChange(idx, "warranty_status", e.target.value)}
-                          >
-                            <option value="Active">Active</option>
-                            <option value="Inactive">Inactive</option>
-                          </Form.Select>
-                          {errors.items?.[idx]?.warranty_status && (
-                            <div style={feedbackStyle}>{errors.items[idx].warranty_status}</div>
-                          )}
-                        </Form.Group>
-                      </Col>
-                    </>
-                  )
-                }
+                                  <Button
+                                    title="Fetch Serials"
+                                    onClick={() => fetchAvailableSerials(idx)}
+                                    size="sm"
+                                    variant="outline-primary"
+                                    className="ms-2"
+                                  >
+                                    <i className="bi bi-cloud-download" />
+                                  </Button>
+                                </div>
+                                {errors.items?.[idx]?.product_id && (
+                                  <div style={feedbackStyle}>{errors.items[idx].product_id}</div>
+                                )}
+                              </Form.Group>
+                            </Col> */}
 
-                {/* --- Quantity Based --- */}
-                {
-                  type.includes("quantity") && (
-                    <Col md={4}>
-                      <Form.Group className="mb-2">
-                        <Form.Label>Quantity</Form.Label>
-                        <Form.Control
-                          type="number"
-                          min={1}
-                          value={sp.qty}
-                          onChange={(e) => handleInputChange(idx, "qty", e.target.value)}
-                        />
-                        {errors.items?.[idx]?.qty && (
-                          <div style={feedbackStyle}>{errors.items[idx].qty}</div>
-                        )}
-                      </Form.Group>
-                    </Col>
-                  )
-                }
-              </Row>
+                            <Col md={2}>
+                              <Form.Group className="mb-2">
+                                <Form.Label>From Serial</Form.Label>
+                                <Form.Control
+                                  type="text"
+                                  value={sp.from_serial}
+                                  onChange={(e) =>
+                                    handleInputChange(idx, "from_serial", e.target.value)
+                                  }
+                                />
+                                {errors.items?.[idx]?.from_serial && (
+                                  <div style={feedbackStyle}>{errors.items[idx].from_serial}</div>
+                                )}
+                              </Form.Group>
+                            </Col>
 
-            </Card.Body >
-          </Card >
-        );
-      })}
+                            <Col md={2}>
+                              <Form.Group className="mb-2">
+                                <Form.Label>To Serial</Form.Label>
+                                <Form.Control
+                                  type="text"
+                                  value={sp.to_serial}
+                                  onChange={(e) =>
+                                    handleInputChange(idx, "to_serial", e.target.value)
+                                  }
+                                />
+                                {errors.items?.[idx]?.to_serial && (
+                                  <div style={feedbackStyle}>{errors.items[idx].to_serial}</div>
+                                )}
+                              </Form.Group>
+                            </Col>
+
+                            <Col md={2}>
+                              <Form.Group className="mb-2">
+                                <Form.Label>Qty</Form.Label>
+                                <Form.Control
+                                  type="number"
+                                  value={sp.qty}
+                                  onChange={(e) =>
+                                    handleInputChange(idx, "qty", e.target.value)
+                                  }
+                                />
+                                {errors.items?.[idx]?.qty && (
+                                  <div style={feedbackStyle}>{errors.items[idx].qty}</div>
+                                )}
+                              </Form.Group>
+                            </Col>
+
+                            <Col md={2}>
+                              <Form.Group className="mb-2">
+                                <Form.Label>Warranty</Form.Label>
+                                <Form.Select
+                                  value={sp.warranty_status}
+                                  onChange={(e) =>
+                                    handleInputChange(idx, "warranty_status", e.target.value)
+                                  }
+                                >
+                                  <option value="Active">Active</option>
+                                  <option value="Inactive">Inactive</option>
+                                </Form.Select>
+                              </Form.Group>
+                            </Col>
+                          </>
+                        );
+                      }
+
+                      // Warranty Based
+                      if (type.includes("warranty")) {
+                        return (
+                          <>
+                            <Col md={3}>
+                              <Form.Group className="mb-2">
+                                <Form.Label>Quantity</Form.Label>
+                                <Form.Control
+                                  type="number"
+                                  value={sp.qty}
+                                  onChange={(e) =>
+                                    handleInputChange(idx, "qty", e.target.value)
+                                  }
+                                />
+                              </Form.Group>
+                            </Col>
+                            <Col md={3}>
+                              <Form.Group className="mb-2">
+                                <Form.Label>Warranty</Form.Label>
+                                <Form.Select
+                                  value={sp.warranty_status}
+                                  onChange={(e) =>
+                                    handleInputChange(idx, "warranty_status", e.target.value)
+                                  }
+                                >
+                                  <option value="Active">Active</option>
+                                  <option value="Inactive">Inactive</option>
+                                </Form.Select>
+                              </Form.Group>
+                            </Col>
+                          </>
+                        );
+                      }
+
+                      // Quantity Based
+                      if (type.includes("quantity")) {
+                        return (
+                          <Col md={3}>
+                            <Form.Group className="mb-2">
+                              <Form.Label>Quantity</Form.Label>
+                              <Form.Control
+                                type="number"
+                                min={1}
+                                value={sp.qty}
+                                onChange={(e) =>
+                                  handleInputChange(idx, "qty", e.target.value)
+                                }
+                              />
+                            </Form.Group>
+                          </Col>
+                        );
+                      }
+
+                      return null;
+                    })()}
+                  </Row>
+                </div>
+              );
+            })}
+          </Card.Body>
+        </Card>
+      )}
+
 
       {/* Buttons */}
       <div className="d-flex justify-content-between mt-3">

@@ -186,9 +186,15 @@ export default function ProductTypePage() {
     }
   };
 
-  const filteredTypes = productTypes.filter((p) =>
-    p.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredTypes = productTypes.filter((type) => {
+    const product = products.find((p) => p.id === type.product_id);
+    const productName = product ? product.name.toLowerCase() : "";
+    const typeName = type.name.toLowerCase();
+    const query = search.toLowerCase();
+
+    return typeName.includes(query) || productName.includes(query);
+  });
+
 
   const sortedTypes = [...filteredTypes].sort((a, b) => {
     if (!sortField) return 0;

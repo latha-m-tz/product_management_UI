@@ -1,8 +1,6 @@
-// src/Layout/DashboardLayout.jsx
 import React, { useState, useEffect, useRef } from "react";
-import { Button, Form, InputGroup } from "react-bootstrap";
+import { Button } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
-import { FiChevronRight } from "react-icons/fi";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 
@@ -14,12 +12,10 @@ export default function DashboardLayout({ onLogout }) {
   const [showLogout, setShowLogout] = useState(false);
   const [userEmail, setUserEmail] = useState("");
   const [userName, setUserName] = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filteredSuggestions, setFilteredSuggestions] = useState([]);
 
   useEffect(() => {
     const email = localStorage.getItem("authEmail");
-    const name = localStorage.getItem("authName"); // make sure this is set as username during login/registration
+    const name = localStorage.getItem("authName");
     if (email) setUserEmail(email);
     if (name) setUserName(name);
   }, []);
@@ -28,14 +24,15 @@ export default function DashboardLayout({ onLogout }) {
     userName
       ? userName.charAt(0).toUpperCase()
       : userEmail
-        ? userEmail.charAt(0).toUpperCase()
-        : "U";
+      ? userEmail.charAt(0).toUpperCase()
+      : "U";
 
   const handleLogout = () => {
     localStorage.removeItem("authToken");
     localStorage.removeItem("authEmail");
     localStorage.removeItem("authName");
     onLogout?.();
+    navigate("/login");
   };
 
   // Close logout dropdown when clicked outside
@@ -49,119 +46,17 @@ export default function DashboardLayout({ onLogout }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Search setup
-  const labelMap = {
-    overview: "Overview",
-    vendor: "Vendor",
-    "spare-parts": "Spare Parts",
-    assemble: "Assemble",
-    "product/list": "Product List",
-    "product/add": "Add Product",
-    customer: "Customer",
-    "sales-order": "Sales",
-    "service-product": "Service Product",
-  };
-  const searchableItems = Object.keys(labelMap);
-
-  const handleInputFocus = () => {
-    if (!searchTerm.trim()) setFilteredSuggestions(searchableItems);
-  };
-
-  const handleInputBlur = () => setTimeout(() => setFilteredSuggestions([]), 150);
-
-  useEffect(() => {
-    if (!searchTerm.trim()) {
-      setFilteredSuggestions([]);
-      return;
-    }
-    setFilteredSuggestions(
-      searchableItems.filter((item) =>
-        labelMap[item].toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    );
-  }, [searchTerm]);
-
-  const handleSearchSubmit = (e) => {
-    e.preventDefault();
-    if (searchTerm.trim()) {
-      navigate(`/${searchTerm.trim()}`);
-      setSearchTerm("");
-      setFilteredSuggestions([]);
-    }
-  };
-
-  const handleSuggestionClick = (s) => {
-    navigate(`/${s}`);
-    setSearchTerm("");
-    setFilteredSuggestions([]);
-  };
-
   return (
     <header
       className="p-2 border-bottom bg-white shadow-sm"
-      style={{ fontSize: "14px", zIndex: 20, position: "sticky", top: 0 }}
+      style={{
+        fontSize: "14px",
+        zIndex: 20,
+        position: "sticky",
+        top: 0,
+      }}
     >
-      <div className="d-flex justify-content-between align-items-center gap-3 position-relative">
-        {/* Search */}
-        <div style={{ position: "relative", width: "320px", minWidth: "280px" }}>
-          <Form onSubmit={handleSearchSubmit} autoComplete="off">
-            <InputGroup
-              size="sm"
-              style={{
-                backgroundColor: "#F4F4F8",
-                borderRadius: "8px",
-                border: "1px solid #ced4da",
-              }}
-            >
-              <InputGroup.Text style={{ backgroundColor: "#F4F4F8", border: "none" }}>
-                <i className="bi bi-search" style={{ fontSize: "16px", opacity: 0.6 }}></i>
-              </InputGroup.Text>
-              <Form.Control
-                placeholder="Search"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                onFocus={handleInputFocus}
-                onBlur={handleInputBlur}
-                style={{ border: "none", backgroundColor: "#F4F4F8", boxShadow: "none" }}
-              />
-            </InputGroup>
-
-            {filteredSuggestions.length > 0 && (
-              <div
-                style={{
-                  position: "absolute",
-                  top: "calc(100% + 8px)",
-                  left: 0,
-                  right: 0,
-                  zIndex: 2000,
-                  maxHeight: "280px",
-                  overflowY: "auto",
-                  borderRadius: "8px",
-                  backgroundColor: "#fff",
-                  border: "1px solid #ddd",
-                  padding: "6px 0",
-                }}
-              >
-                {filteredSuggestions.map((s) => (
-                  <div
-                    key={s}
-                    onClick={() => handleSuggestionClick(s)}
-                    style={{
-                      cursor: "pointer",
-                      padding: "10px 20px",
-                      margin: "0 12px 6px 12px",
-                      borderRadius: "6px",
-                    }}
-                  >
-                    {labelMap[s]}
-                    <FiChevronRight size={20} style={{ float: "right", opacity: 0.7 }} />
-                  </div>
-                ))}
-              </div>
-            )}
-          </Form>
-        </div>
-
+      <div className="d-flex justify-content-end align-items-center gap-3 position-relative">
         {/* User Info */}
         <div className="d-flex align-items-center gap-2 position-relative" ref={logoutRef}>
           <div className="text-end">
@@ -170,6 +65,7 @@ export default function DashboardLayout({ onLogout }) {
               {userEmail}
             </div>
           </div>
+
           <div
             className="rounded-circle d-flex justify-content-center align-items-center"
             style={{
@@ -185,28 +81,25 @@ export default function DashboardLayout({ onLogout }) {
           >
             {getInitial()}
           </div>
+
           {showLogout && (
             <div
               className="position-absolute top-100 end-0 mt-2 bg-white border shadow-sm p-2 rounded"
-              style={{ zIndex: 2100, minWidth: "110px" }}
+              style={{ zIndex: 2100, minWidth: "80px" }}
             >
-           <Button
-  variant="outline-danger"
-  onClick={handleLogout}
-  style={{
-    fontSize: "16px",
-    padding: "10px 16px",
-    width: "100%",
-    fontWeight: "600",
-    borderRadius: "10px",
-    borderWidth: "2px",
-    borderColor: "#dc3545",
-    color: "#dc3545",
-    backgroundColor: "transparent",
-  }}
->
-  Logout
-</Button>
+              <Button
+                variant="outline-danger"
+                onClick={handleLogout}
+                style={{
+                  fontSize: "12px",
+                  padding: "4px 10px",
+                  width: "100%",
+                  fontWeight: "400",
+                  borderRadius: "4px",
+                }}
+              >
+                Logout
+              </Button>
             </div>
           )}
         </div>
