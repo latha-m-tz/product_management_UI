@@ -162,7 +162,7 @@ export default function EditAssemblePage() {
     const fetchData = async () => {
       try {
         const [typesRes, productsRes, rangeRes] = await Promise.all([
-           axios.get(`${API_BASE_URL}/product-types`),
+          axios.get(`${API_BASE_URL}/product-types`),
           axios.get(`${API_BASE_URL}/product`),
           axios.get(`${API_BASE_URL}/inventory/serialrange/${routeFromSerial}/${routeToSerial}`),
         ]);
@@ -527,7 +527,7 @@ export default function EditAssemblePage() {
       {/* 🧭 Header */}
       <Row className="align-items-center mb-3">
         <Col>
-          <h4>Edit New Inventory</h4>
+          <h4>Edit New Assemble</h4>
         </Col>
         <Col className="text-end">
           <Button
@@ -559,23 +559,23 @@ export default function EditAssemblePage() {
         {/* Product Type / Product / Firmware */}
         {/* 🧩 Product & Serial Fields */}
         <Row className="mb-3 g-3">
-     <Col md={4}>
-  <Form.Group>
-    <Form.Label>Product</Form.Label>
-    <Form.Select
-      name="product_id"
-      value={form.product_id}
-      onChange={handleChange}
-    >
-      <option value="">Select Product</option>
-      {allProducts.map((p) => (
-        <option key={p.id} value={p.id}>
-          {p.name}  {/* Only show product name, no type */}
-        </option>
-      ))}
-    </Form.Select>
-  </Form.Group>
-</Col>
+          <Col md={4}>
+            <Form.Group>
+              <Form.Label>Product</Form.Label>
+              <Form.Select
+                name="product_id"
+                value={form.product_id}
+                onChange={handleChange}
+              >
+                <option value="">Select Product</option>
+                {allProducts.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}  {/* Only show product name, no type */}
+                  </option>
+                ))}
+              </Form.Select>
+            </Form.Group>
+          </Col>
 
           <Col md={4}>
             <Form.Group>
@@ -595,7 +595,6 @@ export default function EditAssemblePage() {
                     return; // stop if first six aren't digits
                   }
 
-                  // Allow letters after the first 6 digits
                   const sanitized = firstSix + rest.replace(/[^A-Z]/g, "");
 
                   setForm((prev) => ({
@@ -842,21 +841,21 @@ export default function EditAssemblePage() {
                         />
                       </td>
 
-<td>
-  <Form.Select
-    value={product.tested_by || ""}
-    onChange={(e) =>
-      handleRowChange(absoluteIndex, "tested_by", e.target.value)
-    }
-  >
-    <option value="">Select</option>
-    {users.map((user) => (
-      <option key={user.id} value={user.name || user.username}>
-        {user.name || user.username}
-      </option>
-    ))}
-  </Form.Select>
-</td>
+                      <td>
+                        <Form.Select
+                          value={product.tested_by || ""}
+                          onChange={(e) =>
+                            handleRowChange(absoluteIndex, "tested_by", e.target.value)
+                          }
+                        >
+                          <option value="">Select</option>
+                          {users.map((user) => (
+                            <option key={user.id} value={user.name || user.username}>
+                              {user.name || user.username}
+                            </option>
+                          ))}
+                        </Form.Select>
+                      </td>
 
 
                       <td>

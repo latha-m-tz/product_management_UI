@@ -80,8 +80,8 @@ export default function SalesListPage() {
 const headerStyle = {
   backgroundColor: "#2E3A59",
   color: "white",
-  padding: "2px 6px", // reduce vertical space
-  height: "28px", // total header height
+  padding: "2px 6px", 
+  height: "28px", 
   lineHeight: "1.2", // compact spacing
 };
 const rowStyle = {

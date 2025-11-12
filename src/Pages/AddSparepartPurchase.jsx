@@ -355,10 +355,7 @@ const handleInputChange = (index, field, value) => {
     recipientFiles.forEach((f) => {
       if (f.file) formData.append("document_recipient[]", f.file);
     });
-    // challanFiles.forEach((f) => {
-    //   if (f.file) formData.append("document_challan[]", f.file);
-    // });
-
+ 
     // Append sparepart items
     spareparts.forEach((sp, index) => {
       if (!sp.sparepart_id) return;

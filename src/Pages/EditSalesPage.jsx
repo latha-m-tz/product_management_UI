@@ -5,38 +5,33 @@ import { toast } from "react-toastify";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
 import "bootstrap/dist/css/bootstrap.min.css";
-
 import { API_BASE_URL } from "../api";
-import Breadcrumb from "../components/BreadCrumb";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { IoTrashOutline } from "react-icons/io5";
 
 export default function EditSalesPage() {
   const navigate = useNavigate();
   const { id } = useParams();
-  const location = useLocation();
-
-  const [customerId, setCustomerId] = useState("");
   const [customers, setCustomers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [customerId, setCustomerId] = useState("");
   const [challanNo, setChallanNo] = useState("");
   const [challanDate, setChallanDate] = useState("");
   const [shipmentDate, setShipmentDate] = useState("");
   const [shipmentName, setShipmentName] = useState("");
   const [notes, setNotes] = useState("");
-  const [items, setItems] = useState([]);
+  const [items, setItems] = useState([]); // ✅ grouped items: [{product_id, name, quantity}]
+  const [loading, setLoading] = useState(true);
   const [formErrors, setFormErrors] = useState({});
+  const MySwal = withReactContent(Swal);
 
-  // ✅ Pagination state
+  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const paginatedItems = items.slice(startIndex, endIndex);
 
-  const MySwal = withReactContent(Swal);
-
-  // ✅ Load customers
+  // ✅ Fetch customers
   useEffect(() => {
     axios
       .get(`${API_BASE_URL}/customers/get`)
@@ -44,6 +39,36 @@ export default function EditSalesPage() {
       .catch(() => toast.error("Failed to load customers"))
       .finally(() => setLoading(false));
   }, []);
+
+const groupProducts = (serialItems) => {
+  const grouped = {};
+  serialItems.forEach((item) => {
+    const pid = item.product_id;
+
+    if (!grouped[pid]) {
+      grouped[pid] = {
+        product_id: pid,
+        name:
+          (typeof item.product === "string"
+            ? item.product
+            : item.product?.name) ||
+          item.name ||
+          "Unknown Product",
+        serials: [], // ✅ store hidden serial numbers
+        quantity: 0,
+      };
+    }
+
+    grouped[pid].serials.push(item.serial_no); // ✅ keep serials internally
+    grouped[pid].quantity += 1;
+  });
+
+  // ✅ Each product will have serial numbers internally
+  return Object.values(grouped);
+};
+
+
+
 
   // ✅ Load sale for edit or draft
   useEffect(() => {
@@ -56,7 +81,7 @@ export default function EditSalesPage() {
       setShipmentDate(data.shipment_date || "");
       setShipmentName(data.shipment_name || "");
       setNotes(data.notes || "");
-      setItems(data.items || []);
+      setItems(groupProducts(data.items || []));
       localStorage.removeItem("draftSale");
     } else if (id) {
       axios
@@ -69,58 +94,43 @@ export default function EditSalesPage() {
           setShipmentDate(sale.shipment_date);
           setShipmentName(sale.shipment_name || "");
           setNotes(sale.notes || "");
-          setItems((prevItems) => {
-            const updated = [
-              ...prevItems,
-              ...sale.items
-                .filter(
-                  (item) =>
-                    !prevItems.some((prev) => prev.serialNo === (item.serial_no || ""))
-                )
-                .map((item) => ({
-                  id: item.id,
-                  serialNo: item.serial_no || "",
-                  quantity: item.quantity,
-                })),
-            ];
-
-            console.log("✅ Updated items list 2:", updated);
-            return updated;
-          });
+          setItems(groupProducts(sale.items || []));
         })
         .catch(() => toast.error("Failed to load sale data"));
     }
   }, [id]);
 
-  const loadSelectedProducts = () => {
-    const stored = localStorage.getItem("selectedProducts");
-    if (!stored) return;
+const loadSelectedProducts = () => {
+  const stored = localStorage.getItem("selectedProducts");
+  if (!stored) return;
 
-    try {
-      const selected = JSON.parse(stored);
-      if (!Array.isArray(selected)) return;
+  try {
+    const selected = JSON.parse(stored);
+    if (!Array.isArray(selected)) return;
 
-      setItems((prevItems) => {
-        const existingSerials = prevItems.map((i) => i.serialNo);
-        const merged = [
-          ...prevItems,
-          ...selected
-            .filter((p) => !existingSerials.includes(p.serial_no))
-            .map((p) => ({
-              quantity: 1,
-              serialNo: p.serial_no,
-            })),
-        ];
-        console.log("✅ Updated product list:", merged);
-        return merged;
+    setItems((prevItems) => {
+      const updated = [...prevItems];
+      selected.forEach((p) => {
+        // Prevent duplicates (by serial_no)
+        const exists = updated.some((i) => i.serial_no === p.serial_no);
+        if (!exists) {
+          updated.push({
+            product_id: p.product_id,
+            name: p.name || "Unknown Product",
+            serial_no: p.serial_no, // ✅ Hidden but stored
+            quantity: 1,
+          });
+        }
       });
+      return updated;
+    });
 
-      // ✅ Clear after merging to prevent repeat adds
-      localStorage.removeItem("selectedProducts");
-    } catch (err) {
-      console.error("Error parsing selectedProducts:", err);
-    }
-  };
+    localStorage.removeItem("selectedProducts");
+  } catch (err) {
+    console.error("Error parsing selectedProducts:", err);
+  }
+};
+
 
   useEffect(() => {
     loadSelectedProducts();
@@ -129,112 +139,115 @@ export default function EditSalesPage() {
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") loadSelectedProducts();
     });
-    return () => {
-      window.removeEventListener("focus", handleFocus);
-    };
+    return () => window.removeEventListener("focus", handleFocus);
   }, []);
+const validateForm = () => {
+  const errors = {};
 
-  const validateForm = () => {
-    const errors = {};
-    if (!customerId || parseInt(customerId) <= 0)
-      errors.customerId = "Customer is required";
-    if (!challanNo.trim()) errors.challanNo = "Challan No is required";
-    if (!challanDate) errors.challanDate = "Challan Date is required";
-    if (!shipmentDate) errors.shipmentDate = "Shipment Date is required";
-    else if (new Date(shipmentDate) < new Date(challanDate))
-      errors.shipmentDate = "Shipment Date cannot be before Challan Date";
-    if (!shipmentName.trim())
-      errors.shipmentName = "Shipment Name is required";
-    if (items.length === 0) errors.items = "Please add at least one product";
-    else {
-      const serials = new Set();
-      items.forEach((item, index) => {
-        if (!item.serialNo.trim())
-          errors[`serialNo_${index}`] = "Serial No is required";
-        if (serials.has(item.serialNo))
-          errors[`serialNo_${index}`] = `Duplicate Serial No: ${item.serialNo}`;
-        serials.add(item.serialNo);
-        if (!item.quantity || parseInt(item.quantity) <= 0)
-          errors[`quantity_${index}`] = "Quantity must be greater than 0";
-      });
-    }
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
+  console.log("🧩 Starting validation...");
+  console.log("Customer ID:", customerId);
+  console.log("Challan No:", challanNo);
+  console.log("Challan Date:", challanDate);
+  console.log("Shipment Date:", shipmentDate);
+  console.log("Shipment Name:", shipmentName);
+  console.log("Items:", items);
 
-  // ✅ Save
-  const handleSave = async () => {
-    if (!validateForm()) {
-      toast.warning("Please fix the highlighted errors!");
-      return;
-    }
+  // --- Header fields validation ---
+  if (!customerId) {
+    errors.customerId = "Customer is required";
+    console.log("❌ Missing Customer ID");
+  }
 
-    const payload = {
-      customer_id: parseInt(customerId),
-      challan_no: challanNo.trim(),
-      challan_date: challanDate,
-      shipment_date: shipmentDate,
-      shipment_name: shipmentName.trim(),
-      notes: notes.trim(),
-      items: items.map((item) => ({
-        ...(item.id ? { id: item.id } : {}),
-        quantity: parseInt(item.quantity),
-        serial_no: item.serialNo.trim(),
-      })),
-    };
+  if (!challanNo.trim()) {
+    errors.challanNo = "Challan No is required";
+    console.log("❌ Missing Challan No");
+  }
 
-    try {
-      await axios.put(`${API_BASE_URL}/sales/${id}`, payload);
-      toast.success("Sale updated successfully!");
-      navigate("/sales-order");
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to update sale!");
-    }
-  };
+  if (!challanDate) {
+    errors.challanDate = "Challan Date is required";
+    console.log("❌ Missing Challan Date");
+  }
 
-  // ✅ Field change handlers
-  const handleChange = (field, value) => {
-    switch (field) {
-      case "customerId":
-        setCustomerId(value);
-        setFormErrors((prev) => ({ ...prev, customerId: undefined }));
-        break;
-      case "challanNo":
-        setChallanNo(value);
-        setFormErrors((prev) => ({ ...prev, challanNo: undefined }));
-        break;
-      case "challanDate":
-        setChallanDate(value);
-        setFormErrors((prev) => ({ ...prev, challanDate: undefined }));
-        break;
-      case "shipmentDate":
-        setShipmentDate(value);
-        setFormErrors((prev) => ({ ...prev, shipmentDate: undefined }));
-        break;
-      case "shipmentName":
-        setShipmentName(value);
-        setFormErrors((prev) => ({ ...prev, shipmentName: undefined }));
-        break;
-      case "notes":
-        setNotes(value);
-        break;
-      default:
-        break;
-    }
-  };
+  if (!shipmentDate) {
+    errors.shipmentDate = "Shipment Date is required";
+    console.log("❌ Missing Shipment Date");
+  } else if (new Date(shipmentDate) < new Date(challanDate)) {
+    errors.shipmentDate = "Shipment Date cannot be before Challan Date";
+    console.log("❌ Shipment date before challan date");
+  }
 
-  const handleItemChange = (index, field, value) => {
-    const newItems = [...items];
-    newItems[index][field] = value;
-    setItems(newItems);
+  if (!shipmentName.trim()) {
+    errors.shipmentName = "Shipment Name is required";
+    console.log("❌ Missing Shipment Name");
+  }
 
-    setFormErrors((prev) => {
-      const updated = { ...prev };
-      if (field === "serialNo") delete updated[`serialNo_${index}`];
-      if (field === "quantity") delete updated[`quantity_${index}`];
-      return updated;
+  // --- Items validation ---
+  if (items.length === 0) {
+    errors.items = "Please add at least one product";
+    console.log("❌ No items added");
+  } else {
+    items.forEach((item, index) => {
+      console.log(`🧾 Checking item ${index + 1}:`, item);
+
+      if (!item.product_id) {
+        errors[`item_${index}_product`] = `Product missing at row ${index + 1}`;
+        console.log(`❌ Item ${index + 1} missing product_id`);
+      }
+
+      if (!item.serials || item.serials.length === 0) {
+        errors[`item_${index}_serials`] = `No serial numbers for product ${item.name || "Unknown"}`;
+        console.log(`❌ Item ${index + 1} missing serials`);
+      }
+
+      if (!item.quantity || item.quantity <= 0) {
+        errors[`item_${index}_quantity`] = `Invalid quantity for ${item.name || "Unknown"}`;
+        console.log(`❌ Item ${index + 1} invalid quantity`);
+      }
     });
+  }
+
+  setFormErrors(errors);
+
+  const isValid = Object.keys(errors).length === 0;
+  console.log("✅ Validation result:", isValid ? "PASS" : "FAIL", errors);
+  return isValid;
+};
+
+
+
+const handleSave = async () => {
+  if (!validateForm()) {
+    toast.warning("Please fix the highlighted errors!");
+    return;
+  }
+
+  const expandedItems = items.flatMap((item) =>
+    item.serials?.map((serial) => ({
+      product_id: item.product_id,
+      serial_no: serial,
+      quantity: 1,
+    })) || []
+  );
+
+  const payload = {
+    customer_id: parseInt(customerId),
+    challan_no: challanNo.trim(),
+    challan_date: challanDate,
+    shipment_date: shipmentDate,
+    shipment_name: shipmentName.trim(),
+    notes: notes.trim(),
+    items: expandedItems,
   };
+
+  try {
+    await axios.put(`${API_BASE_URL}/sales/${id}`, payload);
+    toast.success("Sale updated successfully!");
+    navigate("/sales-order");
+  } catch (err) {
+    toast.error(err.response?.data?.message || "Failed to update sale!");
+  }
+};
+
 
   const handleDeleteItem = (index) => {
     MySwal.fire({
@@ -247,10 +260,9 @@ export default function EditSalesPage() {
       confirmButtonText: "Yes, delete it!",
     }).then((result) => {
       if (result.isConfirmed) {
-        const deletedItem = items[index];
-        const newItems = items.filter((_, i) => i !== index);
-        setItems(newItems);
-        toast.success(`Product ${deletedItem.serialNo} removed successfully!`);
+        const deleted = items[index];
+        setItems(items.filter((_, i) => i !== index));
+        toast.success(`${deleted.name} removed successfully!`);
       }
     });
   };
@@ -276,27 +288,23 @@ export default function EditSalesPage() {
       <Card className="border-0 shadow-sm rounded-3" style={{ backgroundColor: "#f4f4f8" }}>
         <Card.Body>
           <Form>
-            {/* Customer / Challan / Shipment Details */}
+            {/* Customer Details */}
             <div className="row g-3">
               <div className="col-md-6">
-                <Form.Group className="mb-3">
+                <Form.Group>
                   <Form.Label>Customer</Form.Label>
-                  {loading ? (
-                    <Spinner animation="border" size="sm" />
-                  ) : (
-                    <Form.Select
-                      value={customerId || ""}
-                      onChange={(e) => handleChange("customerId", e.target.value)}
-                      isInvalid={!!formErrors.customerId}
-                    >
-                      <option value="">-- Select Customer --</option>
-                      {customers.map((cust) => (
-                        <option key={cust.id} value={cust.id}>
-                          {cust.customer} ({cust.email})
-                        </option>
-                      ))}
-                    </Form.Select>
-                  )}
+                  <Form.Select
+                    value={customerId}
+                    onChange={(e) => setCustomerId(e.target.value)}
+                    isInvalid={!!formErrors.customerId}
+                  >
+                    <option value="">-- Select Customer --</option>
+                    {customers.map((cust) => (
+                      <option key={cust.id} value={cust.id}>
+                        {cust.customer} ({cust.city})
+                      </option>
+                    ))}
+                  </Form.Select>
                   <Form.Control.Feedback type="invalid">
                     {formErrors.customerId}
                   </Form.Control.Feedback>
@@ -309,8 +317,7 @@ export default function EditSalesPage() {
                   <Form.Control
                     type="text"
                     value={challanNo}
-                    onChange={(e) => handleChange("challanNo", e.target.value)}
-                    placeholder="Enter Challan No"
+                    onChange={(e) => setChallanNo(e.target.value)}
                     isInvalid={!!formErrors.challanNo}
                   />
                   <Form.Control.Feedback type="invalid">
@@ -325,12 +332,9 @@ export default function EditSalesPage() {
                   <Form.Control
                     type="date"
                     value={challanDate}
-                    onChange={(e) => handleChange("challanDate", e.target.value)}
+                    onChange={(e) => setChallanDate(e.target.value)}
                     isInvalid={!!formErrors.challanDate}
                   />
-                  <Form.Control.Feedback type="invalid">
-                    {formErrors.challanDate}
-                  </Form.Control.Feedback>
                 </Form.Group>
               </div>
 
@@ -340,12 +344,9 @@ export default function EditSalesPage() {
                   <Form.Control
                     type="date"
                     value={shipmentDate}
-                    onChange={(e) => handleChange("shipmentDate", e.target.value)}
+                    onChange={(e) => setShipmentDate(e.target.value)}
                     isInvalid={!!formErrors.shipmentDate}
                   />
-                  <Form.Control.Feedback type="invalid">
-                    {formErrors.shipmentDate}
-                  </Form.Control.Feedback>
                 </Form.Group>
               </div>
 
@@ -355,24 +356,8 @@ export default function EditSalesPage() {
                   <Form.Control
                     type="text"
                     value={shipmentName}
-                    onChange={(e) => handleChange("shipmentName", e.target.value)}
-                    placeholder="Enter Shipment Name"
+                    onChange={(e) => setShipmentName(e.target.value)}
                     isInvalid={!!formErrors.shipmentName}
-                  />
-                  <Form.Control.Feedback type="invalid">
-                    {formErrors.shipmentName}
-                  </Form.Control.Feedback>
-                </Form.Group>
-              </div>
-
-              <div className="col-12">
-                <Form.Group>
-                  <Form.Label>Notes</Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    rows={3}
-                    value={notes}
-                    onChange={(e) => handleChange("notes", e.target.value)}
                   />
                 </Form.Group>
               </div>
@@ -380,100 +365,79 @@ export default function EditSalesPage() {
 
             {/* Products Table */}
             <div className="mt-4">
-              <Form.Label>Products</Form.Label>
-              <Button
-                variant="success"
-                size="sm"
-                className="mb-2 ms-2"
-                onClick={() => {
-                  const draftSale = {
-                    customer_id: customerId,
-                    challan_no: challanNo,
-                    challan_date: challanDate,
-                    shipment_date: shipmentDate,
-                    shipment_name: shipmentName,
-                    notes: notes,
-                    items: items,
-                  };
-                  localStorage.setItem("draftSale", JSON.stringify(draftSale));
-                  navigate("/add-product");
-                }}
-              >
-                + Add Product
-              </Button>
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <Form.Label>Products</Form.Label>
+                <Button
+                  variant="success"
+                  size="sm"
+                  onClick={() => {
+                    const draftSale = {
+                      customer_id: customerId,
+                      challan_no: challanNo,
+                      challan_date: challanDate,
+                      shipment_date: shipmentDate,
+                      shipment_name: shipmentName,
+                      notes: notes,
+                      items,
+                    };
+                    localStorage.setItem("draftSale", JSON.stringify(draftSale));
+                    navigate("/add-product");
+                  }}
+                >
+                  + Add Product
+                </Button>
+              </div>
 
-              {formErrors.items && <div className="text-danger mb-2">{formErrors.items}</div>}
-              {items.length === 0 && <div className="text-muted">No products added</div>}
+              {formErrors.items && (
+                <div className="text-danger mb-2">{formErrors.items}</div>
+              )}
 
-              {items.length > 0 && (
-                <>
-                  {/* <div>{JSON.stringify(items, null, 2)}</div> */}
-                  <Table striped bordered hover size="sm">
-                    <thead>
-                      <tr>
-                        <th>Serial No</th>
-                        <th>Action</th>
+              {items.length > 0 ? (
+                <Table striped bordered hover size="sm">
+                  <thead>
+                    <tr>
+                      <th>Product</th>
+                      <th>Quantity</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginatedItems.map((item, index) => (
+                      <tr key={startIndex + index}>
+                        <td>{item.name}</td>
+                        <td>
+                          <Form.Control
+                            type="number"
+                            min="1"
+                            value={item.quantity}
+                            readOnly
+                            onChange={(e) => {
+                              const newItems = [...items];
+                              newItems[startIndex + index].quantity = parseInt(
+                                e.target.value || 1
+                              );
+                              setItems(newItems);
+                            }}
+                          />
+                        </td>
+                        <td>
+                          <Button
+                            variant="outline-danger"
+                            size="sm"
+                            onClick={() => handleDeleteItem(startIndex + index)}
+                          >
+                            <IoTrashOutline />
+                          </Button>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {paginatedItems.map((item, index) => (
-                        <tr key={startIndex + index}>
-                          <td>
-                            <Form.Control
-                              type="text"
-                              value={item.serialNo}
-                              isInvalid={!!formErrors[`serialNo_${startIndex + index}`]}
-                              onChange={(e) =>
-                                handleItemChange(startIndex + index, "serialNo", e.target.value)
-                              }
-                            />
-                            <Form.Control.Feedback type="invalid">
-                              {formErrors[`serialNo_${startIndex + index}`]}
-                            </Form.Control.Feedback>
-                          </td>
-                          <td>
-                            <Button
-                              variant="outline-danger"
-                              size="sm"
-                              onClick={() => handleDeleteItem(startIndex + index)}
-                            >
-                              <IoTrashOutline />
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </Table>
-
-                  {/* Pagination */}
-                  <div className="d-flex justify-content-between align-items-center">
-                    <Button
-                      variant="outline-secondary"
-                      size="sm"
-                      disabled={currentPage === 1}
-                      onClick={() => setCurrentPage((prev) => prev - 1)}
-                    >
-                      &laquo; Previous
-                    </Button>
-
-                    <span>
-                      Page {currentPage} of {Math.ceil(items.length / itemsPerPage)}
-                    </span>
-
-                    <Button
-                      variant="outline-secondary"
-                      size="sm"
-                      disabled={currentPage === Math.ceil(items.length / itemsPerPage)}
-                      onClick={() => setCurrentPage((prev) => prev + 1)}
-                    >
-                      Next &raquo;
-                    </Button>
-                  </div>
-                </>
+                    ))}
+                  </tbody>
+                </Table>
+              ) : (
+                <div className="text-muted">No products added</div>
               )}
             </div>
 
-            {/* Actions */}
             <div className="mt-4 d-flex justify-content-end gap-2">
               <Button variant="secondary" onClick={() => navigate("/sales-order")}>
                 Cancel

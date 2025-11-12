@@ -514,7 +514,7 @@ const handleAddProduct = async () => {
         <Container className="main-container">
             <Row className="align-items-center mb-3">
                 <Col>
-                    <h4>Add New Inventory</h4>
+                    <h4>Add New Assemble</h4>
                 </Col>
                 <Col className="text-end">
                     <Button
@@ -628,8 +628,6 @@ const handleAddProduct = async () => {
                             </Form.Control.Feedback>
                         </Form.Group>
                     </Col>
-
-
                 </Row>
 
 
