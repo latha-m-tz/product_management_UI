@@ -33,6 +33,7 @@ export default function AddSalesPage() {
   const [items, setItems] = useState([]);
   const [formErrors, setFormErrors] = useState({});
   const [currentPage, setCurrentPage] = useState(1);
+  const [quantity, setQuantity] = useState(1);
   const itemsPerPage = 10;
 
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -41,7 +42,6 @@ export default function AddSalesPage() {
 
   const MySwal = withReactContent(Swal);
 
-  /** ✅ Load customers list */
   useEffect(() => {
     axios
       .get(`${API_BASE_URL}/customers/get`)
@@ -50,7 +50,6 @@ export default function AddSalesPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  /** ✅ Load draft or existing sale */
   useEffect(() => {
     const draft = localStorage.getItem("draftSale");
 
@@ -86,23 +85,56 @@ export default function AddSalesPage() {
         .catch(() => toast.error("Failed to load sale data"));
     }
   }, [saleId]);
-
-  /** ✅ Load selected products from AddProductPage */
   useEffect(() => {
     const stored = localStorage.getItem("selectedProducts");
     if (stored) {
       const selected = JSON.parse(stored);
-      const existingSerials = items.map((i) => i.serialNo);
-      const newProducts = selected
-        .filter((item) => !existingSerials.includes(item.serial_no))
-        .map((item) => ({
-          quantity: 1,
-          serialNo: item.serial_no,
-        }));
 
-      if (newProducts.length > 0) {
-        setItems((prev) => [...prev, ...newProducts]);
-      }
+      // Group by product_id
+      const grouped = selected.reduce((acc, item) => {
+        const key = item.product_id || "unknown";
+        if (!acc[key]) {
+          acc[key] = {
+            product_id: key,
+            product_name: item.product_name || "Unknown Product",
+            serials: [],
+          };
+        }
+        acc[key].serials.push(item.serial_no);
+        return acc;
+      }, {});
+
+      // Convert grouped object to array
+      const groupedArray = Object.values(grouped).map((g) => ({
+        product_id: g.product_id,
+        product_name: g.product_name,
+        serials: g.serials,
+        quantity: g.serials.length,
+      }));
+
+      setItems((prev) => {
+        const merged = [...prev];
+        groupedArray.forEach((newItem) => {
+          const existing = merged.find((m) => m.product_id === newItem.product_id);
+          if (existing) {
+            existing.serials = [...new Set([...existing.serials, ...newItem.serials])];
+            existing.quantity = existing.serials.length;
+          } else {
+            merged.push(newItem);
+          }
+        });
+
+        // ✅ Save active sale product IDs
+        // ✅ Always store product IDs as strings
+        const activeProductIds = merged.map((item) => String(item.product_id));
+        localStorage.setItem("inSaleProducts", JSON.stringify(activeProductIds));
+
+        // ✅ Dispatch update event so AddProductPage refreshes instantly
+        window.dispatchEvent(new Event("inSaleProductsUpdated"));
+
+        return merged;
+      });
+
       localStorage.removeItem("selectedProducts");
     }
   }, [navigate]);
@@ -110,7 +142,9 @@ export default function AddSalesPage() {
   /** ✅ Validation logic */
   const validateForm = () => {
     const errors = {};
-    if (!customerId || parseInt(customerId) <= 0) errors.customerId = "Customer is required";
+
+    if (!customerId || parseInt(customerId) <= 0)
+      errors.customerId = "Customer is required";
     if (!challanNo.trim()) errors.challanNo = "Challan No is required";
     if (!challanDate) errors.challanDate = "Challan Date is required";
     if (!shipmentDate) errors.shipmentDate = "Shipment Date is required";
@@ -123,10 +157,18 @@ export default function AddSalesPage() {
     } else {
       const serials = new Set();
       items.forEach((item, index) => {
-        if (!item.serialNo.trim()) errors[`serialNo_${index}`] = "Serial No is required";
-        if (serials.has(item.serialNo))
-          errors[`serialNo_${index}`] = `Duplicate Serial No: ${item.serialNo}`;
-        serials.add(item.serialNo);
+        if (!item.serials || item.serials.length === 0) {
+          errors[`serials_${index}`] = `No serials selected for ${item.product_name}`;
+        } else {
+          item.serials.forEach((sn) => {
+            const trimmed = String(sn || "").trim();
+            if (!trimmed)
+              errors[`serials_${index}`] = `Empty serial found for ${item.product_name}`;
+            if (serials.has(trimmed))
+              errors[`serials_${index}`] = `Duplicate serial number: ${trimmed}`;
+            serials.add(trimmed);
+          });
+        }
       });
     }
 
@@ -134,7 +176,6 @@ export default function AddSalesPage() {
     return Object.keys(errors).length === 0;
   };
 
-  /** ✅ Save handler */
   const handleSave = async () => {
     if (!validateForm()) return;
 
@@ -145,11 +186,13 @@ export default function AddSalesPage() {
       shipment_date: shipmentDate,
       shipment_name: shipmentName.trim(),
       notes: notes.trim(),
-      items: items.map((item) => ({
-        id: item.id,
-        quantity: parseInt(item.quantity || 1),
-        serial_no: item.serialNo.trim(),
-      })),
+      items: items.flatMap((item) =>
+        item.serials.map((sn) => ({
+          product_id: item.product_id,
+          serial_no: String(sn).trim(),
+          quantity: 1,
+        }))
+      ),
     };
 
     try {
@@ -160,6 +203,8 @@ export default function AddSalesPage() {
         await axios.post(`${API_BASE_URL}/sales`, payload);
         toast.success("Sale added successfully!");
       }
+      localStorage.removeItem("inSaleProducts");
+      localStorage.removeItem("selectedProducts");
       navigate("/sales-order");
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to save sale!");
@@ -193,11 +238,11 @@ export default function AddSalesPage() {
   };
 
   const removeItem = (index) => {
-    const removedItem = items[index]; // store the item to show in toast
+    const removedItem = items[index];
 
     MySwal.fire({
       title: "Are you sure?",
-      text: `Do you want to remove product with Serial No "${removedItem.serialNo}"?`,
+      text: `Do you want to remove all serials for "${removedItem.product_name}"?`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#d33",
@@ -205,22 +250,25 @@ export default function AddSalesPage() {
       confirmButtonText: "Yes, delete it!",
     }).then((result) => {
       if (result.isConfirmed) {
-        // Remove the item from state
-        setItems(items.filter((_, i) => i !== index));
+        const updatedItems = items.filter((_, i) => i !== index);
+        setItems(updatedItems);
 
-        // Remove errors related to this item
-        setFormErrors((prev) => {
-          const updated = { ...prev };
-          delete updated[`serialNo_${index}`];
-          delete updated[`quantity_${index}`];
-          return updated;
-        });
+        const stored = localStorage.getItem("inSaleProducts");
+        if (stored) {
+          const existing = JSON.parse(stored);
+          const filtered = existing.filter((id) => id !== String(removedItem.product_id));
+          localStorage.setItem("inSaleProducts", JSON.stringify(filtered));
+        }
 
-        // Show toast
-        toast.success(`Product with Serial No "${removedItem.serialNo}" deleted!`);
+        // 🟢 Trigger event so AddProductPage updates immediately
+        window.dispatchEvent(new Event("inSaleProductsUpdated"));
+
+        toast.success(`"${removedItem.product_name}" removed successfully!`);
       }
     });
   };
+
+
 
 
   const RequiredLabel = ({ children }) => (
@@ -272,7 +320,7 @@ export default function AddSalesPage() {
                       <option value="">-- Select Customer --</option>
                       {customers.map((cust) => (
                         <option key={cust.id} value={cust.id}>
-                          {cust.customer} ({cust.email})
+                          {cust.customer}  {cust.city ? `(${cust.city})` : ""}
                         </option>
                       ))}
                     </Form.Select>
@@ -392,72 +440,34 @@ export default function AddSalesPage() {
               )}
 
               {items.length > 0 && (
-                <>
-                  <Table bordered hover size="sm">
-                    <thead>
-                      <tr>
-                        <th>Serial No</th>
-                        <th>Action</th>
+                <Table bordered hover size="sm">
+                  <thead className="table-light">
+                    <tr>
+                      <th>Product</th>
+                      <th>Quantity</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map((item, index) => (
+                      <tr key={index}>
+                        <td>{item.product_name}</td>
+                        <td>{item.quantity}</td>
+                        <td className="text-center">
+                          <Button
+                            variant="outline-danger"
+                            size="sm"
+                            onClick={() => removeItem(index)}
+                          >
+                            <IoTrashOutline />
+                          </Button>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {paginatedItems.map((item, index) => (
-                        <tr key={startIndex + index}>
-                          <td>
-                            <Form.Control
-                              type="text"
-                              value={item.serialNo}
-                              isInvalid={!!formErrors[`serialNo_${startIndex + index}`]}
-                              onChange={(e) =>
-                                handleItemChange(startIndex + index, "serialNo", e.target.value)
-                              }
-                            />
-                            <Form.Control.Feedback type="invalid">
-                              {formErrors[`serialNo_${startIndex + index}`]}
-                            </Form.Control.Feedback>
-                          </td>
-                          <td className="text-center">
-                            <Button
-                              variant="outline-danger"
-                              size="sm"
-                              onClick={() => removeItem(startIndex + index)}
-                            >
-                              <IoTrashOutline />
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </Table>
-
-                  {/* Pagination */}
-                  <div className="d-flex justify-content-between align-items-center">
-                    <Button
-                      variant="outline-secondary"
-                      size="sm"
-                      disabled={currentPage === 1}
-                      onClick={() => setCurrentPage((prev) => prev - 1)}
-                    >
-                      &laquo; Previous
-                    </Button>
-
-                    <span>
-                      Page {currentPage} of {Math.ceil(items.length / itemsPerPage)}
-                    </span>
-
-                    <Button
-                      variant="outline-secondary"
-                      size="sm"
-                      disabled={
-                        currentPage === Math.ceil(items.length / itemsPerPage)
-                      }
-                      onClick={() => setCurrentPage((prev) => prev + 1)}
-                    >
-                      Next &raquo;
-                    </Button>
-                  </div>
-                </>
+                    ))}
+                  </tbody>
+                </Table>
               )}
+
             </div>
 
             {/* Actions */}

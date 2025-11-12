@@ -10,7 +10,6 @@ import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../api";
 import Breadcrumb from "../components/BreadCrumb";
 import Pagination from "../components/Pagination";
-import ActionButtons from "../components/ActionButton";
 import Search from "../components/Search";
 
 export default function ServiceList() {
@@ -82,6 +81,7 @@ export default function ServiceList() {
       <Breadcrumb title="Service List" />
 
       <Card className="border-0 shadow-sm rounded-3 p-2 px-4 mt-2 bg-white">
+        {/* Top Controls */}
         <div className="row mb-2">
           <div className="col-md-6 d-flex align-items-center mb-2 mb-md-0">
             <label className="me-2 fw-semibold mb-0">Records Per Page:</label>
@@ -127,13 +127,7 @@ export default function ServiceList() {
                 + Add Service
               </Button>
             </div>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "flex-end",
-                alignItems: "center",
-              }}
-            >
+            <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center" }}>
               <Search
                 search={search}
                 setSearch={setSearch}
@@ -146,11 +140,9 @@ export default function ServiceList() {
           </div>
         </div>
 
+        {/* Service Table */}
         <div className="table-responsive">
-          <Table
-            className="table-sm align-middle mb-0"
-            style={{ fontSize: "0.85rem" }}
-          >
+          <Table className="table-sm align-middle mb-0" style={{ fontSize: "0.85rem" }}>
             <thead
               style={{
                 backgroundColor: "#2E3A59",
@@ -162,15 +154,13 @@ export default function ServiceList() {
             >
               <tr>
                 <th style={{ ...headerStyle, width: "60px", textAlign: "center" }}>S.No</th>
+                <th style={headerStyle}>Vendor Name</th>
                 <th style={headerStyle}>Challan No</th>
                 <th style={headerStyle}>Challan Date</th>
-                <th style={headerStyle}>Send Date</th>
-                <th style={headerStyle}>Received Date</th>
-                <th style={headerStyle}>Quantity</th>
+                <th style={headerStyle}>VCI Serial No</th>
                 <th style={headerStyle}>Status</th>
-                <th style={{ ...headerStyle, width: "130px", textAlign: "center" }}>
-                  Action
-                </th>
+                <th style={headerStyle}>Created Time</th>
+                <th style={{ ...headerStyle, width: "130px", textAlign: "center" }}>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -191,67 +181,91 @@ export default function ServiceList() {
                   </td>
                 </tr>
               ) : (
-                paginatedServices.map((service, index) => (
-                  <tr key={service.id}>
-                    <td className="text-center">
-                      {(page - 1) * perPage + index + 1}
-                    </td>
-                    <td   style={{ fontSize: "0.90rem" }}>{service.challan_no}</td>
-                    <td   style={{ fontSize: "0.90rem" }}>{service.challan_date}</td>
-                    <td   style={{ fontSize: "0.90rem" }}>{service.sent_date}</td>
-                    <td   style={{ fontSize: "0.90rem" }}>{service.received_date}</td>
-                    <td   style={{ fontSize: "0.90rem" }}>{service.quantity}</td>
-                    <td   style={{ fontSize: "0.90rem" }}>{service.status || "Active"}</td>
-                    <td className="text-center">
-                      <Button
-                        variant=""
-                        size="sm"
-                        className="me-1"
-                        onClick={() => navigate(`/service/${service.id}/edit`)}
-                        style={{ borderColor: "#2E3A59", color: "#2E3A59" }}
-                      >
-                        <i className="bi bi-pencil-square"></i>
-                      </Button>
-                      <Button
-                        variant="outline-primary"
-                        size="sm"
-                        onClick={() => handleDelete(service.id)}
-                        style={{
-                          borderColor: "#2E3A59",
-                          color: "#2E3A59",
-                          backgroundColor: "transparent",
-                        }}
-                      >
-                        <i className="bi bi-trash"></i>
-                      </Button>
-                      <Button
-                        variant=""
-                        size="sm"
-                        onClick={() => navigate(`/service-product/${service.id}/view`)}
-                        style={{
-                          borderColor: "#2E3A59",
-                          color: "#2E3A59",
-                          backgroundColor: "transparent",
-                          marginLeft: "4px",
-                        }}
-                      >
-                        <i className="bi bi-eye"></i>
-                      </Button>
-                    </td>
-                  </tr>
-                ))
+                paginatedServices.flatMap((service, index) =>
+                  service.items.length > 0
+                    ? service.items.map((item, itemIndex) => (
+                      <tr key={item.id}>
+                        <td className="text-center">{(page - 1) * perPage + index + 1}</td>
+                        <td style={{ fontSize: "0.90rem" }}>{service.vendor || "N/A"}</td>
+                        <td>{service.challan_no}</td>
+                        <td>{service.challan_date}</td>
+                        <td>{item.vci_serial_no}</td>
+                        <td>{item.status ? item.status.charAt(0).toUpperCase() + item.status.slice(1) : "-"}</td>
+                        <td>{item.created_at ? new Date(item.created_at).toLocaleString() : "-"}</td>
+                        <td className="text-center">
+                          <Button
+                            variant=""
+                            size="sm"
+                            className="me-1"
+                            onClick={() => navigate(`/service/${service.id}/edit`)}
+                            style={{ borderColor: "#2E3A59", color: "#2E3A59" }}
+                          >
+                            <i className="bi bi-pencil-square"></i>
+                          </Button>
+                          <Button
+                            variant="outline-primary"
+                            size="sm"
+                            onClick={() => handleDelete(service.id)}
+                            style={{ borderColor: "#2E3A59", color: "#2E3A59", backgroundColor: "transparent" }}
+                          >
+                            <i className="bi bi-trash"></i>
+                          </Button>
+                          {/* <Button
+                            variant=""
+                            size="sm"
+                            onClick={() => navigate(`/service-product/${service.id}/view`)}
+                            style={{ borderColor: "#2E3A59", color: "#2E3A59", backgroundColor: "transparent", marginLeft: "4px" }}
+                          >
+                            <i className="bi bi-eye"></i>
+                          </Button> */}
+                        </td>
+                      </tr>
+                    ))
+                    : [
+                      <tr key={service.id}>
+                        <td className="text-center">{(page - 1) * perPage + index + 1}</td>
+                        <td style={{ fontSize: "0.90rem" }}>{service.vendor || "N/A"}</td>
+                        <td>{service.challan_no}</td>
+                        <td>{service.challan_date}</td>
+                        <td>-</td>
+                        <td>{service.status ? service.status.charAt(0).toUpperCase() + service.status.slice(1) : "-"}</td>
+                        <td>{service.created_at ? new Date(service.created_at).toLocaleString() : "-"}</td>
+                        <td className="text-center">
+                          <Button
+                            variant=""
+                            size="sm"
+                            className="me-1"
+                            onClick={() => navigate(`/service/${service.id}/edit`)}
+                            style={{ borderColor: "#2E3A59", color: "#2E3A59" }}
+                          >
+                            <i className="bi bi-pencil-square"></i>
+                          </Button>
+                          <Button
+                            variant="outline-primary"
+                            size="sm"
+                            onClick={() => handleDelete(service.id)}
+                            style={{ borderColor: "#2E3A59", color: "#2E3A59", backgroundColor: "transparent" }}
+                          >
+                            <i className="bi bi-trash"></i>
+                          </Button>
+                          <Button
+                            variant=""
+                            size="sm"
+                            onClick={() => navigate(`/service-product/${service.id}/view`)}
+                            style={{ borderColor: "#2E3A59", color: "#2E3A59", backgroundColor: "transparent", marginLeft: "4px" }}
+                          >
+                            <i className="bi bi-eye"></i>
+                          </Button>
+                        </td>
+                      </tr>,
+                    ]
+                )
               )}
             </tbody>
           </Table>
         </div>
 
-        <Pagination
-          page={page}
-          setPage={setPage}
-          perPage={perPage}
-          totalEntries={filteredServices.length}
-
-        />
+        <Pagination page={page} setPage={setPage} perPage={perPage} totalEntries={filteredServices.length} />
       </Card>
     </div>
   );

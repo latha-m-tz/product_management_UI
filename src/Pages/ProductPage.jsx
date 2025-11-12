@@ -39,8 +39,8 @@ export default function ProductPage() {
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
   const [search, setSearch] = useState("");
-  const [sortField, setSortField] = useState(null);
-  const [sortDirection, setSortDirection] = useState("asc");
+  // const [sortField, setSortField] = useState(null);
+  // const [sortDirection, setSortDirection] = useState("asc");
 
   const MySwal = withReactContent(Swal);
 
@@ -159,29 +159,29 @@ export default function ProductPage() {
     });
   };
 
-  const handleSort = (field) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
-    } else {
-      setSortField(field);
-      setSortDirection("asc");
-    }
-  };
+  // const handleSort = (field) => {
+  //   if (sortField === field) {
+  //     setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+  //   } else {
+  //     setSortField(field);
+  //     setSortDirection("asc");
+  //   }
+  // };
 
   const filteredProducts = products.filter((p) =>
     p.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  const sortedProducts = [...filteredProducts].sort((a, b) => {
-    if (!sortField) return 0;
-    let valA = a[sortField];
-    let valB = b[sortField];
-    if (valA < valB) return sortDirection === "asc" ? -1 : 1;
-    if (valA > valB) return sortDirection === "asc" ? 1 : -1;
-    return 0;
-  });
+  // const sortedProducts = [...filteredProducts].sort((a, b) => {
+  //   if (!sortField) return 0;
+  //   let valA = a[sortField];
+  //   let valB = b[sortField];
+  //   if (valA < valB) return sortDirection === "asc" ? -1 : 1;
+  //   if (valA > valB) return sortDirection === "asc" ? 1 : -1;
+  //   return 0;
+  // });
 
-  const paginatedProducts = sortedProducts.slice(
+  const paginatedProducts = filteredProducts.slice(
     (page - 1) * perPage,
     page * perPage
   );
@@ -263,12 +263,8 @@ export default function ProductPage() {
             <thead style={headerStyle}>
               <tr>
                 <th style={{ width: "60px", textAlign: "center", backgroundColor: "#2E3A59", color: "white" }}>S.No</th>
-                <th onClick={() => handleSort("name")} style={{ cursor: "pointer", backgroundColor: "#2E3A59", color: "white" }}>
-                  Product Name {sortField === "name" && (sortDirection === "asc" ? "▲" : "▼")}
-                </th>
-                <th style={{ cursor: "pointer", backgroundColor: "#2E3A59", color: "white" }} onClick={() => handleSort("product_type_name")}>
-                  Product Type {sortField === "product_type_name" && (sortDirection === "asc" ? "▲" : "▼")}
-                </th>
+                <th style={{ backgroundColor: "#2E3A59", color: "white" }}>Product Name</th>
+                <th style={{ backgroundColor: "#2E3A59", color: "white" }}>Product Type</th>
                 <th style={{ width: "130px", textAlign: "center", backgroundColor: "#2E3A59", color: "white" }}>Action</th>
               </tr>
             </thead>
@@ -358,16 +354,16 @@ export default function ProductPage() {
             )}
           </Form.Group>
 
-         <Form.Group className="mb-3">
-  <Form.Label>Product Type</Form.Label>
-  <Form.Select
-    value={productTypeName || "VCI"} // default to VCI
-    onChange={(e) => setProductTypeName(e.target.value)}
-  >
-    <option value="VCI">vci</option>
-    {/* Add more options as needed */}
-  </Form.Select>
-</Form.Group>
+          <Form.Group className="mb-3">
+            <Form.Label>Product Type</Form.Label>
+            <Form.Select
+              value={productTypeName || "VCI"} // default to VCI
+              onChange={(e) => setProductTypeName(e.target.value)}
+            >
+              <option value="VCI">VCI</option>
+              {/* Add more options as needed */}
+            </Form.Select>
+          </Form.Group>
 
 
           {/* <Form.Group className="mb-3">

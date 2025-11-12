@@ -365,7 +365,7 @@ export default function App() {
                 paginated.map((part, index) => (
                   <tr key={part.id}>
                     <td className="text-center" style={{ width: "70px" }}>{(page - 1) * perPage + index + 1}</td>
-                    <td className="text-center" style={{ wordBreak: "break-word", fontSize: "0.90rem" }}>{part.name}</td>
+                    <td className="text-start" style={{ wordBreak: "break-word", fontSize: "0.90rem" }}>{part.name}</td>
 
                     <td className="text-center" style={{ wordBreak: "break-word", fontSize: "0.90rem" }}>{part.code ?? "-"}</td>
                     <td className="text-center" style={{ wordBreak: "break-word", fontSize: "0.90rem" }}>

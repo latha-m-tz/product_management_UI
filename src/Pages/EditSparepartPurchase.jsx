@@ -301,52 +301,79 @@ export default function EditSparepartPurchase({ purchaseId }) {
 
         setInitialItems(p.items || []);
 
+const groups = [];
 
-        const groups = {};
-        (p.items || []).forEach((item) => {
-          const key = `${item.sparepart_id}__${item.product_id || ""}__${item.warranty_status || "Active"}`;
+(p.items || []).forEach((item) => {
+  const spareId = item.sparepart_id;
+  const productId = item.product_id || "";
+  const warranty = item.warranty_status || "Active";
 
-          if (!groups[key]) {
-            groups[key] = {
-              sparepart_id: item.sparepart_id,
-              product_id: item.product_id || "",
-              warranty_status: item.warranty_status || "Active",
-              serials: [],
-              qty: 0,
-              id: null, // we'll pick first item's ID later if needed
-            };
-          }
-          if (item.serial_no) {
-            if (!groups[key].serials.includes(item.serial_no)) {
-              groups[key].serials.push(item.serial_no);
-              groups[key].qty = groups[key].serials.length;
-            }
-          } else {
-            groups[key].qty = item.quantity ? Number(item.quantity) : 0;
-          }
+  // Find if an existing group can continue (only if contiguous serials)
+  let targetGroup = null;
 
-          // save first ID as representative
-          if (!groups[key].ids) groups[key].ids = [];
-          if (item.id) groups[key].ids.push(item.id);
+  if (item.serial_no) {
+    const serial = item.serial_no;
 
-        });
+    for (const g of groups) {
+      if (
+        g.sparepart_id === spareId &&
+        g.product_id === productId &&
+        g.warranty_status === warranty
+      ) {
+        const lastSerial = g.serials[g.serials.length - 1];
+        const parsedLast = parseSerial(lastSerial);
+        const parsedCurr = parseSerial(serial);
 
-        const mappedBackend = Object.values(groups).map((g) => {
-          const from_serial = g.serials[0] || "";
-          const to_serial = g.serials[g.serials.length - 1] || "";
-          const qty = g.qty || (g.serials?.length || "");
+        if (
+          parsedLast.prefix === parsedCurr.prefix &&
+          parsedCurr.num === parsedLast.num + 1
+        ) {
+          targetGroup = g;
+          break;
+        }
+      }
+    }
+  }
 
-          return {
-            id: g.id,
-            sparepart_id: g.sparepart_id || "",
-            product_id: g.product_id || "",
-            qty,
-            warranty_status: g.warranty_status || "Active",
-            from_serial,
-            to_serial,
-            serials: g.serials?.filter(Boolean) || [],
-          };
-        });
+  if (!targetGroup) {
+    targetGroup = {
+      sparepart_id: spareId,
+      product_id: productId,
+      warranty_status: warranty,
+      serials: [],
+      qty: 0,
+      ids: [],
+    };
+    groups.push(targetGroup);
+  }
+
+  if (item.serial_no) {
+    if (!targetGroup.serials.includes(item.serial_no)) {
+      targetGroup.serials.push(item.serial_no);
+    }
+    targetGroup.qty = targetGroup.serials.length;
+  } else {
+    targetGroup.qty += Number(item.quantity) || 0;
+  }
+
+  if (item.id) targetGroup.ids.push(item.id);
+});
+
+
+     const mappedBackend = groups.map((g) => {
+  const from_serial = g.serials[0] || "";
+  const to_serial = g.serials[g.serials.length - 1] || "";
+  return {
+    id: g.id,
+    sparepart_id: g.sparepart_id,
+    product_id: g.product_id,
+    qty: g.qty,
+    warranty_status: g.warranty_status,
+    from_serial,
+    to_serial,
+    serials: g.serials || [],
+  };
+});
 
         const newFrontendRows = spareparts.filter(
           (sp) =>
@@ -482,12 +509,7 @@ const handleInputChange = (index, field, value) => {
       const fromNum = parseInt(fromSerial, 10);
       const toNum = parseInt(toSerial, 10);
 
-      if (toNum < fromNum) {
-        toast.error("To Serial must be greater than From Serial");
-        updated[index].qty = "";
-      } else {
-        updated[index].qty = toNum - fromNum + 1;
-      }
+     
     }
 
     setSpareparts(updated);
@@ -652,92 +674,80 @@ useEffect(() => {
 
 
 
-  const handleSubmit = async () => {
-    if (!validateForm()) {
-      toast.error("Please fix the errors below");
-      return;
-    }
+const handleSubmit = async () => {
+  if (!validateForm()) {
+    toast.error("Please fix the errors below");
+    return;
+  }
 
-    try {
-      const payload = new FormData();
-      payload.append("_method", "PUT");
+  try {
+    const payload = new FormData();
+    payload.append("_method", "PUT");
 
-      payload.append("vendor_id", String(vendorId || ""));
-      payload.append("vendor_id", vendorIdOnly || "");
-      payload.append("contact_person_id", contactPersonId && contactPersonId !== "0" ? contactPersonId : "");
-      payload.append("challan_no", String(challanNo || ""));
-      const formatDateForBackend = (dateStr) => {
-        if (!dateStr) return "";
-        return dateStr; // ✅ keep as YYYY-MM-DD
-      };
-      payload.append("challan_date", formatDateForBackend(challanDate));
-      payload.append("received_date", formatDateForBackend(receivedDate));
-      payload.append("tracking_number", String(trackingNumber || ""));
-      payload.append("courier_name", String(courier_name || ""));
+    payload.append("vendor_id", String(vendorId || ""));
+    payload.append("vendor_id", vendorIdOnly || "");
+    payload.append(
+      "contact_person_id",
+      contactPersonId && contactPersonId !== "0" ? contactPersonId : ""
+    );
+    payload.append("challan_no", String(challanNo || ""));
+    const formatDateForBackend = (dateStr) => (dateStr ? dateStr : "");
+    payload.append("challan_date", formatDateForBackend(challanDate));
+    payload.append("received_date", formatDateForBackend(receivedDate));
+    payload.append("tracking_number", String(trackingNumber || ""));
+    payload.append("courier_name", String(courier_name || ""));
 
-      spareparts.forEach((sp, i) => {
-        payload.append(`items[${i}][id]`, sp.id || "");
-        payload.append(`items[${i}][sparepart_id]`, sp.sparepart_id || "");
-        // payload.append(`items[${i}][product_id]`, sp.product_id || "");
-        payload.append(`items[${i}][from_serial]`, sp.from_serial || "");
-        payload.append(`items[${i}][to_serial]`, sp.to_serial || "");
-        payload.append(`items[${i}][warranty_status]`, sp.warranty_status || "");
-        payload.append(
-          `items[${i}][quantity]`,
-          sp.serials?.length ? sp.serials.length : Number(sp.qty) || 0
-        );
-
-        // ✅ If serials exist, send as array
-        (sp.serials || []).forEach((serial, j) => {
-          payload.append(`items[${i}][serials][${j}]`, serial);
-        });
-      });
-
-      deletedSparepartIds.forEach((id, i) => payload.append(`deleted_ids[${i}]`, id));
-      // ✅ Send document_recipient (array)
-      if (recipientFiles && recipientFiles.length > 0) {
-        recipientFiles.forEach((file, i) => {
-          if (file instanceof File) {
-            payload.append(`document_recipient[${i}]`, file);
-          }
-        });
-      }
-
-      // ✅ Send document_challan (array)
-      // if (challanFiles && challanFiles.length > 0) {
-      //   challanFiles.forEach((file, i) => {
-      //     if (file instanceof File) {
-      //       payload.append(`document_challan[${i}]`, file);
-      //     }
-      //   });
-      // }
-
-
-      // // ✅ Append removed files as JSON string
-      payload.append("removed_recipient_files", JSON.stringify(removedFiles.recipient || []));
-      // payload.append("removed_challan_files", JSON.stringify(removedFiles.challan || []));
-
-
-
-      const res = await axios.post(
-        `${API_BASE_URL}/purchaseUpdate/${purchaseKey}`,
-        payload,
-        { headers: { "Content-Type": "multipart/form-data" } }
+    spareparts.forEach((sp, i) => {
+      payload.append(`items[${i}][id]`, sp.id || "");
+      payload.append(`items[${i}][sparepart_id]`, sp.sparepart_id || "");
+      payload.append(`items[${i}][from_serial]`, sp.from_serial || "");
+      payload.append(`items[${i}][to_serial]`, sp.to_serial || "");
+      payload.append(`items[${i}][warranty_status]`, sp.warranty_status || "");
+      payload.append(
+        `items[${i}][quantity]`,
+        sp.serials?.length ? sp.serials.length : Number(sp.qty) || 0
       );
 
-      toast.success("Purchase updated successfully!");
-      navigate("/spare-partsPurchase");
-    } catch (err) {
-      console.error(err);
+      // ✅ Send serials as array
+      (sp.serials || []).forEach((serial, j) => {
+        payload.append(`items[${i}][serials][${j}]`, serial);
+      });
+    });
 
-      const backendError =
-        err.response?.data?.errors?.items?.[0] ||
-        err.response?.data?.message ||
-        "Failed to update purchase";
+    deletedSparepartIds.forEach((id, i) => payload.append(`deleted_ids[${i}]`, id));
 
-      toast.error(backendError);
+    if (recipientFiles && recipientFiles.length > 0) {
+      recipientFiles.forEach((file, i) => {
+        if (file instanceof File) {
+          payload.append(`document_recipient[${i}]`, file);
+        }
+      });
     }
-  };
+
+    payload.append(
+      "removed_recipient_files",
+      JSON.stringify(removedFiles.recipient || [])
+    );
+
+    const res = await axios.post(
+      `${API_BASE_URL}/purchaseUpdate/${purchaseKey}`,
+      payload,
+      { headers: { "Content-Type": "multipart/form-data" } }
+    );
+
+    toast.success("Purchase updated successfully!");
+    navigate("/spare-partsPurchase");
+  } catch (err) {
+    console.error(err);
+
+    const backendError =
+      err.response?.data?.errors?.items?.[0] ||
+      err.response?.data?.message ||
+      "Failed to update purchase";
+
+    toast.error(backendError);
+  }
+};
 
 
 
