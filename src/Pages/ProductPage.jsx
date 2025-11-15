@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import api, { setAuthToken } from "../api";
 import {
   Button,
   Spinner,
@@ -21,7 +21,6 @@ import Select from "react-select";
 import BreadCrumb from "../components/BreadCrumb";
 import Pagination from "../components/Pagination";
 import Search from "../components/Search";
-import { API_BASE_URL } from "../api";
 
 export default function ProductPage() {
   const [products, setProducts] = useState([]);
@@ -45,14 +44,18 @@ export default function ProductPage() {
   const MySwal = withReactContent(Swal);
 
   useEffect(() => {
+    const token = localStorage.getItem("authToken");
+    if (token) setAuthToken(token);
+
     fetchProducts();
     fetchSpareparts();
   }, []);
 
+
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE_URL}/product`);
+      const res = await api.get("/product");
       setProducts(Array.isArray(res.data) ? res.data : []);
     } catch {
       toast.error("Failed to fetch products!");
@@ -63,7 +66,7 @@ export default function ProductPage() {
 
   const fetchSpareparts = async () => {
     try {
-      const res = await axios.get(`${API_BASE_URL}/spareparts/get`);
+    const res = await api.get("/spareparts/get");
       setSpareparts(Array.isArray(res.data) ? res.data : res.data.spareparts || []);
     } catch {
       toast.error("Failed to load spare parts!");
@@ -74,7 +77,7 @@ export default function ProductPage() {
     setEditingProductId(null);
     setProductName("");
     setRequirementPerProduct("");
-    setProductTypeName("vci");
+    setProductTypeName("VCI");
     setSelectedSpareparts([]);
     setProductNameError(false);
     setShowModal(true);
@@ -94,8 +97,11 @@ export default function ProductPage() {
     setEditingProductId(product.id);
     setProductName(product.name);
     setRequirementPerProduct(product.requirement_per_product || "");
-    setProductTypeName(product.product_type_name || "");
-
+    setProductTypeName(
+      product.product_type_name && product.product_type_name !== "-"
+        ? product.product_type_name
+        : "VCI"
+    );
     const mapped = product.spareparts?.map((sp) => ({
       id: sp.id,
       name: sp.name,
@@ -123,10 +129,10 @@ export default function ProductPage() {
 
     try {
       if (editingProductId) {
-        await axios.put(`${API_BASE_URL}/product/${editingProductId}`, payload);
+        await api.put(`/product/${editingProductId}`, payload);
         toast.success("Product updated successfully!");
       } else {
-        await axios.post(`${API_BASE_URL}/product`, payload);
+        await api.post(`/product`, payload);
         toast.success("Product added successfully!");
       }
       await fetchProducts();
@@ -149,7 +155,7 @@ export default function ProductPage() {
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
-          await axios.delete(`${API_BASE_URL}/product/${id}`);
+          await api.delete(`/product/${id}`);
           toast.success("Product deleted!");
           await fetchProducts();
         } catch {
@@ -281,8 +287,8 @@ export default function ProductPage() {
                 paginatedProducts.map((product, index) => (
                   <tr key={product.id}>
                     <td className="text-center">{(page - 1) * perPage + index + 1}</td>
-                    <td>{product.name}</td>
-                    <td>{product.product_type_name || "-"}</td>
+                    <td style={{ fontSize: "0.90rem" }}>{product.name}</td>
+                    <td style={{ fontSize: "0.90rem" }}>{product.product_type_name || "-"}</td>
                     <td className="text-center">
                       <Button
                         variant=""

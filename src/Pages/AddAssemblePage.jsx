@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from 'react-toastify';
-import axios from "axios";
+import api, { setAuthToken } from "../api";
 import { Table, Button, Form, Card, Row, Col, Container } from "react-bootstrap";
 import { IoArrowBack, IoTrashOutline, IoChevronBack, IoChevronForward } from "react-icons/io5";
 import "datatables.net-dt/css/dataTables.dataTables.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import '../index.css';
-import { API_BASE_URL } from "../api";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
 
@@ -73,16 +72,22 @@ export default function AddAssemblePage() {
             setForm(prev => ({ ...prev, testedBy: loggedInName }));
         }
     }, []);
+useEffect(() => {
+  const token = localStorage.getItem("authToken");
+  if (token) {
+    setAuthToken(token); // sets default Authorization header for api instance
+  }
+}, []);
 
     useEffect(() => {
-        axios.get(`${API_BASE_URL}/product`)
+        api.get("/product")
             .then(res => setAllProducts(res.data))
             .catch(err => console.error("Error fetching products:", err));
     }, []);
     useEffect(() => {
         const fetchUsers = async () => {
             try {
-                const res = await axios.get(`${API_BASE_URL}/users`);
+                const res = await api.get("/users");
                 setUsers(res.data);
             } catch (error) {
                 console.error("Error fetching users:", error);
@@ -93,7 +98,7 @@ export default function AddAssemblePage() {
     useEffect(() => {
         const fetchUsers = async () => {
             try {
-                const res = await axios.get(`${API_BASE_URL}/users`);
+                const res = await api.get("/users");
                 setUsers(res.data);
             } catch (error) {
                 console.error("Error fetching users:", error);
@@ -105,7 +110,7 @@ export default function AddAssemblePage() {
         const today = new Date().toISOString().split("T")[0]; 
         setForm((prev) => ({
             ...prev,
-            testedDate: prev.testedDate || today, // only set if empty
+            testedDate: prev.testedDate || today, 
         }));
     }, []);
     const handleDeleteRange = () => {
@@ -178,7 +183,7 @@ export default function AddAssemblePage() {
     }, [fromSerialSearch, toSerialSearch, products]);
 
     useEffect(() => {
-        axios.get(`${API_BASE_URL}/product-types`)
+        api.get("/product-types")
             .then((res) => setProductTypes(res.data))
             .catch((err) => console.error(err));
     }, []);
@@ -286,7 +291,7 @@ const handleAddProduct = async () => {
 
     try {
         // 🔹 Check serials with API
-        const checkRes = await axios.post(`${API_BASE_URL}/check-serials-purchased`, {
+        const checkRes = await api.post("/check-serials-purchased", {
             product_id: parseInt(product_id, 10),
             serials: serialsToAdd,
         });
@@ -413,7 +418,7 @@ const handleAddProduct = async () => {
             };
 
             // ✅ Call API to check if serials are purchased
-            const checkRes = await axios.post(`${API_BASE_URL}/check-serials-purchased`, checkPayload);
+            const checkRes = await api.post("/check-serials-purchased", checkPayload);
 
             const purchasedSerials = checkRes.data.purchased || [];
             const notPurchasedSerials = checkRes.data.not_purchased || [];
@@ -451,7 +456,7 @@ const handleAddProduct = async () => {
             };
 
             // ✅ Save purchased serials to inventory
-            const response = await axios.post(`${API_BASE_URL}/inventory`, payload);
+            const response = await api.post("/inventory", payload);
 
             toast.success(response.data.message || "Inventory saved successfully!");
             navigate("/assemble");

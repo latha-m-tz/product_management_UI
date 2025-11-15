@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import api, { setAuthToken ,API_BASE_URL } from "../api";
 import { Card, Row, Col, Button, Spinner } from "react-bootstrap";
-import { API_BASE_URL } from "../api";
 import { getCountryCallingCode } from "react-phone-number-input";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import metadata from "libphonenumber-js/metadata.full.json";
@@ -27,6 +27,8 @@ export default function ViewVendor() {
   };
 
   useEffect(() => {
+    const token = localStorage.getItem("token");
+    setAuthToken(token);
     setLoading(true);
     fetch(`${API_BASE_URL}/vendors/get/${id}`)
       .then((res) => res.json())

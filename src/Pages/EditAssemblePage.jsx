@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import api, { setAuthToken } from "../api";
 import {
   Table,
   Button,
@@ -16,15 +17,10 @@ import {
   IoChevronForward,
 } from "react-icons/io5";
 import { toast } from "react-toastify";
-import axios from "axios";
 import { useNavigate, useParams } from "react-router-dom";
-import { FaQrcode } from "react-icons/fa";
 import "../index.css";
-import { API_BASE_URL } from "../api";
 import "datatables.net-dt/css/dataTables.dataTables.css";
 import "bootstrap/dist/css/bootstrap.min.css";
-import DatePicker from "../components/DatePicker";
-import QrScannerPage from "./QrScannerPage";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
 
@@ -159,12 +155,15 @@ export default function EditAssemblePage() {
 
 
   useEffect(() => {
+    const token = localStorage.getItem("authToken");
+    if (token) setAuthToken(token);
+
     const fetchData = async () => {
       try {
         const [typesRes, productsRes, rangeRes] = await Promise.all([
-          axios.get(`${API_BASE_URL}/product-types`),
-          axios.get(`${API_BASE_URL}/product`),
-          axios.get(`${API_BASE_URL}/inventory/serialrange/${routeFromSerial}/${routeToSerial}`),
+          api.get("/product-types"),
+          api.get("/product"),
+          api.get(`/inventory/serialrange/${routeFromSerial}/${routeToSerial}`),
         ]);
 
         // setProductTypes(typesRes.data);
@@ -220,7 +219,7 @@ export default function EditAssemblePage() {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const res = await axios.get(`${API_BASE_URL}/users`);
+        const res = await api.get("/users");
         setUsers(res.data);
       } catch (error) {
         console.error("Error fetching users:", error);
@@ -485,8 +484,8 @@ export default function EditAssemblePage() {
       };
 
 
-      const response = await axios.put(
-        `${API_BASE_URL}/inventory/serialrange/${routeFromSerial}/${routeToSerial}`,
+      const response = await api.put(
+        `/inventory/serialrange/${routeFromSerial}/${routeToSerial}`,
         payload
       );
 

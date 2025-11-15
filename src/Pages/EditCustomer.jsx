@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Button, Form, Row, Col, Spinner } from "react-bootstrap";
+import api, { setAuthToken } from "../api";
 import CreatableSelect from "react-select/creatable";
 import PhoneInput from "react-phone-number-input";
 import "react-phone-number-input/style.css";
@@ -7,8 +8,7 @@ import "bootstrap-icons/font/bootstrap-icons.css";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useParams, useNavigate } from "react-router-dom";
-import { API_BASE_URL } from "../api";
-import { parsePhoneNumberFromString, isValidPhoneNumber } from "libphonenumber-js";
+import {  isValidPhoneNumber } from "libphonenumber-js";
 import CountrySelect from "../components/CountrySelect";
 import CountryPhoneInput from "../components/CountryPhoneInput";
 
@@ -50,12 +50,13 @@ export default function EditCustomer() {
 
 
   useEffect(() => {
+  const token = localStorage.getItem("authToken");
+  setAuthToken(token);
     const fetchCustomer = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/customers/${id}/edit`);
-        const data = await res.json();
-        if (res.ok && data.status === "success") {
-          // setCustomer(data.customer); 
+        const res = await api.get(`/customers/${id}/edit`);
+        const data = res.data;
+if (data.status === "success") {
           setCustomer({
             ...data.customer,
             customer: data.customer.customer ?? "",
@@ -75,12 +76,12 @@ export default function EditCustomer() {
         }
         else {
           toast.error("Failed to load customer");
-          navigate("/customers");
+          // navigate("/customers");
         }
       } catch (err) {
         console.error(err);
         toast.error("Error fetching customer");
-        navigate("/customers");
+        // navigate("/customers");
       } finally {
         setLoading(false);
       }
@@ -94,13 +95,6 @@ export default function EditCustomer() {
     const errs = {};
     if (!customer.customer.trim()) errs.customer = "Customer Name is required";
 
-    // if (!customer.gst_no.trim()) errs.gst_no = "GST No is required";
-    // else if (customer.gst_no.length !== 15)
-    //   errs.gst_no = "GST No must be 15 characters";
-
-    // if (!customer.email.trim()) errs.email = "Email is required";
-    // else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email))
-    //   errs.email = "Invalid email format";
 
     if (!customer.mobile_no) {
       errs.mobile_no = "Mobile number is required";
@@ -196,22 +190,18 @@ export default function EditCustomer() {
     }
   };
 
-  const fallbackToManual = () => {
-    setCityOptions([]);
-    toast.error("Could not fetch details. Please enter manually.");
-  };
+  // const fallbackToManual = () => {
+  //   setCityOptions([]);
+  //   toast.error("Could not fetch details. Please enter manually.");
+  // };
 
   const updateCustomer = async () => {
     if (!validateCustomer()) return;
 
     try {
-      const res = await fetch(`${API_BASE_URL}/customers/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(customer),
-      });
+      const res = await api.put(`/customers/${id}`, customer);
 
-      const data = await res.json();
+      const data = res.data;
       if (!res.ok) {
         toast.error("Error updating customer!");
         console.error(data);
@@ -243,7 +233,7 @@ export default function EditCustomer() {
     >
       <Row className="align-items-center mb-3">
         <Col>
-          <h4>Edit  customer</h4>
+          <h4>Edit customer</h4>
         </Col>
         <Col className="text-end">
           <Button
@@ -293,7 +283,6 @@ export default function EditCustomer() {
                 onChange={(e) => {
                   let value = e.target.value.toUpperCase();
 
-                  // Block typing beyond 15 characters
                   if (value.length > 15) value = value.slice(0, 15);
 
                   setCustomer((prev) => ({ ...prev, gst_no: value }));
@@ -309,7 +298,7 @@ export default function EditCustomer() {
                   }
                 }}
                 placeholder="Enter GST No"
-                maxLength={15} // Block typing beyond 15 characters
+                maxLength={15} 
               />
 
               {errors.gst_no && (
@@ -380,7 +369,7 @@ export default function EditCustomer() {
                   }))
                 }
                 placeholder="Select or type city"
-                classNamePrefix="my-select"   // ✅ Add this
+                classNamePrefix="my-select"   
               />
               {errors.city && (
                 <div style={feedbackStyle}>{errors.city}</div>

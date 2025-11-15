@@ -2,10 +2,9 @@ import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button, Form, Card, Row, Col, Table, Spinner } from "react-bootstrap";
 import { toast } from "react-toastify";
-import axios from "axios";
 import BreadCrumb from "../components/BreadCrumb";
 import Search from "../components/Search";
-import { API_BASE_URL } from "../api";
+import api, { setAuthToken } from "../api";
 import "bootstrap/dist/css/bootstrap.min.css";
 
 export default function ComponentsRequirement() {
@@ -18,7 +17,6 @@ export default function ComponentsRequirement() {
   const [selectedSeries, setSelectedSeries] = useState([]);
   const [vciCounts, setVciCounts] = useState({});
 
-  // Mapping label to actual series for consistent keying
   const [labelToSeriesMap, setLabelToSeriesMap] = useState({});
 
   const calculatedSeriesData = useMemo(() => {
@@ -49,15 +47,17 @@ export default function ComponentsRequirement() {
   }, [data, vciCounts]);
 
   useEffect(() => {
+    const token = localStorage.getItem("authToken");
+    if (token) setAuthToken(token);
     fetchSeriesList();
   }, []);
 
   const fetchSeriesList = async () => {
     try {
-      const res = await axios.get(`${API_BASE_URL}/product`);
+      const res = await api.get("/product");
       const labelMap = {};
       const seriesNames = res.data.map((item) => {
-        const label = `${item.name} (${item.product_type_name})`;
+        const label = `${item.name}`;
         labelMap[label] = item.name; // Map displayed label to actual series name
         return label;
       });
@@ -73,7 +73,7 @@ export default function ComponentsRequirement() {
     try {
       const responses = await Promise.all(
         seriesArray.map((seriesLabel) =>
-          axios.get(`${API_BASE_URL}/products/series/${labelToSeriesMap[seriesLabel]}`)
+          api.get(`/products/series/${labelToSeriesMap[seriesLabel]}`)
         )
       );
       const combined = responses.map((res) => res.data);
@@ -126,10 +126,10 @@ export default function ComponentsRequirement() {
     return Object.values(shortageMap);
   }, [calculatedSeriesData]);
 
-  const filteredParts = useMemo(
-    () => filterParts(data.flatMap((d) => d.spare_parts || [])),
-    [data, search]
-  );
+  // const filteredParts = useMemo(
+  //   () => filterParts(data.flatMap((d) => d.spare_parts || [])),
+  //   [data, search]
+  // );
 
   const headerStyle = {
     backgroundColor: "#2E3A59",
@@ -205,11 +205,21 @@ export default function ComponentsRequirement() {
                             : 1
                         }
                         onChange={(e) => {
-                          const val = parseInt(e.target.value, 10);
+                          const val = e.target.value;
                           setVciCounts((prev) => ({
                             ...prev,
-                            [labelToSeriesMap[label]]: isNaN(val) || val < 1 ? 1 : val,
+                            [labelToSeriesMap[label]]: val === "" ? "" : Math.max(Number(val), 1),
                           }));
+                        }}
+                        onBlur={(e) => {
+                          const val = e.target.value;
+                          // If left blank on blur, revert to 1
+                          if (val === "" || Number(val) < 1) {
+                            setVciCounts((prev) => ({
+                              ...prev,
+                              [labelToSeriesMap[label]]: 1,
+                            }));
+                          }
                         }}
                         style={{
                           width: "80px",
@@ -218,6 +228,7 @@ export default function ComponentsRequirement() {
                         }}
                         placeholder="Qty"
                       />
+
                     )}
                     {/* 
             {selectedSeries.includes(label) && (

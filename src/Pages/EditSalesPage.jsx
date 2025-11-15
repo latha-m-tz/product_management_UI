@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import api, { setAuthToken } from "../api";
 import { Button, Form, Card, Table, Spinner, Row, Col } from "react-bootstrap";
 import { toast } from "react-toastify";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
 import "bootstrap/dist/css/bootstrap.min.css";
-import { API_BASE_URL } from "../api";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { IoTrashOutline } from "react-icons/io5";
 
@@ -31,10 +30,13 @@ export default function EditSalesPage() {
   const endIndex = startIndex + itemsPerPage;
   const paginatedItems = items.slice(startIndex, endIndex);
 
-  // ✅ Fetch customers
+useEffect(() => {
+  const token = localStorage.getItem("authToken");
+  if (token) setAuthToken(token);
+}, []);
   useEffect(() => {
-    axios
-      .get(`${API_BASE_URL}/customers/get`)
+    api
+      .get(`/customers/get`)
       .then((res) => setCustomers(res.data))
       .catch(() => toast.error("Failed to load customers"))
       .finally(() => setLoading(false));
@@ -84,8 +86,8 @@ const groupProducts = (serialItems) => {
       setItems(groupProducts(data.items || []));
       localStorage.removeItem("draftSale");
     } else if (id) {
-      axios
-        .get(`${API_BASE_URL}/sales/${id}`)
+      api
+        .get(`/sales/${id}`)
         .then((res) => {
           const sale = res.data;
           setCustomerId(sale.customer?.id || "");
@@ -240,7 +242,7 @@ const handleSave = async () => {
   };
 
   try {
-    await axios.put(`${API_BASE_URL}/sales/${id}`, payload);
+    await api.put(`/sales/${id}`, payload);
     toast.success("Sale updated successfully!");
     navigate("/sales-order");
   } catch (err) {

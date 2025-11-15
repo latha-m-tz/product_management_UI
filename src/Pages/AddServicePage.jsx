@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { Container, Row, Col, Form, Button, Table } from "react-bootstrap";
-import axios from "axios";
+import api, { setAuthToken } from "../api";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { IoTrashOutline } from "react-icons/io5";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
-import { API_BASE_URL } from "../api";
 
 const AddServicePage = () => {
   const navigate = useNavigate();
@@ -50,11 +49,14 @@ const AddServicePage = () => {
   };
 
   useEffect(() => {
+    const token = localStorage.getItem("authToken");
+    if (token) setAuthToken(token);
+
     const fetchData = async () => {
       try {
         const [productRes, vendorRes] = await Promise.all([
-          axios.get(`${API_BASE_URL}/product`),
-          axios.get(`${API_BASE_URL}/vendorsget`),
+          api.get("/product"),
+          api.get("/vendorsget"),
         ]);
 
         console.log("✅ Vendor Response:", vendorRes.data); 
@@ -90,7 +92,7 @@ const AddServicePage = () => {
 
     if (name === "product_id" && value) {
       try {
-        const res = await axios.get(`${API_BASE_URL}/sales/serials/${value}`);
+        const res = await api.get(`/sales/serials/${value}`);
         setSerialNumbersByProduct((prev) => ({ ...prev, [value]: res.data || [] }));
       } catch {
         toast.error("Failed to fetch serial numbers!");
@@ -170,7 +172,7 @@ const AddServicePage = () => {
 
 
     try {
-      await axios.post(`${API_BASE_URL}/service-vci`, payload, {
+      await api.post("/service-vci", payload, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       toast.success("Service added successfully!");
@@ -364,9 +366,9 @@ const AddServicePage = () => {
                     onChange={(e) => handleItemChange(i, e)}
                   >
                     <option value="">Select</option>
-                    <option value="inward">Inward</option>
-                    <option value="delivered">Delivered</option>
-                    <option value="testing">Testing</option>
+                    <option value="Inward">Inward</option>
+                    <option value="Delivered">Delivered</option>
+                    <option value="Testing">Testing</option>
                   </Form.Select>
                 </td>
 

@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { Container, Row, Col, Form, Button, Table } from "react-bootstrap";
-import axios from "axios";
+import api, { setAuthToken ,API_BASE_URL} from "../api";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useNavigate, useParams } from "react-router-dom";
-import { API_BASE_URL } from "../api";
 import { IoTrashOutline } from "react-icons/io5";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
@@ -22,6 +21,7 @@ const EditServicePage = () => {
     vendor_id: "",
     challan_no: "",
     challan_date: "",
+      tracking_no: "", 
     items: [
       {
         product_id: "",
@@ -35,12 +35,14 @@ const EditServicePage = () => {
   });
 
   useEffect(() => {
+    const token = localStorage.getItem("authToken");
+    if (token) setAuthToken(token);
     const fetchData = async () => {
       try {
         const [productRes, vendorRes, serviceRes] = await Promise.all([
-          axios.get(`${API_BASE_URL}/product`),
-          axios.get(`${API_BASE_URL}/vendorsget`),
-          axios.get(`${API_BASE_URL}/service-vci/${id}`),
+          api.get(`/product`),
+          api.get(`/vendorsget`),
+          api.get(`/service-vci/${id}`),
         ]);
 
         setProducts(productRes.data || []);
@@ -52,6 +54,7 @@ const EditServicePage = () => {
             vendor_id: serviceData.vendor_id || "",
             challan_no: serviceData.challan_no || "",
             challan_date: serviceData.challan_date || "",
+             tracking_no: serviceData.tracking_no || "", 
             receipt_files: serviceData.receipt_files || [null],
             items:
               serviceData.items?.map((item) => ({
@@ -74,7 +77,7 @@ const EditServicePage = () => {
           const serialsObj = {};
           for (const item of serviceData.items || []) {
             if (item.product_id) {
-              const res = await axios.get(`${API_BASE_URL}/sales/serials/${item.product_id}`);
+              const res = await api.get(`/sales/serials/${item.product_id}`);
               serialsObj[item.product_id] = res.data || [];
             }
           }
@@ -103,7 +106,7 @@ const EditServicePage = () => {
     // Fetch serials if product changes
     if (name === "product_id" && value) {
       try {
-        const res = await axios.get(`${API_BASE_URL}/sales/serials/${value}`);
+        const res = await api.get(`/sales/serials/${value}`);
         setSerialNumbersByProduct((prev) => ({ ...prev, [value]: res.data || [] }));
         items[index].vci_serial_no = "";
         setFormData((prev) => ({ ...prev, items }));
@@ -180,6 +183,7 @@ const EditServicePage = () => {
     payload.append("vendor_id", formData.vendor_id);
     payload.append("challan_no", formData.challan_no);
     payload.append("challan_date", formData.challan_date);
+    payload.append("tracking_no",formData.tracking_no)
 
     formData.receipt_files.forEach((file, i) => {
       if (file instanceof File) payload.append(`receipt_files[${i}]`, file);
@@ -196,7 +200,7 @@ const EditServicePage = () => {
     });
 
     try {
-      await axios.post(`${API_BASE_URL}/service-vci/${id}`, payload, {
+      await api.post(`/service-vci/${id}`, payload, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       toast.success("Service updated successfully!");
@@ -272,6 +276,19 @@ const EditServicePage = () => {
               <Form.Control.Feedback type="invalid">{errors.vendor_id}</Form.Control.Feedback>
             </Form.Group>
           </Col>
+          <Col md={6}>
+  <Form.Group>
+    <Form.Label>Tracking No</Form.Label>
+    <Form.Control
+      type="text"
+      name="tracking_no"
+      value={formData.tracking_no}
+      onChange={handleChange}
+      isInvalid={!!errors.tracking_no}
+    />
+    <Form.Control.Feedback type="invalid">{errors.tracking_no}</Form.Control.Feedback>
+  </Form.Group>
+</Col>
           <Col md={6}>
             <Form.Group className="mb-2">
               <Form.Label>
@@ -386,9 +403,9 @@ const EditServicePage = () => {
                     onChange={(e) => handleItemChange(i, e)}
                   >
                     <option value="">Select</option>
-                    <option value="inward">Inward</option>
-                    <option value="delivered">Delivered</option>
-                    <option value="testing">Testing</option>
+                    <option value="Inward">Inward</option>
+                    <option value="Delivered">Delivered</option>
+                    <option value="Testing">Testing</option>
                   </Form.Select>
                 </td>
 

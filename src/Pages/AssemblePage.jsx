@@ -1,14 +1,13 @@
 import { useState, useEffect, useMemo } from "react";
+import api, { setAuthToken } from "../api";
 import { Button, Spinner, Card, Table, Form } from "react-bootstrap";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import BreadCrumb from "../components/BreadCrumb";
 import Pagination from "../components/Pagination";
-import { API_BASE_URL } from "../api";
 import Select from "react-select";
 
 export default function AssemblePage() {
@@ -31,7 +30,10 @@ export default function AssemblePage() {
         height: "40px",
         verticalAlign: "middle",
     };
-
+  useEffect(() => {
+    const token = localStorage.getItem("authToken");
+    if (token) setAuthToken(token);
+  }, []);
     // Fetch all serials and product list on page load
     useEffect(() => {
         fetchAllActiveSerials();
@@ -41,7 +43,7 @@ export default function AssemblePage() {
     const fetchAllActiveSerials = async () => {
         setLoading(true);
         try {
-            const res = await axios.get(`${API_BASE_URL}/inventory/serials/active`);
+            const res = await api.get("/inventory/serials/active");
             if (res.data.exists && Array.isArray(res.data.data)) {
                 setInventories(res.data.data);
             } else {
@@ -58,7 +60,7 @@ export default function AssemblePage() {
 
     const fetchSeriesList = async () => {
         try {
-            const res = await axios.get(`${API_BASE_URL}/product`);
+            const res = await api.get("/product");
             const labelMap = {};
             const seriesNames = res.data.map((item) => {
                 const label = item.name; // only product name
@@ -86,7 +88,7 @@ export default function AssemblePage() {
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
-                    const res = await axios.delete(`${API_BASE_URL}/inventory/delete/${serial}`);
+                    const res = await api.delete(`/inventory/delete/${serial}`);
                     toast.success(res.data?.message || `Serial ${serial} deleted successfully`);
                     setInventories((prev) => prev.filter((inv) => inv.serial_no !== serial));
                 } catch (err) {
@@ -103,7 +105,6 @@ export default function AssemblePage() {
         return inventories.filter((inv) => selectedNames.includes(inv.product_name));
     }, [inventories, selectedSeries, labelToSeriesMap]);
 
-    // Paginate filtered data
     const paginatedData = filteredInventories.slice((page - 1) * perPage, page * perPage);
 
     return (
@@ -202,13 +203,13 @@ export default function AssemblePage() {
                                 paginatedData.map((item, index) => (
                                     <tr key={item.id}>
                                         <td className="text-center">{(page - 1) * perPage + index + 1}</td>
-                                        <td>{item.product_name}</td>
-                                        <td>{item.serial_no}</td>
-                                        <td style={{ color: item.tested_status.toLowerCase() === "fail" ? "red" : "inherit" }}>
+                                        <td style={{ fontSize: "0.90rem" }}>{item.product_name}</td>
+                                        <td style={{ fontSize: "0.90rem" }}>{item.serial_no}</td>
+                                        <td style={{ color: item.tested_status.toLowerCase() === "fail" ? "red" : "inherit", fontSize: "0.90rem" }}>
                                             {item.tested_status}
                                         </td>
-                                        <td>{item.tested_by}</td>
-                                        <td>{item.created_at}</td>
+                                        <td style={{ fontSize: "0.90rem" }}>{item.tested_by}</td>
+                                        <td style={{ fontSize: "0.90rem" }}>{item.created_at}</td>
                                         <td className="text-center">
                                             <Button variant="outline-primary" size="sm" onClick={() => handleDeleteSerial(item)}>
                                                 <i className="bi bi-trash"></i>

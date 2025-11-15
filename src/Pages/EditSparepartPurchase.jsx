@@ -1,15 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { Button, Form, Row, Col, Card, Spinner } from "react-bootstrap";
-import axios from "axios";
+import api, { setAuthToken,API_BASE_URL } from "../api";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import { useParams } from "react-router-dom";
-import { Modal } from "react-bootstrap";
 import SerialSelectionModal from "./SerialSelectionModal";
 import { useNavigate } from "react-router-dom";
-import { API_BASE_URL } from "../api";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
 
@@ -65,6 +63,11 @@ export default function EditSparepartPurchase({ purchaseId }) {
       orig: serial,
     };
   };
+// 👇 add this near the top, after hooks like useParams/useNavigate
+useEffect(() => {
+  const token = localStorage.getItem("authToken");
+  if (token) setAuthToken(token);
+}, []);
 
 
 
@@ -119,7 +122,7 @@ export default function EditSparepartPurchase({ purchaseId }) {
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
-          await axios.delete(`${API_BASE_URL}/purchase-items/${purchaseKey}/${sp.id}`);
+          await api.delete(`/purchase-items/${purchaseKey}/${sp.id}`);
           toast.success("Product deleted successfully!");
           // Remove from frontend state
           removeSparepart(spareparts.indexOf(sp));
@@ -167,7 +170,7 @@ export default function EditSparepartPurchase({ purchaseId }) {
     // fallback: fetch from backend if no From/To range
     if (sp.id) {
       try {
-        const res = await axios.get(`${API_BASE_URL}/available-serials`, {
+        const res = await api.get(`/available-serials`, {
           params: {
             purchase_id: purchaseKey,
             sparepart_id: sp.sparepart_id,
@@ -251,8 +254,8 @@ export default function EditSparepartPurchase({ purchaseId }) {
     const fetchData = async () => {
       try {
         const [spareRes, purchaseRes] = await Promise.all([
-          axios.get(`${API_BASE_URL}/get-spareparts`),
-          axios.get(`${API_BASE_URL}/${purchaseKey}/purchase/edit`),
+          api.get(`/get-spareparts`),
+          api.get(`/${purchaseKey}/purchase/edit`),
         ]);
 
         setAvailableSpareparts(spareRes.data.spareparts || []);
@@ -496,37 +499,70 @@ const handleInputChange = (index, field, value) => {
   const type = sparepartTypeOf(spareparts[index].sparepart_id);
   const updated = [...spareparts];
 
-  // Handle serial-based spareparts
+  // 🔹 Handle serial-based spareparts
   if (type.includes("serial") && (field === "from_serial" || field === "to_serial")) {
+    // Accept only digits, limit to 6 chars
     value = value.replace(/\D/g, "").slice(0, 6);
     updated[index][field] = value;
 
     const fromSerial = updated[index].from_serial;
     const toSerial = updated[index].to_serial;
 
-    // Only validate after both fields are filled
     if (fromSerial && toSerial) {
       const fromNum = parseInt(fromSerial, 10);
       const toNum = parseInt(toSerial, 10);
 
-     
+      if (!isNaN(fromNum) && !isNaN(toNum)) {
+        if (fromNum > toNum) {
+          // Invalid serial range
+          setSerialErrorShown((prev) => ({
+            ...prev,
+            [index]: { ...prev[index], rangeError: true },
+          }));
+          updated[index].qty = ""; // keep blank when invalid
+        } else {
+          // Valid range — auto calculate qty
+          updated[index].qty = toNum - fromNum + 1;
+          setSerialErrorShown((prev) => ({
+            ...prev,
+            [index]: { ...prev[index], rangeError: false },
+          }));
+        }
+      } else {
+        // Invalid or incomplete serial numbers
+        updated[index].qty = "";
+      }
+    } else {
+      // One or both serials empty — clear qty
+      updated[index].qty = "";
     }
 
     setSpareparts(updated);
     return;
   }
 
-  // Handle other field types
-  updated[index][field] = value;
+  // 🔹 Handle quantity field (manual entry)
   if (field === "qty") {
-    let qty = Number(value);
-    if (qty < 1) qty = 1;
-    updated[index][field] = qty;
+    // Allow blank input freely
+    if (value === "") {
+      updated[index][field] = "";
+    } else {
+      const qty = Number(value);
+      // Only accept valid positive numbers
+      updated[index][field] = !isNaN(qty) && qty > 0 ? qty : "";
+    }
+
+    setSpareparts(updated);
+    clearError(field, index);
+    return;
   }
 
+  // 🔹 Handle other fields normally
+  updated[index][field] = value;
   setSpareparts(updated);
   clearError(field, index);
 };
+
 // 🆕 Automatically rebuild serial range when from_serial / to_serial change
 useEffect(() => {
   const updated = [...spareparts];
@@ -729,8 +765,8 @@ const handleSubmit = async () => {
       JSON.stringify(removedFiles.recipient || [])
     );
 
-    const res = await axios.post(
-      `${API_BASE_URL}/purchaseUpdate/${purchaseKey}`,
+    const res = await api.post(
+      `/purchaseUpdate/${purchaseKey}`,
       payload,
       { headers: { "Content-Type": "multipart/form-data" } }
     );

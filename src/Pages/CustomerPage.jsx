@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Button, Spinner, Card, Form } from "react-bootstrap";
+import api, { setAuthToken } from "../api";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
 import { toast } from "react-toastify";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
@@ -26,25 +26,27 @@ export default function CustomerListPage() {
   const [perPage, setPerPage] = useState(10);
   const [sortField, setSortField] = useState(null);
   const [sortDirection, setSortDirection] = useState("asc");
-const formatMobileNumber = (number, defaultCountry = "IN") => {
-  if (!number) return "-";
-  try {
-    const phone = parsePhoneNumberFromString(number, metadata);
-    if (!phone) return number;
-    return `+${phone.countryCallingCode} ${phone.nationalNumber}`;
-  } catch {
-    return number;
-  }
-};
+  const formatMobileNumber = (number, defaultCountry = "IN") => {
+    if (!number) return "-";
+    try {
+      const phone = parsePhoneNumberFromString(number, metadata);
+      if (!phone) return number;
+      return `+${phone.countryCallingCode} ${phone.nationalNumber}`;
+    } catch {
+      return number;
+    }
+  };
 
   useEffect(() => {
+    const token = localStorage.getItem("authToken");
+    if (token) setAuthToken(token);
     fetchCustomers();
   }, []);
 
   const fetchCustomers = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE_URL}/customers/get`);
+      const res = await api.get("/customers/get");
       setCustomers(res.data);
     } catch {
       toast.error("Failed to fetch customers.");
@@ -68,7 +70,7 @@ const formatMobileNumber = (number, defaultCountry = "IN") => {
     if (!result.isConfirmed) return;
 
     try {
-      await axios.delete(`${API_BASE_URL}/customers/del/${id}`);
+      await api.delete(`/customers/del/${id}`);
       toast.success("Customer deleted successfully!");
       setCustomers(customers.filter((c) => c.id !== id));
     } catch {
@@ -161,49 +163,49 @@ const formatMobileNumber = (number, defaultCountry = "IN") => {
 
         <div className="table-responsive">
           <table className="table custom-table align-middle mb-0">
-           <thead>
-  <tr>
-    <th
-      style={{
-        width: "70px",
-        textAlign: "center",
-        backgroundColor: "#2E3A59",
-        color: "white",
-      }}
-    >
-      S.No
-    </th>
-    {[
-      { label: "Name", field: "customer" },
-      { label: "Email", field: "email" },
-      { label: "Mobile", field: "mobile_no" },
-      { label: "GST No", field: "gst_no" },
-      { label: "City", field: "city" },
-      { label: "Status", field: "status" },
-    ].map(({ label, field }) => (
-      <th
-        key={field}
-        onClick={() => handleSort(field)}
-        style={{
-          cursor: "pointer",
-          backgroundColor: "#2E3A59",
-          color: "white",
-        }}
-      >
-        {label} {sortField === field && (sortDirection === "asc" ? "▲" : "▼")}
-      </th>
-    ))}
-    <th
-      style={{
-        textAlign: "center",
-        backgroundColor: "#2E3A59",
-        color: "white",
-      }}
-    >
-      Action
-    </th>
-  </tr>
-</thead>
+            <thead>
+              <tr>
+                <th
+                  style={{
+                    width: "70px",
+                    textAlign: "center",
+                    backgroundColor: "#2E3A59",
+                    color: "white",
+                  }}
+                >
+                  S.No
+                </th>
+                {[
+                  { label: "Name", field: "customer" },
+                  { label: "Email", field: "email" },
+                  { label: "Mobile", field: "mobile_no" },
+                  { label: "GST No", field: "gst_no" },
+                  { label: "City", field: "city" },
+                  { label: "Status", field: "status" },
+                ].map(({ label, field }) => (
+                  <th
+                    key={field}
+                    onClick={() => handleSort(field)}
+                    style={{
+                      cursor: "pointer",
+                      backgroundColor: "#2E3A59",
+                      color: "white",
+                    }}
+                  >
+                    {label} {sortField === field && (sortDirection === "asc" ? "▲" : "▼")}
+                  </th>
+                ))}
+                <th
+                  style={{
+                    textAlign: "center",
+                    backgroundColor: "#2E3A59",
+                    color: "white",
+                  }}
+                >
+                  Action
+                </th>
+              </tr>
+            </thead>
 
             <tbody>
               {loading ? (
@@ -228,11 +230,11 @@ const formatMobileNumber = (number, defaultCountry = "IN") => {
                     <td className="text-center">
                       {(page - 1) * perPage + index + 1}
                     </td>
-                    <td style={{ fontSize: "0.90rem",fontFamily:"product-sans,sans-serif" }}>{c.customer || "N/A" }</td>
-                    <td style={{ fontSize: "0.90rem",fontFamily:"product-sans,sans-serif" }}>{c.email || "N/A"}</td>
-                    <td style={{ fontSize: "0.90rem",fontFamily:"product-sans,sans-serif" }}>{formatMobileNumber(c.mobile_no || "N/A")}</td>
-                    <td style={{ fontSize: "0.90rem",fontFamily:"product-sans,sans-serif" }}>{c.gst_no || "N/A"}</td>
-                    <td style={{ fontSize: "0.90rem",fontFamily:"product-sans,sans-serif" }}>{c.city || "N/A"}</td>
+                    <td style={{ fontSize: "0.90rem", fontFamily: "product-sans,sans-serif" }}>{c.customer || "N/A"}</td>
+                    <td style={{ fontSize: "0.90rem", fontFamily: "product-sans,sans-serif" }}>{c.email || "N/A"}</td>
+                    <td style={{ fontSize: "0.90rem", fontFamily: "product-sans,sans-serif" }}>{formatMobileNumber(c.mobile_no || "N/A")}</td>
+                    <td style={{ fontSize: "0.90rem", fontFamily: "product-sans,sans-serif" }}>{c.gst_no || "N/A"}</td>
+                    <td style={{ fontSize: "0.90rem", fontFamily: "product-sans,sans-serif" }}>{c.city || "N/A"}</td>
                     <td>
                       <span
                         className={`badge ${c.status === "active" ? "bg-success" : "bg-danger"
@@ -272,12 +274,12 @@ const formatMobileNumber = (number, defaultCountry = "IN") => {
                     </td> */}
 
                     <td className="text-center" style={{ width: "130px" }}>
-  <ActionButton
-    onEdit={() => navigate(`/customer/${c.id}/edit`)}
-    onDelete={() => handleDelete(c.id)}
-    onView={() => navigate(`/customer/${c.id}`)}
-  />
-</td>
+                      <ActionButton
+onEdit={() => navigate(`/customer/${c.id}/edit`)}
+                        onDelete={() => handleDelete(c.id)}
+                        onView={() => navigate(`/customer/${c.id}`)}
+                      />
+                    </td>
 
                   </tr>
                 ))

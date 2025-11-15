@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Form, Button, Spinner } from 'react-bootstrap';
 import { toast, ToastContainer } from 'react-toastify';
-import axios from 'axios';
+import api, { setAuthToken } from "../api";
 import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../api';
 import 'react-toastify/dist/ReactToastify.css';
@@ -63,7 +63,7 @@ export default function RegisterPage() {
 
         try {
             setLoading(true);
-            const res = await axios.post(`${API_BASE_URL}/register`, {
+            const res = await api.post(`${API_BASE_URL}/register`, {
                 username: formData.username,
                 email: formData.email,
                 password: formData.password,

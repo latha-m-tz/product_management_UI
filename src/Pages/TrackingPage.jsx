@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import api, { setAuthToken } from "../api";
 import { Form, Button, Spinner, Alert, Container } from "react-bootstrap";
-import { API_BASE_URL } from "../api";
 
 const styles = {
   pageTitle: { fontWeight: 700, marginBottom: '30px', paddingLeft: '20px' },
@@ -22,8 +21,8 @@ const styles = {
   dataCard: { width: '240px', height: '262px', backgroundColor: '#2EA64F', color: '#FFFFFF', borderColor: '#2EA64F', border: '1px solid', borderRadius: '7px', padding: '10px', marginBottom: '15px', textAlign: 'left', fontSize: '0.85rem', lineHeight: 1.2, flexShrink: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' },
   dataCardText: { marginBottom: '4px' },
   stageDate: {
-    fontSize: '0.75rem',
-    color: 'white',
+    fontFamily: "Product Sans, sans-serif",
+    color: "#2E3A59",
     borderTop: '1px dashed #cfd8dc',
     paddingTop: '5px',
     marginTop: '5px',
@@ -35,6 +34,18 @@ const styles = {
     border: 'none',
     marginTop: '5px',
   },
+  cardTextStyle: {
+    fontFamily: "Product Sans, sans-serif",
+    fontSize: "0.85rem",
+  },
+  cardHeading: {
+    fontFamily: "Product Sans, sans-serif",
+    fontSize: "0.98rem",
+    color: "#2E3A59",
+    fontWeight: "bold",
+    marginBottom: "6px"
+  },
+
 };
 
 const TrackingPage = () => {
@@ -45,43 +56,59 @@ const TrackingPage = () => {
   const navigate = useNavigate();
 
   const defaultTimelineStructure = [
-    { stage: "SPARE PARTS", items: [] },
+    { stage: "SPARE PARTS PURCHASE", items: [] },
     { stage: "INVENTORY", items: [] },
     { stage: "SALE", items: [] },
     { stage: "SERVICE", items: [] },
   ];
-useEffect(() => {
-  const savedSerial = localStorage.getItem("lastSerialNumber");
-  if (savedSerial) {
-    setSerialNumber(savedSerial);
-  }
-}, []);
+  useEffect(() => {
+    const token = localStorage.getItem("authToken");
+    if (token) setAuthToken(token);
+  }, []);
+  useEffect(() => {
+    const savedSerial = localStorage.getItem("lastSerialNumber");
+    if (savedSerial) {
+      setSerialNumber(savedSerial);
+    }
+  }, []);
 
-useEffect(() => {
-  if (serialNumber) {
-    localStorage.setItem("lastSerialNumber", serialNumber);
-  }
-}, [serialNumber]);
+  useEffect(() => {
+    if (serialNumber) {
+      localStorage.setItem("lastSerialNumber", serialNumber);
+    }
+  }, [serialNumber]);
 
-// Fetch timeline automatically if serial exists (on reload)
-useEffect(() => {
-  if (serialNumber) {
-    fetchTimeline();
-  }
-}, [serialNumber]);
+  useEffect(() => {
+    if (serialNumber) {
+      fetchTimeline();
+    }
+  }, [serialNumber]);
 
   const getStageColor = (stage) => "#2E3A59";
+  const formatDateTime = (value) => {
+    if (!value) return "N/A";
+    const date = new Date(value);
+    return date.toLocaleString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
 
   const fetchTimeline = async () => {
     if (!serialNumber) { setTimeline([]); return; }
     setLoading(true); setError("");
     try {
-      const response = await axios.get(`${API_BASE_URL}/tracking-timeline/${serialNumber}`);
+      const response = await api.get(`/tracking-timeline/${serialNumber}`);
       const data = response.data;
 
       const saleItems = data.sale
         ? data.sale.flatMap((sale) => sale.items.map((item) => ({
           ...item,
+          sale_id: sale.id,
           challan_no: sale.challan_no || "N/A",
           challan_date: sale.challan_date || "N/A",
           customer: sale.customer?.customer || "N/A",
@@ -104,7 +131,7 @@ useEffect(() => {
         : [];
 
       setTimeline([
-        { stage: "SPARE PARTS", items: data.spare_parts?.map(i => ({ ...i, serial_number: serialNumber })) || [] },
+        { stage: "SPARE PARTS PURCHASE", items: data.spare_parts?.map(i => ({ ...i, serial_number: serialNumber })) || [] },
         { stage: "INVENTORY", items: data.inventory?.map(i => ({ ...i, serial_number: serialNumber })) || [] },
         { stage: "SALE", items: saleItems },
         { stage: "SERVICE", items: serviceItems },
@@ -116,78 +143,109 @@ useEffect(() => {
     } finally { setLoading(false); }
   };
 
-  const handleMoreDetails = (stage, item) => {
-    switch (stage) {
-      case "SPARE PARTS":
-        navigate(`/spare-partsPurchase`);
-        break;
-      case "INVENTORY":
-        navigate(`/assemble`);
-        break;
-      case "SALE":
-        navigate(`/sales-order`);
-        break;
-      case "SERVICE":
-        navigate(`/service-product`);
-        break;
-      default:
-        navigate(`/details/${item.serial_number}`);
-    }
-  };
+  // const handleMoreDetails = (stage, item) => {
+  //   switch (stage) {
+  //     case "SPARE PARTS PURCHASE":
+  //       navigate(`/spare-partsPurchase`);
+  //       break;
+  //     case "INVENTORY":
+  //       navigate(`/assemble`);
+  //       break;
+  //     case "SALE":
+  //       navigate(`/sales-order`);
+  //       break;
+  //     case "SERVICE":
+  //       navigate(`/service-product`);
+  //       break;
+  //     default:
+  //       navigate(`/details/${item.serial_number}`);
+  //   }
+  // };
 
-  const renderCardContent = (stage, item) => {
-    const defaultDate = item.created_at || "N/A";
+  const renderCardContent = (stage, item, idx) => {
+    const defaultDate = formatDateTime(item.created_at);
+    const goToChallan = () => {
+      switch (stage) {
+        case "SPARE PARTS PURCHASE":
+          if (!item.purchase_id) {
+            console.error("purchase_id is missing:", item);
+            return;
+          }
+          navigate(`/spare-partsPurchase/view/${item.purchase_id}`);
+          break;
+
+        case "SALE":
+          navigate(`/sales-order-overview/${item.sale_id}`);
+          break;
+
+        case "SERVICE":
+          navigate(`/service_vci/view/${item.service_id}`);
+          break;
+
+        default:
+          console.warn("No matching route for this stage");
+      }
+    };
 
     return (
-      <>
-        {stage === "SPARE PARTS" && (
+      <div style={styles.cardTextStyle}>
+        {stage === "SPARE PARTS PURCHASE" && (
           <>
-            <p style={styles.dataCardText}><b>Spare Parts</b></p>
-            <p className="small"><b>Challan No:</b> {item.challan_no}</p>
-            <p className="small"><b>Challan Date:</b> {item.challan_date}</p>
-            <p className="small"><b>Vendor:</b> {item.vendor_name}</p>
-            <p className="small"><b>Product:</b> {item.product_name}</p>
+            <p style={styles.cardHeading}>Spare Parts Purchase</p>
+            <p>
+              <b>Challan No:</b>{" "}
+              <span style={{ color: "#e81a1aff", cursor: "pointer" }} onClick={goToChallan}>
+                {item.challan_no}
+              </span>
+            </p>
+            <p><b>Challan Date:</b> {item.challan_date}</p>
+            <p><b>Vendor:</b> {item.vendor_name}</p>
+            <p><b>Product:</b> {item.product_name}</p>
           </>
         )}
 
         {stage === "INVENTORY" && (
           <>
-            <p style={styles.dataCardText}><b>Assembly</b></p>
-            <p className="small"><b>Product Type:</b> {item.product_type || "N/A"}</p>
-            <p className="small"><b>Product:</b> {item.product_name || "N/A"}</p>
-            <p className="small"><b>Firmware Version:</b> {item.firmware_version || "N/A"}</p>
+            <p style={styles.cardHeading}>Assemble</p>
+            <p><b>Product:</b> {item.product_name || "N/A"}</p>
+            <p><b>Tested_by:</b> {item.tested_by || "N/A"}</p>
+            <p><b>Tested_Status:</b> {item.tested_status || "N/A"}</p>
+            <p><b>Firmware Version:</b> {item.firmware_version || "N/A"}</p>
           </>
         )}
 
         {stage === "SALE" && (
           <>
-            <p style={styles.dataCardText}><b>Sale Record</b></p>
-            <p className="small"><b>Challan No:</b> {item.challan_no || "N/A"}</p>
-            <p className="small"><b>Challan Date:</b> {item.challan_date || "N/A"}</p>
-            <p className="small"><b>Customer:</b> {item.customer || "N/A"}</p>
-            <p className="small"><b>Product:</b> {item.product || "N/A"}</p>
+            <p style={styles.cardHeading}>Sale Record</p>
+            <p>
+              <b>Challan No:</b>{" "}
+              <span
+                style={{ color: "#e81a1aff", cursor: "pointer" }}
+                onClick={goToChallan}
+              >
+                {item.challan_no || "N/A"}
+              </span>
+            </p>
+            <p>
+              <b>Challan Date:</b> {item.challan_date || "N/A"}</p>
+            <p><b>Customer:</b> {item.customer || "N/A"}</p>
+            <p><b>Product:</b> {item.product || "N/A"}</p>
           </>
         )}
 
         {stage === "SERVICE" && (
           <>
-            <p style={styles.dataCardText}><b>Service Request</b></p>
-            <p className="small"><b>Challan No:</b> {item.challan_no}</p>
-            <p className="small"><b>Challan Date:</b> {item.challan_date || "N/A"}</p>
-            <p className="small"><b>From:</b> {item.from_place || "N/A"}</p>
-            <p className="small"><b>To:</b> {item.to_place || "N/A"}</p>
-            <p className="small"><b>Courier:</b> {item.courier_name || "N/A"}</p>
+            <p style={styles.cardHeading}>
+              {idx === 0 ? "Service Request" : "Service Delivery"}
+            </p>            <p><b>Challan No:</b> {item.challan_no}</p>
+            <p><b>Challan Date:</b> {item.challan_date || "N/A"}</p>
+            <p><b>Tracking NO:</b> {item.tracking_number || "N/A"}</p>
+            <p><b>Vendor:</b> {item.vendor || "N/A"}</p>
           </>
         )}
 
         <p style={styles.stageDate}>{defaultDate}</p>
-        <Button
-          size="sm"
-          style={{ backgroundColor: '#2E3A59', color: 'white', border: 'none' }}
-          onClick={() => handleMoreDetails(stage, item)}
-        >
-          More Details
-        </Button>      </>
+      </div>
     );
   };
 
@@ -205,30 +263,29 @@ useEffect(() => {
               value={serialNumber}
               onChange={(e) => {
                 const value = e.target.value;
-                // Allow only digits and limit to 6 characters
                 if (/^\d{0,6}$/.test(value)) {
                   setSerialNumber(value);
                 }
               }}
               style={styles.searchInput}
-              maxLength={6} // extra safety
+              maxLength={6} 
             />
 
           </div>
-        <Button
-  type="submit"
-  style={{
-    backgroundColor: "#2E3A59",
-    border: "1px solid #2E3A59",
-    borderRadius: "10px",
-    height: "40px",
-    padding: "0 25px",
-    fontWeight: 500,
-    color: "white",
-  }}
->
-  Search
-</Button>
+          <Button
+            type="submit"
+            style={{
+              backgroundColor: "#2E3A59",
+              border: "1px solid #2E3A59",
+              borderRadius: "10px",
+              height: "40px",
+              padding: "0 25px",
+              fontWeight: 500,
+              color: "white",
+            }}
+          >
+            Search
+          </Button>
 
 
         </Form>
@@ -264,7 +321,7 @@ useEffect(() => {
                     {hasContent
                       ? step.items.map((item, idx) => (
                         <div key={idx} className="shadow-sm" style={{ ...styles.dataCard, borderColor: stageColor }}>
-                          {renderCardContent(step.stage, item)}
+                          {renderCardContent(step.stage, item, idx)}
                         </div>
                       ))
                       : (
