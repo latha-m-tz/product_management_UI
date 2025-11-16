@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { Button, Form, Row, Col, Card } from "react-bootstrap";
-import axios from "axios";
+import api, { setAuthToken } from "../api";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useNavigate } from "react-router-dom";
-import { API_BASE_URL } from "../api";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
 // import { useNavigate } from "react-router-dom";
@@ -20,7 +19,6 @@ export default function AddSparepartPurchase() {
   const [receivedDate, setReceivedDate] = useState("");
   const [serialErrorShown, setSerialErrorShown] = useState(false);
   const [trackingNumber, setTrackingNumber] = useState("");
-  // const [vendorIdOnly, contactPersonId] = String(vendorId).split("-");
   const [recipientFiles, setRecipientFiles] = useState([{ id: Date.now(), file: null }]);
   const [courierName, setCourierName] = useState("");
 
@@ -63,9 +61,12 @@ export default function AddSparepartPurchase() {
 
 
   useEffect(() => {
+    const token = localStorage.getItem("authToken");
+    if (token) setAuthToken(token);
+
     const fetchData = async () => {
       try {
-        const res = await axios.get(`${API_BASE_URL}/get-spareparts`);
+        const res = await api.get("/get-spareparts");
         setAvailableSpareparts(res.data.spareparts || []);
         setAvailableVendors(res.data.vendors || []);
         setAvailableCategories(res.data.categories || []);
@@ -103,58 +104,61 @@ export default function AddSparepartPurchase() {
 
 
 
-const handleInputChange = (index, field, value) => {
-  const type = sparepartTypeOf(spareparts[index].sparepart_id);
-  const updated = [...spareparts];
+  const handleInputChange = (index, field, value) => {
+    const type = sparepartTypeOf(spareparts[index].sparepart_id);
+    const updated = [...spareparts];
 
-  // Serial type fields
-  if (type.includes("serial") && (field === "from_serial" || field === "to_serial")) {
-    // Keep only digits & max 6 characters
-    value = value.replace(/\D/g, "").slice(0, 6);
-    updated[index][field] = value;
-
-    // Range check
-    const fromNum = parseInt(updated[index].from_serial, 10);
-    const toNum = parseInt(updated[index].to_serial, 10);
-
-    if (!isNaN(fromNum) && !isNaN(toNum)) {
-      if (fromNum > toNum) {
-        if (!serialErrorShown[index]?.rangeError) {
-          setSerialErrorShown(prev => ({
-            ...prev,
-            [index]: { ...prev[index], rangeError: true }
-          }));
-        }
-        updated[index].qty = ""; // reset qty if invalid
-      } else {
-        // Valid range → auto calculate quantity
-        updated[index].qty = toNum - fromNum + 1;
-        setSerialErrorShown(prev => ({
-          ...prev,
-          [index]: { ...prev[index], rangeError: false }
-        }));
-      }
-    }
-
-    setSpareparts(updated);
-    return;
-  }
-
-  // Other fields
+   if (type.includes("serial") && (field === "from_serial" || field === "to_serial")) {
+  value = value.replace(/\D/g, "").slice(0, 6);
   updated[index][field] = value;
 
-  if (field === "qty") {
-    let qty = Number(value);
-    if (qty < 1) qty = 1;
-    updated[index][field] = qty;
+  const fromNum = parseInt(updated[index].from_serial, 10);
+  const toNum = parseInt(updated[index].to_serial, 10);
+
+  if (!isNaN(fromNum) && !isNaN(toNum)) {
+    if (fromNum > toNum) {
+      updated[index].qty = ""; // invalid range
+      setSerialErrorShown((prev) => ({
+        ...prev,
+        [index]: { ...prev[index], rangeError: true },
+      }));
+    } else {
+      // Only auto-calc if qty is empty
+      if (!updated[index].qty || updated[index].qty === "" || updated[index].qty === toNum - fromNum + 1) {
+        updated[index].qty = toNum - fromNum + 1;
+      }
+      setSerialErrorShown((prev) => ({
+        ...prev,
+        [index]: { ...prev[index], rangeError: false },
+      }));
+    }
   }
 
   setSpareparts(updated);
-  clearError(field, index);
-};
+  return;
+}
 
 
+    // 🔹 Handle quantity field for non-serial parts
+    if (field === "qty") {
+      if (value === "") {
+        // Allow user to clear it
+        updated[index][field] = "";
+      } else {
+        let qty = Number(value);
+        if (isNaN(qty) || qty < 1) qty = "";
+        updated[index][field] = qty;
+      }
 
+      setSpareparts(updated);
+      clearError(field, index);
+      return;
+    }
+
+    updated[index][field] = value;
+    setSpareparts(updated);
+    clearError(field, index);
+  };
 
   const handleDeleteSparepart = (index) => {
     MySwal.fire({
@@ -202,7 +206,7 @@ const handleInputChange = (index, field, value) => {
       ...prev,
       {
         sparepart_id: "",
-        qty: 1,
+        qty: "",
         warranty_status: "Active",
         // product_id: "",
         from_serial: "",
@@ -216,7 +220,7 @@ const handleInputChange = (index, field, value) => {
       const updated = [...spareparts];
       updated[0] = {
         sparepart_id: "",
-        qty: 1,
+        qty: "",
         warranty_status: "Active",
         // product_id: "",
         from_serial: "",
@@ -355,7 +359,7 @@ const handleInputChange = (index, field, value) => {
     recipientFiles.forEach((f) => {
       if (f.file) formData.append("document_recipient[]", f.file);
     });
- 
+
     // Append sparepart items
     spareparts.forEach((sp, index) => {
       if (!sp.sparepart_id) return;
@@ -369,7 +373,7 @@ const handleInputChange = (index, field, value) => {
     });
 
     try {
-      const res = await axios.post(`${API_BASE_URL}/sparepartNew-purchases`, formData, {
+      const res = await api.post("/sparepartNew-purchases", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       toast.success("Purchase saved successfully!");

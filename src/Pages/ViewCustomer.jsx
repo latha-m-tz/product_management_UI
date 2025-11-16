@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { Card, Row, Col, Spinner, Button } from "react-bootstrap";
+import api, { setAuthToken } from "../api";
 import { useParams, useNavigate } from "react-router-dom";
-import axios from "axios";
 import { toast } from "react-toastify";
 import BreadCrumb from "../components/BreadCrumb";
-import { API_BASE_URL } from "../api";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import metadata from "libphonenumber-js/metadata.full.json";
 
@@ -26,20 +25,22 @@ export default function ViewCustomerPage() {
   };
 
   useEffect(() => {
+    const token = localStorage.getItem("authToken");
+    setAuthToken(token);
     const fetchCustomer = async () => {
       setLoading(true);
       try {
-        const res = await axios.get(`${API_BASE_URL}/customers/${id}`);
+        const res = await api.get(`/customers/${id}`);
         if (res.data && res.data.status === "success") {
           setCustomer(res.data.customer);
         } else {
           toast.error("Customer not found");
-          navigate("/customers");
+          navigate("/customer");
         }
       } catch (err) {
         console.error(err);
         toast.error("Error fetching customer");
-        navigate("/customers");
+        navigate("/customer");
       } finally {
         setLoading(false);
       }

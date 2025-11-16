@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { Button, Spinner, Form, Card, Offcanvas } from "react-bootstrap";
-import axios from "axios";
+import api, { setAuthToken } from "../api";
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -13,7 +13,6 @@ import BreadCrumb from "../components/BreadCrumb";
 import Search from "../components/Search.jsx";
 import Pagination from "../components/Pagination.jsx";
 import { useLocation, useNavigate } from "react-router-dom";
-import { API_BASE_URL } from "../api";
 import Select from "react-select";
 
 const MySwal = withReactContent(Swal);
@@ -49,7 +48,7 @@ export default function App() {
   const fetchSpareparts = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API_BASE_URL}/spareparts/get`);
+      const response = await api.get(`/spareparts/get`);
       const fetchedData = response.data.spareparts ?? [];
       setSpareparts(fetchedData);
     } catch (error) {
@@ -61,26 +60,28 @@ export default function App() {
   };
 
   useEffect(() => {
+    const token = localStorage.getItem("authToken");
+    setAuthToken(token);
     fetchSpareparts();
   }, []);
-  useEffect(() => {
-    const fetchProductTypes = async () => {
-      try {
-        const res = await axios.get(`${API_BASE_URL}/product-types`);
-        setProductTypes(res.data?.data || res.data || []);
-      } catch (err) {
-        console.error("Error fetching product types:", err);
-        toast.error("Failed to load product types.");
-      }
-    };
-    fetchProductTypes();
-  }, []);
+  // useEffect(() => {
+  //   const fetchProductTypes = async () => {
+  //     try {
+  //       const res = await api.get(`/product-types`);
+  //       setProductTypes(res.data?.data || res.data || []);
+  //     } catch (err) {
+  //       console.error("Error fetching product types:", err);
+  //       toast.error("Failed to load product types.");
+  //     }
+  //   };
+  //   fetchProductTypes();
+  // }, []);
 
   const saveSparepart = async (payload) => {
     try {
       let response;
       if (editingPart) {
-        response = await axios.put(`${API_BASE_URL}/spareparts/${editingPart.id}`, payload);
+        response = await api.put(`/spareparts/${editingPart.id}`, payload);
 
         // ✅ Update the edited item locally instead of refetching full list
         setSpareparts((prev) =>
@@ -89,7 +90,7 @@ export default function App() {
           )
         );
       } else {
-        response = await axios.post(`${API_BASE_URL}/spareparts`, payload);
+        response = await api.post(`/spareparts`, payload);
 
         // ✅ Add new spare part to the top of the list (optional: or push at bottom)
         setSpareparts((prev) => [response.data.sparepart, ...prev]);
@@ -141,9 +142,9 @@ export default function App() {
       return;
     }
     const payload = {
-      code: formData.code.trim()|| "",
+      code: formData.code.trim() || "",
       name: formData.name.trim(),
-       sparepart_type: formData.sparepart_type.trim(),
+      sparepart_type: formData.sparepart_type.trim(),
       // sparepart_usages: Array.isArray(formData.sparepart_usages)
       //   ? formData.sparepart_usages.join(",")
       //   : formData.sparepart_usages,
@@ -165,7 +166,7 @@ export default function App() {
     });
     if (!result.isConfirmed) return;
     try {
-      await axios.delete(`${API_BASE_URL}/spareparts/${id}/del`);
+      await api.delete(`/spareparts/${id}/del`);
       toast.success("Spare part deleted successfully!");
       if (editingPart?.id === id) closeForm();
       fetchSpareparts();
@@ -409,13 +410,13 @@ export default function App() {
                 </div>
 
                 <div className="mb-2 col-12 form-field">
-<Form.Label className="mb-1" style={{ fontSize: "13px", fontWeight: 500 }}>
-  Spare Part Code
-</Form.Label>
+                  <Form.Label className="mb-1" style={{ fontSize: "13px", fontWeight: 500 }}>
+                    Spare Part Code
+                  </Form.Label>
                   <Form.Control type="text" name="code" value={formData.code} onChange={handleChange} className="custom-placeholder" placeholder="Enter Code" isInvalid={!!errors.code} style={{ height: "34px", fontSize: "13px" }} />
                   <Form.Control.Feedback type="invalid" style={errorStyle}>{errors.code}</Form.Control.Feedback>
                 </div>
-                                <div className="mb-2 col-12 form-field">
+                <div className="mb-2 col-12 form-field">
                   <Form.Label className="mb-1" style={{ fontSize: "13px", fontWeight: 500 }}>Spare part Type <span style={{ color: "red" }}>*</span></Form.Label>
                   <Form.Select name="sparepart_type" value={formData.sparepart_type} onChange={handleChange} className="custom-placeholder" isInvalid={!!errors.sparepart_type} style={{ height: "34px", fontSize: "13px" }}>
                     <option value="">-- Select Type --</option>
@@ -425,7 +426,7 @@ export default function App() {
                   </Form.Select>
                   <Form.Control.Feedback type="invalid" style={errorStyle}>{errors.sparepart_type}</Form.Control.Feedback>
                 </div>
-{/* 
+                {/* 
 
                 <div className="mb-2 col-12 form-field">
                   <Form.Label className="mb-1" style={{ fontSize: "13px", fontWeight: 500 }}>

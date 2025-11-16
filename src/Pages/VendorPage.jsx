@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { Button, Spinner, Card, Form } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import api, { setAuthToken } from "../api";
 import { toast } from "react-toastify";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
-import { API_BASE_URL } from "../api";
 import ActionButton from "../components/ActionButton";
 import BreadCrumb from "../components/BreadCrumb";
 
@@ -75,13 +74,15 @@ export default function VendorPage() {
 
 
   useEffect(() => {
+const token = localStorage.getItem("authToken");
+setAuthToken(token);
     fetchVendors();
   }, []);
 
   const fetchVendors = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE_URL}/vendorsget`);
+      const res = await api.get(`/vendorsget`);
       if (Array.isArray(res.data)) {
         setVendors(res.data);
       } else if (Array.isArray(res.data.data)) {
@@ -110,7 +111,7 @@ export default function VendorPage() {
     if (!result.isConfirmed) return;
 
     try {
-      await axios.delete(`${API_BASE_URL}/vendors/${id}`);
+      await api.delete(`/vendors/${id}`);
       toast.success("Vendor deleted successfully!");
       fetchVendors();
     } catch {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import api, { setAuthToken } from "../api";
 import {
   Button,
   Form,
@@ -13,8 +13,6 @@ import { toast } from "react-toastify";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
 import "bootstrap/dist/css/bootstrap.min.css";
-
-import { API_BASE_URL } from "../api";
 import BreadCrumb from "../components/BreadCrumb";
 import { useNavigate, useParams } from "react-router-dom";
 import { IoTrashOutline } from "react-icons/io5";
@@ -43,11 +41,13 @@ export default function AddSalesPage() {
   const MySwal = withReactContent(Swal);
 
   useEffect(() => {
-    axios
-      .get(`${API_BASE_URL}/customers/get`)
-      .then((res) => setCustomers(res.data))
-      .catch(() => toast.error("Failed to load customers"))
-      .finally(() => setLoading(false));
+  const token = localStorage.getItem("authToken");
+  if (token) setAuthToken(token);
+  api
+    .get("/customers/get")
+    .then((res) => setCustomers(res.data))
+    .catch(() => toast.error("Failed to load customers"))
+    .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
@@ -64,8 +64,8 @@ export default function AddSalesPage() {
       setItems(data.items || []);
       localStorage.removeItem("draftSale");
     } else if (saleId) {
-      axios
-        .get(`${API_BASE_URL}/sales/${saleId}`)
+      api
+        .get(`/sales/${saleId}`)
         .then((res) => {
           const sale = res.data;
           setCustomerId(sale.customer_id);
@@ -124,12 +124,9 @@ export default function AddSalesPage() {
           }
         });
 
-        // ✅ Save active sale product IDs
-        // ✅ Always store product IDs as strings
         const activeProductIds = merged.map((item) => String(item.product_id));
         localStorage.setItem("inSaleProducts", JSON.stringify(activeProductIds));
 
-        // ✅ Dispatch update event so AddProductPage refreshes instantly
         window.dispatchEvent(new Event("inSaleProductsUpdated"));
 
         return merged;
@@ -197,10 +194,10 @@ export default function AddSalesPage() {
 
     try {
       if (saleId) {
-        await axios.put(`${API_BASE_URL}/sales/${saleId}`, payload);
+        await api.put(`/sales/${saleId}`, payload);
         toast.success("Sale updated successfully!");
       } else {
-        await axios.post(`${API_BASE_URL}/sales`, payload);
+        await api.post("/sales", payload);
         toast.success("Sale added successfully!");
       }
       localStorage.removeItem("inSaleProducts");

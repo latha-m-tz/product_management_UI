@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Form, Button, Modal, Spinner } from 'react-bootstrap';
 import { toast, ToastContainer } from 'react-toastify';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import 'react-toastify/dist/ReactToastify.css';
-import { API_BASE_URL } from '../api';
+import api, { setAuthToken } from '../api'; 
 
 export default function LoginPage({ onLogin }) {
   const [showPassword, setShowPassword] = useState(false);
@@ -25,49 +24,49 @@ export default function LoginPage({ onLogin }) {
     theme: "light",
   };
 
-  // useEffect(() => {
-  //   const token = localStorage.getItem('authToken');
-  //   if (token) {
-  //     setTimeout(() => {
-  //       navigate('/overview', { replace: true });
-  //     }, 500); 
-  //   }
-  // }, []);
-  const handleLogin = async (e) => {
-    e.preventDefault();
+  useEffect(() => {
+  const token = localStorage.getItem('authToken');
+  if (token) setAuthToken(token); // automatically set token for all API calls
+}, []);
 
-    let hasError = false;
-    if (!formData.email) {
-      toast.error("Email is required!", toastOptions);
-      hasError = true;
-    }
-    if (!formData.password) {
-      toast.error("Password is required!", toastOptions);
-      hasError = true;
-    }
-    if (hasError) return;
+const handleLogin = async (e) => {
+  e.preventDefault();
 
-    try {
-      setLoading(true);
-      const res = await axios.post(`${API_BASE_URL}/login`, formData);
+  let hasError = false;
+  if (!formData.email) {
+    toast.error("Email is required!", toastOptions);
+    hasError = true;
+  }
+  if (!formData.password) {
+    toast.error("Password is required!", toastOptions);
+    hasError = true;
+  }
+  if (hasError) return;
 
-      localStorage.setItem('authToken', res.data.data.token);
-      localStorage.setItem('authEmail', res.data.data.user.email);
-      localStorage.setItem('authName', res.data.data.user.username);
+  try {
+    setLoading(true);
+    const res = await api.post("/login", formData);
 
-      toast.success("Login successful!", toastOptions);
+    const token = res.data.data.token;
 
-      // Wait for toast to display before navigating
-      setTimeout(() => {
-        onLogin?.();
-        navigate('/overview', { replace: true });
-      }, 800); // 0.8 seconds
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Login failed', toastOptions);
-    } finally {
-      setLoading(false);
-    }
-  };
+    localStorage.setItem('authToken', token);
+    localStorage.setItem('authEmail', res.data.data.user.email);
+    localStorage.setItem('authName', res.data.data.user.username);
+
+    setAuthToken(token);
+
+    toast.success("Login successful!", toastOptions);
+
+    setTimeout(() => {
+      onLogin?.();
+      navigate('/overview', { replace: true });
+    }, 800);
+  } catch (err) {
+    toast.error(err.response?.data?.message || 'Login failed', toastOptions);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleSendOtp = async () => {
     if (!forgotData.email) {
@@ -76,7 +75,7 @@ export default function LoginPage({ onLogin }) {
     }
     try {
       setLoading(true);
-      const res = await axios.post(`${API_BASE_URL}/forgot-password`, { email: forgotData.email });
+      const res = await api.post(`${API_BASE_URL}/forgot-password`, { email: forgotData.email });
       if (res.data.status === "success") {
         toast.success("OTP sent to your email", toastOptions);
         setForgotStep(2);
@@ -95,7 +94,7 @@ export default function LoginPage({ onLogin }) {
     }
     try {
       setLoading(true);
-      const res = await axios.post(`${API_BASE_URL}/verify-otp`, { email: forgotData.email, otp: forgotData.otp });
+      const res = await api.post(`${API_BASE_URL}/verify-otp`, { email: forgotData.email, otp: forgotData.otp });
       if (res.data.status === "success") {
         toast.success("OTP verified", toastOptions);
         setForgotStep(3);
@@ -118,7 +117,7 @@ export default function LoginPage({ onLogin }) {
     }
     try {
       setLoading(true);
-      const res = await axios.post(`${API_BASE_URL}/reset-password`, {
+      const res = await api.post(`${API_BASE_URL}/reset-password`, {
         email: forgotData.email,
         password: forgotData.password,
         password_confirmation: forgotData.confirmPassword,

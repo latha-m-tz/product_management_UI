@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { Button, Spinner, Card, Form } from "react-bootstrap";
+import api, { setAuthToken } from "../api";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
 import { toast } from "react-toastify";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
 import ActionButton from "../components/ActionButton";
-import { API_BASE_URL } from "../api";
 import BreadCrumb from "../components/BreadCrumb";
 import Search from "../components/Search.jsx";
 import Pagination from "../components/Pagination.jsx";
@@ -25,13 +24,15 @@ export default function PurchaseListPage() {
   const [sortDirection, setSortDirection] = useState("asc");
 
   useEffect(() => {
+    const token = localStorage.getItem("authToken");
+    setAuthToken(token);
     fetchPurchases();
   }, []);
 
   const fetchPurchases = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE_URL}/sparepart-purchases`);
+      const res = await api.get(`/sparepart-purchases`);
       setPurchaseData(res.data);
     } catch {
       toast.error("Failed to fetch purchase data.");
@@ -54,7 +55,7 @@ export default function PurchaseListPage() {
     if (!result.isConfirmed) return;
 
     try {
-      await axios.delete(`${API_BASE_URL}/sparepart-purchase-items/${id}`);
+      await api.delete(`/sparepart-purchase-items/${id}`);
       toast.success("Purchase deleted successfully!");
       const newData = purchaseData.filter((item) => item.purchase_id !== id);
       setPurchaseData(newData);
@@ -179,7 +180,6 @@ const filteredData = purchaseData.filter((item) => {
                     <td style={{ fontSize: "0.90rem" }}>{item.vendor.name}</td>
                     <td style={{ fontSize: "0.90rem" }}>{item.challan_no}</td>
                     <td style={{ fontSize: "0.90rem" }}>{item.challan_date}</td>
-                    {/* <td style={{ fontSize: "0.90rem" }}>{item.total_quantity}</td> */}
                     <td className="text-center" style={{ width: "130px" }}>
                       <div className="d-flex justify-content-center">
                         <ActionButton

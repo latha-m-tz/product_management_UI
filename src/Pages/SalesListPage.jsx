@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
 import { Button, Spinner, Card, Form } from "react-bootstrap";
+import api, { setAuthToken } from "../api";
 import { toast } from "react-toastify";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
@@ -26,13 +26,15 @@ export default function SalesListPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    const token = localStorage.getItem("authToken");
+    if (token) setAuthToken(token);
     fetchSales();
   }, []);
 
   const fetchSales = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE_URL}/sales`, {
+      const res = await api.get(`/sales`, {
         headers: { "Cache-Control": "no-cache" },
         params: { _: new Date().getTime() },
       });
@@ -59,7 +61,7 @@ export default function SalesListPage() {
       });
 
       if (result.isConfirmed) {
-        await axios.delete(`${API_BASE_URL}/sales/${sale.id}`);
+        await api.delete(`/sales/${sale.id}`);
         toast.success("Sale deleted!");
         fetchSales();
       }
@@ -82,12 +84,12 @@ const headerStyle = {
   color: "white",
   padding: "2px 6px", 
   height: "28px", 
-  lineHeight: "1.2", // compact spacing
+  lineHeight: "1.2", 
 };
 const rowStyle = {
-  fontSize: "0.85rem",  // smaller text
-  padding: "4px 6px",   // tighter cell spacing
-  lineHeight: "1.2rem", // compact vertical spacing
+  fontSize: "0.85rem",  
+  padding: "4px 6px",   
+  lineHeight: "1.2rem", 
 };
 
 

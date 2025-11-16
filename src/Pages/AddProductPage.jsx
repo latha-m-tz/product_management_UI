@@ -8,11 +8,10 @@ import {
   Row,
   Col,
 } from "react-bootstrap";
-import axios from "axios";
+import api, { setAuthToken } from "../api";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { API_BASE_URL } from "../api";
 
 export default function AddProductPage({ onProductsSelected }) {
   const navigate = useNavigate();
@@ -48,7 +47,7 @@ export default function AddProductPage({ onProductsSelected }) {
   // 📦 Fetch all products
   const fetchProducts = async () => {
     try {
-      const res = await axios.get(`${API_BASE_URL}/product`);
+      const res = await api.get("/product");
       if (Array.isArray(res.data)) {
         const normalized = res.data
           .map((p) => ({
@@ -68,7 +67,7 @@ export default function AddProductPage({ onProductsSelected }) {
   // 🚫 Fetch already sold serials
   const fetchSoldSerials = async () => {
     try {
-      const res = await axios.get(`${API_BASE_URL}/added-serials`);
+      const res = await api.get("/added-serials");
       const soldSerials = Array.isArray(res.data)
         ? res.data.map((s) => String(s).trim())
         : [];
@@ -80,88 +79,126 @@ export default function AddProductPage({ onProductsSelected }) {
   };
 
   // 🔍 Fetch serial/testing data
-  const fetchTestingData = async () => {
-    try {
-      setLoading(true);
-      let records = [];
+const fetchTestingData = async () => {
+  try {
+    setLoading(true);
+    let records = [];
 
-      if (selectedProductId) {
-        const res = await axios.get(
-          `${API_BASE_URL}/products/${selectedProductId}/serials`
-        );
-        records = Array.isArray(res.data) ? res.data : [];
-      } else {
-        const params = {};
-        if (serialFrom) params.serial_from = serialFrom;
-        if (serialTo) params.serial_to = serialTo;
-        const res = await axios.get(`${API_BASE_URL}/inventory/serial-numbers`, {
-          params,
-        });
-        records = Array.isArray(res.data)
-          ? res.data
-          : res.data?.data ?? [];
-      }
+    if (selectedProductId) {
+      const res = await api.get(`/products/${selectedProductId}/serials`);
+      
+      console.log("API RAW DATA (BY PRODUCT):", res.data);
 
-      // Normalize product_id
-      records = records.map((r) => ({
-        ...r,
-        product_id:
-          r.product_id ??
-          r.productId ??
-          r.productID ??
-          selectedProductId ??
-          null,
-      }));
+      records = Array.isArray(res.data) ? res.data : [];
+    } else {
+      const params = {};
+      if (serialFrom) params.serial_from = serialFrom;
+      if (serialTo) params.serial_to = serialTo;
 
-      // Exclude sold serials
+      const res = await api.get("/inventory/serial-numbers", { params });
+
+      console.log("API RAW DATA (ALL SERIALS):", res.data);
+
+      records = Array.isArray(res.data)
+        ? res.data
+        : res.data?.data ?? [];
+    }
+
+    // 🔍 Log BEFORE mapping
+    console.log("BEFORE NORMALIZATION:", records);
+
+    // Normalize
+records = records.map((r) => ({
+  ...r,
+
+  // ✅ FIX: Ensure every record has a valid id
+  id:
+    r.id ??
+    r.serial_id ??
+    r.sid ??
+    r._id ??
+    r.item_id ??
+    r.testing_id ??
+    null,
+
+  product_id:
+    r.product_id ??
+    r.productId ??
+    r.productID ??
+    selectedProductId ??
+    null,
+
+  serial_no:
+    r.serial_no ??
+    r.serial ??
+    r.serialNumber ??
+    r.serialNo ??
+    null,
+
+  tested_status:
+    r.tested_status ??
+    r.testStatus ??
+    r.testedStatus ??
+    r.status ??
+    null,
+}));
+
+    // 🔍 Log After Normalization
+    console.log("AFTER NORMALIZATION:", records);
+
+    // Remove sold serials
+    records = records.filter(
+      (r) =>
+        r.serial_no &&
+        !alreadySoldSerials.includes(String(r.serial_no).trim())
+    );
+
+    // 🔍 Log After Sold Filter
+    console.log("AFTER SOLD FILTER:", records);
+
+    const from = serialFrom ? Number(serialFrom) : null;
+    const to = serialTo ? Number(serialTo) : null;
+    if (from !== null)
+      records = records.filter(
+        (r) => !isNaN(r.serial_no) && Number(r.serial_no) >= from
+      );
+    if (to !== null)
+      records = records.filter(
+        (r) => !isNaN(r.serial_no) && Number(r.serial_no) <= to
+      );
+
+    if (testFilter) {
       records = records.filter(
         (r) =>
-          r.serial_no &&
-          !alreadySoldSerials.includes(String(r.serial_no).trim())
+          String(r.tested_status).toUpperCase() ===
+          testFilter.toUpperCase()
       );
-
-      // Apply range filters
-      const from = serialFrom ? Number(serialFrom) : null;
-      const to = serialTo ? Number(serialTo) : null;
-      if (from !== null)
-        records = records.filter(
-          (r) => !isNaN(r.serial_no) && Number(r.serial_no) >= from
-        );
-      if (to !== null)
-        records = records.filter(
-          (r) => !isNaN(r.serial_no) && Number(r.serial_no) <= to
-        );
-
-      // Apply test filter
-      if (testFilter) {
-        records = records.filter(
-          (r) =>
-            String(r.tested_status).toUpperCase() ===
-            testFilter.toUpperCase()
-        );
-      }
-
-      // ✅ Hide products already added in sale (even unsaved)
-      const storedInSale = (
-        JSON.parse(localStorage.getItem("inSaleProducts") || "[]") || []
-      ).map(String);
-
-      const filtered = records.filter(
-        (r) => !storedInSale.includes(String(r.product_id))
-      );
-
-      setTestingData(filtered);
-      setSelectedSerials((prev) =>
-        prev.filter((s) => filtered.some((r) => r.id === s))
-      );
-    } catch (err) {
-      console.error("Error fetching testing data:", err);
-      setTestingData([]);
-      toast.error("Failed to fetch product serials");
-    } finally {
-      setLoading(false);
     }
-  };
+
+    const storedInSale = (
+      JSON.parse(localStorage.getItem("inSaleProducts") || "[]") || []
+    ).map(String);
+
+   const filtered = records;  
+
+    // 🔍 FINAL DATA FOR TABLE
+    console.log("FINAL TABLE DATA:", filtered);
+
+    setTestingData(filtered);
+
+    setSelectedSerials((prev) =>
+      prev.filter((s) => filtered.some((r) => r.id === s))
+    );
+
+  } catch (err) {
+    console.error("Error fetching testing data:", err);
+    setTestingData([]);
+    toast.error("Failed to fetch product serials");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   // ✅ Checkbox logic
   const handleCheckboxChange = (id) => {
@@ -215,22 +252,28 @@ export default function AddProductPage({ onProductsSelected }) {
     navigate(-1);
   };
 
-  const getProductName = (item) => {
-    if (!item) return "N/A";
-    if (item.product && typeof item.product === "object" && item.product.name)
-      return item.product.name;
-    if (item.product && typeof item.product === "string") return item.product;
-    if (item.product_name) return item.product_name;
-    if (item.product_id) {
-      const found = products.find(
-        (p) => String(p.id) === String(item.product_id)
-      );
-      if (found) return found.name;
-    }
-    return "N/A";
-  };
+const getProductName = (item) => {
+  if (!item) return "N/A";
+
+  // If product is already a string (your case)
+  if (typeof item.product === "string") return item.product;
+
+  // If product is an object with name
+  if (item.product?.name) return item.product.name;
+
+  if (item.product_name) return item.product_name;
+
+  // Fallback by product_id lookup
+  const found = products.find(
+    (p) => String(p.id) === String(item.product_id)
+  );
+  return found ? found.name : "N/A";
+};
+
 
   useEffect(() => {
+    const token = localStorage.getItem("authToken");
+    if (token) setAuthToken(token);
     fetchProducts();
     fetchSoldSerials();
   }, []);

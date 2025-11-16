@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import api, { setAuthToken } from "../api";
 import { Card, Spinner, Button, Form } from "react-bootstrap";
 import { toast } from "react-toastify";
 import { ArrowClockwise } from "react-bootstrap-icons";
 import { useParams, useNavigate } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 
-import { API_BASE_URL } from "../api";
 import BreadCrumb from "../components/BreadCrumb"; // Added from ProductPage
 import Pagination from "../components/Pagination";
 import Search from "../components/Search";
@@ -22,13 +21,15 @@ export default function SalesOverviewPage() {
   const [perPage, setPerPage] = useState(10);
 
   useEffect(() => {
+    const token = localStorage.getItem("authToken");
+    if (token) setAuthToken(token);
     fetchSale();
   }, [id]);
 
   const fetchSale = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE_URL}/sales/${id}`);
+      const res = await api.get(`/sales/${id}`);
       setSale(res.data);
     } catch (error) {
       console.error("Failed to fetch sale:", error);

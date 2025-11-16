@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import api, { setAuthToken ,API_BASE_URL } from "../api";
 import {
   Card,
   Row,
@@ -9,9 +10,7 @@ import {
   Form,
 } from "react-bootstrap";
 import { useNavigate, useParams } from "react-router-dom";
-import axios from "axios";
 import { toast } from "react-toastify";
-import { API_BASE_URL } from "../api";
 import "bootstrap/dist/css/bootstrap.min.css";
 import BreadCrumb from "../components/BreadCrumb";
 import Pagination from "../components/Pagination";
@@ -24,19 +23,20 @@ export default function PurchaseViewPage() {
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState("");
-  const STORAGE_BASE_URL = `${API_BASE_URL.replace(/\/api\/?$/, "")}/storage`;
   const getFileName = (url) => {
     if (!url) return "";
     return url.split("/").pop(); // gets last part of URL (filename)
   };
   useEffect(() => {
+    const token = localStorage.getItem("authToken");
+    if (token) setAuthToken(token);
     fetchPurchase();
   }, [id]);
 
   const fetchPurchase = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE_URL}/sparepart-purchases/view/${id}`);
+      const res = await api.get(`/sparepart-purchases/view/${id}`);
       setPurchase(res.data);
     } catch {
       toast.error("Failed to fetch purchase data.");

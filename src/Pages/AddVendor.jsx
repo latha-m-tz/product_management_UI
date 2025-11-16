@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button, Form, Row, Col } from "react-bootstrap";
+import api, { setAuthToken } from "../api";
 import CreatableSelect from "react-select/creatable";
 import "react-phone-number-input/style.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
@@ -8,7 +9,6 @@ import "react-toastify/dist/ReactToastify.css";
 import { useNavigate } from "react-router-dom";
 import ActionButton from "../components/ActionButton";
 import { isValidPhoneNumber } from "libphonenumber-js";
-import { API_BASE_URL } from "../api";
 import CountryPhoneInput from "../components/CountryPhoneInput";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
@@ -63,12 +63,15 @@ export default function AddVendor() {
 
       if (!phoneNumber) return number;
 
-      // ✅ Only one space between country code and full mobile number
       return `+${phoneNumber.countryCallingCode} ${phoneNumber.nationalNumber}`;
     } catch {
       return number;
     }
   };
+useEffect(() => {
+  const token = localStorage.getItem("authToken");
+  if (token) setAuthToken(token);
+}, []);
 
   const handleVendorMobileChange = (value) => {
     if (!value) {
@@ -244,7 +247,6 @@ const addContactPerson = () => {
 
   const errors = {};
 
-  // 🔹 Email validation rules
   if (contact.email) {
     const emailTrimmed = contact.email.trim();
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -263,7 +265,6 @@ const addContactPerson = () => {
     }
   }
 
-  // 🔹 Check if this email was previously flagged by backend as already taken
   if (contact.email && vendor?.backendErrors) {
     const backendErrorKey = Object.keys(vendor.backendErrors).find((key) =>
       key.includes(contact.email)
@@ -320,7 +321,6 @@ const addContactPerson = () => {
     toast.success(`Contact person "${contactToSave.name}" added successfully!`);
   }
 
-  // 🔹 Reset contact form and panel
   setContact({
     name: "",
     designation: "",
@@ -446,76 +446,71 @@ const addContactPerson = () => {
     return Object.keys(errors).length === 0;
   };
 const saveVendor = async () => {
-  if (!validateVendor()) {
-    return;
-  }
+  if (!validateVendor()) return;
 
-  // if (contactPersons.length === 0) {
-  //   toast.error("Please add at least one contact person.");
-  //   return;
-  // }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/vendors/new`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+    const response = await api.post(
+      "/vendors/new",
+      {
         ...vendor,
         contact_persons: contactPersons,
-      }),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      if (data.errors) {
-        // 🔹 Loop through all validation errors dynamically
-        Object.entries(data.errors).forEach(([key, messages]) => {
-          const message = Array.isArray(messages) ? messages.join(", ") : messages;
-
-          if (key === "vendor") {
-            toast.error("Company name already exists");
-          } else if (key === "email") {
-            toast.error(`Email already taken`);
-          } else if (key === "mobile_no") {
-            toast.error(`Mobile number already taken`);
-          } else if (key === "gst_no") {
-            toast.error(`GST number already exists`);
-          } else if (key.startsWith("contact_persons")) {
-            // Example key: contact_persons.0.email
-            const parts = key.split(".");
-            const index = parts[1] || "?";
-            const field = parts[2] || "field";
-            const contactName =
-              contactPersons[index]?.name || `#${parseInt(index) + 1}`;
-            toast.error(
-              `Contact person ${contactName} ${field.replace(
-                "_",
-                " "
-              )} error: ${message}`
-            );
-          } else {
-            // fallback for any other unknown field
-            toast.error(`${key.replace("_", " ")}: ${message}`);
-          }
-        });
-      } else if (data.message) {
-        toast.error(data.message);
-      } else {
-        toast.error("Error saving vendor!");
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
       }
-      return;
-    }
+    );
 
+    // ✅ If API call succeeds
     toast.success("Vendor added successfully!");
     navigate("/vendor");
   } catch (err) {
     console.error(err);
-    toast.error("Error saving vendor!");
+
+    // ✅ Handle Laravel validation errors
+    if (err.response && err.response.data && err.response.data.errors) {
+      const errors = err.response.data.errors;
+
+      Object.entries(errors).forEach(([key, messages]) => {
+        const message = Array.isArray(messages) ? messages.join(", ") : messages;
+
+        if (key === "vendor") {
+          toast.error("Company name already exists");
+        } else if (key === "email") {
+          toast.error("Email already taken");
+        } else if (key === "mobile_no") {
+          toast.error("Mobile number already taken");
+        } else if (key === "gst_no") {
+          toast.error("GST number already exists");
+        } else if (key.startsWith("contact_persons")) {
+          // Example key: contact_persons.0.email
+          const parts = key.split(".");
+          const index = parts[1] || "?";
+          const field = parts[2] || "field";
+          const contactName =
+            contactPersons[index]?.name || `#${parseInt(index) + 1}`;
+          toast.error(
+            `Contact person ${contactName} ${field.replace(
+              "_",
+              " "
+            )} error: ${message}`
+          );
+        } else {
+          // fallback for unknown field
+          toast.error(`${key.replace("_", " ")}: ${message}`);
+        }
+      });
+    } else if (err.response && err.response.data && err.response.data.message) {
+      toast.error(err.response.data.message);
+    } else {
+      toast.error("Error saving vendor!");
+    }
   }
 };
+
 
   const feedbackStyle = { color: "red", fontSize: "0.85rem", marginTop: "4px" };
   const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;

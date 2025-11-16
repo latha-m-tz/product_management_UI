@@ -3,8 +3,7 @@ import { Button, Form, Row, Col } from "react-bootstrap";
 import DataTable from "react-data-table-component";
 import CreatableSelect from "react-select/creatable";
 import { useParams, useNavigate } from "react-router-dom";
-import { API_BASE_URL } from "../api";
-import PhoneInput from "react-phone-number-input";
+import api, { setAuthToken ,API_BASE_URL} from "../api";
 import "react-phone-number-input/style.css";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -20,8 +19,6 @@ export default function EditVendor() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [countryCode, setCountryCode] = useState("IN");
-  const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(5);
   const [contactKey, setContactKey] = useState(0);
 
 
@@ -92,6 +89,11 @@ export default function EditVendor() {
         setCountryCode("IN");
       });
   }, []);
+  useEffect(() => {
+    const token = localStorage.getItem("authToken");
+    if (token) setAuthToken(token);
+
+  }, []);
 
 
   useEffect(() => {
@@ -99,8 +101,8 @@ export default function EditVendor() {
 
     const fetchVendor = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/${id}/edit`);
-        const data = await res.json();
+        const res = await api.get(`/${id}/edit`);
+        const data = res.data;
 
         let vendorMobile = data.vendor?.mobile_no || "";
         if (vendorMobile && !vendorMobile.startsWith("+")) {
@@ -677,7 +679,7 @@ export default function EditVendor() {
     };
 
     try {
-      const res = await fetch(`${API_BASE_URL}/${id}`, {
+        const res = await fetch(`${API_BASE_URL}/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -881,7 +883,7 @@ export default function EditVendor() {
                 options={cityOptionsFormatted}
                 isClearable
                 placeholder="Select or type city"
-                classNamePrefix="my-select"   // ✅ Add this
+                classNamePrefix="my-select"   
               />
 
               {errors.city && <div style={{ color: "red", fontSize: "12px" }}>{errors.city}</div>}
@@ -935,7 +937,7 @@ export default function EditVendor() {
                 name="email"
                 value={vendor.email ?? ""}
                 onChange={handleVendorChange}
-                isInvalid={!!errors.email} // ✅ changed
+                isInvalid={!!errors.email} 
               />
               {errors.email && (
                 <div style={{ color: "red", fontSize: "0.85rem", marginTop: "4px" }}>
@@ -1023,7 +1025,6 @@ export default function EditVendor() {
             return;
           }
 
-          // ✅ Only open panel if all required company details are filled
           setContact({
             name: "",
             designation: "",
@@ -1085,7 +1086,7 @@ export default function EditVendor() {
                     textAlign: "center",
                     backgroundColor: "#f1f3f5",
                     fontWeight: "normal", // normal text weight
-                    color: "inherit", // keeps default text color (black)
+                    color: "inherit", 
                   }}
                 >
                   Action

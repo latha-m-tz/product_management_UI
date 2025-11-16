@@ -45,7 +45,7 @@ import ComponentsRequirement from "./Pages/Componentsrequirement";
 import "country-flag-icons/3x2/flags.css";
 import TechnicianPage from "./Pages/Technician";
 import RegisterPage from "./Pages/RegisterPage";
-import ServiceItemsPage from "./Pages/ServiceItemsPage"; 
+import ServiceItemsPage from "./Pages/ServiceItemsPage";
 import ServiceDeliveryList from "./Pages/ServiceDeliveryList";
 import AddServiceDelivery from "./Pages/AddServiceDelivery";
 import EditServiceDelivery from "./Pages/EditServiceDelivery";
@@ -135,7 +135,7 @@ export default function App() {
           <Route path="/technician" element={<TechnicianPage />} />
           {/* Actual route with series param */}
           <Route path="/spare-parts-by-series/:series" element={<ComponentsRequirement />} />
-  <Route path="/service-items" element={<ServiceItemsPage />} />
+          <Route path="/service-items" element={<ServiceItemsPage />} />
           <Route path="/service-delivery" element={<ServiceDeliveryList />} />
           <Route path="/service-delivery/add" element={<AddServiceDelivery />} />
           <Route path="/service-delivery/:id/edit" element={<EditServiceDelivery />} />

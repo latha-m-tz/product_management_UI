@@ -40,8 +40,8 @@ export default function Sidebar({ collapsed }) {
 
     service: [
       { link: "service-product", title: "Service Product", icon: ["/Service VCI.png", "/Service VCI.png"] },
-      { link: "service-items", title: "Service Items", icon: ["/service_list.png", "/service_list.png"] },
-      { link: "service-delivery", title: "Service Delivery", icon: ["/service_delivery.png", "/service_delivery.png"] },
+      // { link: "service-items", title: "Service Items", icon: ["/service_list.png", "/service_list.png"] },
+      // { link: "service-delivery", title: "Service Delivery", icon: ["/service_delivery.png", "/service_delivery.png"] },
 
     ],
 

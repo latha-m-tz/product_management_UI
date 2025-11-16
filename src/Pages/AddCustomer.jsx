@@ -5,7 +5,7 @@ import PhoneInput from "react-phone-number-input";
 import "react-phone-number-input/style.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import { toast } from "react-toastify";
-import { API_BASE_URL } from "../api";
+import api, { setAuthToken } from "../api";
 import "react-toastify/dist/ReactToastify.css";
 import { useNavigate } from "react-router-dom";
 import CountrySelect from "../components/CountrySelect";
@@ -43,7 +43,12 @@ export default function AddCustomer() {
       })
       .catch(() => setCountryCode(""));
   }, []);
-
+  useEffect(() => {
+    const token = localStorage.getItem("authToken");
+    if (token) {
+      setAuthToken(token); // this adds token to axios default headers
+    }
+  }, []);
   const validateCustomer = () => {
     const errs = {};
 
@@ -177,11 +182,7 @@ export default function AddCustomer() {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/customers`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(customer),
-      });
+      const response = await api.post("/customers", customer);
 
       const data = await response.json();
 
