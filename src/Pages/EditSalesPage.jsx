@@ -112,26 +112,43 @@ const loadSelectedProducts = () => {
 
     setItems((prevItems) => {
       const updated = [...prevItems];
+
       selected.forEach((p) => {
-        // Prevent duplicates (by serial_no)
-        const exists = updated.some((i) => i.serial_no === p.serial_no);
-        if (!exists) {
+        const existing = updated.find(
+          (item) => item.product_id === p.product_id
+        );
+
+        if (existing) {
+          // Ensure serials array exists
+          if (!Array.isArray(existing.serials)) existing.serials = [];
+
+          // Add serial only if not already present
+          if (!existing.serials.includes(p.serial_no)) {
+            existing.serials.push(p.serial_no);
+            existing.quantity = existing.serials.length;
+          }
+        } else {
+          // New product → create grouped structure
           updated.push({
             product_id: p.product_id,
-            name: p.name || "Unknown Product",
-            serial_no: p.serial_no, // ✅ Hidden but stored
+            name: p.product_name || p.name || "Unknown Product",
+            serials: [p.serial_no], // Correct grouping
             quantity: 1,
           });
         }
       });
+
       return updated;
     });
 
+    // Clear after loading
     localStorage.removeItem("selectedProducts");
+
   } catch (err) {
     console.error("Error parsing selectedProducts:", err);
   }
 };
+
 
 
   useEffect(() => {

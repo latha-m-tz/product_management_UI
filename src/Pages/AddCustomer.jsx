@@ -174,40 +174,48 @@ export default function AddCustomer() {
     toast.error("Could not fetch details. Please enter City, District, and State manually.");
   };
 
-  const saveCustomer = async () => {
-    if (!validateCustomer()) {
-      // Show error toast if validation fails
-      toast.error("Please correct the errors in the form before saving.");
-      return;
-    }
+ const saveCustomer = async () => {
+  if (!validateCustomer()) {
+    toast.error("Please correct the errors in the form before saving.");
+    return;
+  }
 
-    try {
-      const response = await api.post("/customers", customer);
+  try {
+    const response = await api.post("/customers", customer);
 
-      const data = await response.json();
+    // axios returns the data directly
+    const data = response.data;
 
-      if (!response.ok) {
-        // Check for duplicate fields
-        if (data.errors) {
-          if (data.errors.email) toast.error(`Email already taken: ${data.errors.email}`);
-          if (data.errors.mobile_no) toast.error(`Mobile number already taken: ${data.errors.mobile_no}`);
-        } else if (data.message) {
-          toast.error(data.message);
-        } else {
-          toast.error("Error saving customer!");
+    toast.success("Customer saved successfully!");
+    navigate("/customer");
+  } 
+  catch (error) {
+    // axios error format
+    if (error.response) {
+      const data = error.response.data;
+
+      // Show server-level validation errors
+      if (data.errors) {
+        if (data.errors.email) {
+          toast.error(data.errors.email[0]);   // Email already taken
         }
-        console.error("Server Error:", data);
-        return;
+        if (data.errors.gst_no) {
+          toast.error(data.errors.gst_no[0]);  // GST already taken
+        }
+        if (data.errors.customer) {
+          toast.error(data.errors.customer[0]); // Customer name exists
+        }
       }
 
-      toast.success("Customer saved successfully!");
-      navigate("/customer");
-      console.log(data);
-    } catch (err) {
-      console.error("Network or Unexpected Error:", err);
-      toast.error("Error saving customer! Check network connection or server status.");
+      if (data.message) {
+        toast.error(data.message);
+      }
+    } else {
+      toast.error("Network error! Check your connection.");
     }
-  };
+  }
+};
+
 
   const feedbackStyle = { color: "red", fontSize: "0.85rem", marginTop: "4px" };
   // GST regex is only needed for the inline validation logic

@@ -21,6 +21,15 @@ export default function AddSparepartPurchase() {
   const [trackingNumber, setTrackingNumber] = useState("");
   const [recipientFiles, setRecipientFiles] = useState([{ id: Date.now(), file: null }]);
   const [courierName, setCourierName] = useState("");
+  const [fromSerial, setFromSerial] = useState("");
+  const [toSerial, setToSerial] = useState("");
+  const handleFromSerialChange = (e) => {
+    const value = e.target.value;
+    setFromSerial(value);
+
+    // Auto-fill To Serial with the same value
+    setToSerial(value);
+  };
 
 
   const MySwal = withReactContent(Swal);
@@ -105,60 +114,59 @@ export default function AddSparepartPurchase() {
 
 
   const handleInputChange = (index, field, value) => {
-    const type = sparepartTypeOf(spareparts[index].sparepart_id);
     const updated = [...spareparts];
 
-   if (type.includes("serial") && (field === "from_serial" || field === "to_serial")) {
-  value = value.replace(/\D/g, "").slice(0, 6);
-  updated[index][field] = value;
+    const isSerialField = field === "from_serial" || field === "to_serial";
 
-  const fromNum = parseInt(updated[index].from_serial, 10);
-  const toNum = parseInt(updated[index].to_serial, 10);
+    if (isSerialField) {
+      // allow only digits, max 6 digits
+      let cleaned = value.replace(/\D/g, "").slice(0, 6);
 
-  if (!isNaN(fromNum) && !isNaN(toNum)) {
-    if (fromNum > toNum) {
-      updated[index].qty = ""; // invalid range
-      setSerialErrorShown((prev) => ({
-        ...prev,
-        [index]: { ...prev[index], rangeError: true },
-      }));
-    } else {
-      // Only auto-calc if qty is empty
-      if (!updated[index].qty || updated[index].qty === "" || updated[index].qty === toNum - fromNum + 1) {
-        updated[index].qty = toNum - fromNum + 1;
+      updated[index][field] = cleaned;
+
+      const from = updated[index].from_serial;
+      const to = updated[index].to_serial;
+
+      // ------------------------------
+      // AUTO COPY LOGIC (perfect working)
+      // ------------------------------
+      if (field === "from_serial") {
+
+        // condition 1: user never edited to_serial → it should match previous from_serial
+        const previousFrom = spareparts[index].from_serial;
+        const previousTo = spareparts[index].to_serial;
+
+        const userNeverEditedTo =
+          previousTo === "" || previousTo === previousFrom;
+
+        if (userNeverEditedTo) {
+          updated[index].to_serial = cleaned; // auto copy
+        }
       }
-      setSerialErrorShown((prev) => ({
-        ...prev,
-        [index]: { ...prev[index], rangeError: false },
-      }));
-    }
-  }
 
-  setSpareparts(updated);
-  return;
-}
+      // ------------------------------
+      // QUANTITY CALCULATION
+      // ------------------------------
+      const fromNum = Number(updated[index].from_serial);
+      const toNum = Number(updated[index].to_serial);
 
-
-    // 🔹 Handle quantity field for non-serial parts
-    if (field === "qty") {
-      if (value === "") {
-        // Allow user to clear it
-        updated[index][field] = "";
+      if (!isNaN(fromNum) && !isNaN(toNum) && fromNum <= toNum) {
+        updated[index].qty = toNum - fromNum + 1;
       } else {
-        let qty = Number(value);
-        if (isNaN(qty) || qty < 1) qty = "";
-        updated[index][field] = qty;
+        updated[index].qty = "";
       }
 
       setSpareparts(updated);
-      clearError(field, index);
       return;
     }
 
+    // default (non-serial fields)
     updated[index][field] = value;
     setSpareparts(updated);
-    clearError(field, index);
   };
+
+
+
 
   const handleDeleteSparepart = (index) => {
     MySwal.fire({
@@ -430,7 +438,10 @@ export default function AddSparepartPurchase() {
                 </Form.Label>
                 <Form.Select
                   value={vendorId}
-                  onChange={(e) => setVendorId(e.target.value)}
+                  onChange={(e) => {
+                    setVendorId(e.target.value);
+                    clearError("vendor_id");
+                  }}
                   style={{ height: "34px", fontSize: "13px" }}
                 >
                   <option value="">Select Vendor</option>
@@ -440,6 +451,7 @@ export default function AddSparepartPurchase() {
                     </option>
                   ))}
                 </Form.Select>
+
                 {errors.vendor_id && (
                   <div style={{ color: "red", fontSize: "0.85rem" }}>
                     {errors.vendor_id}
@@ -689,9 +701,15 @@ export default function AddSparepartPurchase() {
                                   type="text"
                                   maxLength={6}
                                   value={sp.from_serial}
-                                  onChange={(e) =>
-                                    handleInputChange(index, "from_serial", e.target.value)
-                                  }
+                                  onChange={(e) => {
+                                    const value = e.target.value;
+
+                                    // Update FROM SERIAL
+                                    handleInputChange(index, "from_serial", value);
+
+                                    // Auto-fill TO SERIAL with same value
+                                    handleInputChange(index, "to_serial", value);
+                                  }}
                                 />
                               </Form.Group>
                             </Col>

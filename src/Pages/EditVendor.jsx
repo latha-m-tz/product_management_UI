@@ -3,7 +3,7 @@ import { Button, Form, Row, Col } from "react-bootstrap";
 import DataTable from "react-data-table-component";
 import CreatableSelect from "react-select/creatable";
 import { useParams, useNavigate } from "react-router-dom";
-import api, { setAuthToken ,API_BASE_URL} from "../api";
+import api, { setAuthToken } from "../api";
 import "react-phone-number-input/style.css";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -660,102 +660,63 @@ export default function EditVendor() {
     // ✅ Return false if any errors
     return Object.keys(newErrors).length === 0;
   };
-  const saveVendor = async () => {
-    if (!validateVendor()) {
-      toast.error("Please correct the errors before saving.");
+const saveVendor = async () => {
+  if (!validateVendor()) {
+    toast.error("Please correct the errors before saving.");
+    return;
+  }
+
+  const payload = {
+    ...vendor,
+    contact_persons: contactPersons.map((c) => ({
+      name: c.name.replace(" (Main)", ""),
+      designation: c.designation,
+      mobile_no: c.mobile_no,
+      email: c.email,
+      status: c.status,
+      is_main: c.isMain ? true : false,
+    })),
+  };
+
+  try {
+    const res = await api.put(`/${id}`, payload);
+    const data = res.data;
+
+    setErrors({});
+    toast.success("Vendor updated successfully!");
+    setTimeout(() => navigate("/vendor"), 1000);
+
+  } catch (err) {
+    console.error("Update vendor error:", err);
+
+    // Backend validation errors
+    if (err.response?.status === 422 && err.response?.data?.errors) {
+      const backendErrors = err.response.data.errors;
+
+      Object.entries(backendErrors).forEach(([key, messages]) => {
+        const msg = Array.isArray(messages) ? messages[0] : messages;
+
+        if (key === "mobile_no") toast.error("Mobile number already taken");
+        else if (key === "email") toast.error("Email already taken");
+        else if (key === "vendor") toast.error("Company name already exists");
+        else toast.error(msg);
+      });
+
       return;
     }
 
-    const payload = {
-      ...vendor,
-      contact_persons: contactPersons.map((c) => ({
-        name: c.name.replace(" (Main)", ""),
-        designation: c.designation,
-        mobile_no: c.mobile_no,
-        email: c.email,
-        status: c.status,
-        is_main: c.isMain ? true : false,
-      })),
-    };
-
-    try {
-        const res = await fetch(`${API_BASE_URL}/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const rawText = await res.text();
-      let data = null;
-      try {
-        data = rawText ? JSON.parse(rawText) : null;
-      } catch {
-        data = null;
-      }
-
-      console.log("Response status:", res.status);
-      console.log("Raw response:", rawText);
-
-      // ✅ CASE 1: Laravel validation errors (status 422)
-      if (res.status === 422 && data?.errors) {
-        Object.entries(data.errors).forEach(([key, messages]) => {
-          const message = Array.isArray(messages) ? messages.join(", ") : messages;
-
-          if (key === "vendor") {
-            toast.error("Company name already exists");
-          } else if (key === "email") {
-            toast.error("Email already taken");
-          } else if (key === "mobile_no") {
-            toast.error("Mobile number already taken");
-          } else if (key === "gst_no") {
-            toast.error("GST number already exists");
-          } else if (key.startsWith("contact_persons")) {
-            // Example: contact_persons.1.email
-            const parts = key.split(".");
-            const index = parts[1] || "?";
-            const field = parts[2] || "field";
-            const contactName =
-              contactPersons[index]?.name || `#${parseInt(index) + 1}`;
-
-            const cleanMessage = message.replace(/contact_persons\.\d+\./g, "");
-            toast.error(
-              `Contact person ${contactName} ${field.replace("_", " ")} ${cleanMessage}`
-            );
-          } else {
-            toast.error(`${key.replace("_", " ")}: ${message}`);
-          }
-        });
-        return;
-      }
-
-      // ✅ CASE 2: SQL unique violation (if backend sends this)
-      if (data?.error && data.error.includes("duplicate key value violates unique constraint")) {
-        const match = data.error.match(/\(vendor\)=\(([^)]+)\)/);
-        const duplicateVendor = match ? match[1] : "This vendor";
-        const message = `${duplicateVendor} name already exists.`;
-        setErrors((prev) => ({ ...prev, vendor: message }));
-        toast.error(message);
-        return;
-      }
-
-      // ✅ CASE 3: Any other error
-      if (!res.ok) {
-        const msg =
-          data?.message ||
-          (typeof data === "string" ? data : "Something went wrong while updating vendor.");
-        toast.error(msg);
-        return;
-      }
-
-      // ✅ CASE 4: Success
-      setErrors({});
-      toast.success("Vendor updated successfully!");
-      setTimeout(() => navigate("/vendor"), 1000);
-    } catch (err) {
-      console.error("Network or unexpected error:", err);
-      toast.error("Network error! Please try again.");
+    // Other backend messages
+    if (err.response?.data?.message) {
+      toast.error(err.response.data.message);
+      return;
     }
-  };
+
+    // TRUE Network error
+    toast.error("Network error! Please try again.");
+  }
+};
+
+
 
 
 

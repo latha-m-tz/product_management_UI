@@ -25,11 +25,13 @@ export default function ServiceList() {
   const MySwal = withReactContent(Swal);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    setAuthToken(localStorage.getItem("authToken"));
-    fetchServices();
-    fetchVendors();
-  }, []);
+useEffect(() => {
+  const token = localStorage.getItem("authToken");
+    if (token) setAuthToken(token);
+  fetchServices();
+  fetchVendors();
+}, []);
+
 
   const fetchVendors = async () => {
     try {

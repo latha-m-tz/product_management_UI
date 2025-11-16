@@ -59,7 +59,7 @@ export default function SalesOverviewPage() {
     challan_date: sale.challan_date,
     shipment_date: sale.shipment_date,
     serial_no: item.serial_no,
-    product: item.product,
+product: item.product, // keep as object, Table handles accessor
     quantity: item.quantity,
   }));
 
@@ -70,7 +70,7 @@ export default function SalesOverviewPage() {
     { header: "Challan Date", accessor: (row) => row.challan_date },
     { header: "Shipment Date", accessor: (row) => row.shipment_date },
     { header: "Serial No", accessor: (row) => row.serial_no },
-    { header: "Product", accessor: (row) => row.product },
+{ header: "Product", accessor: (row) => row.product?.name || "N/A" }
     // { header: "Quantity", accessor: (row) => row.quantity },
   ];
 

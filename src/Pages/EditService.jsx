@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Container, Row, Col, Form, Button, Table } from "react-bootstrap";
-import api, { setAuthToken ,API_BASE_URL} from "../api";
+import api, { setAuthToken, API_BASE_URL } from "../api";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useNavigate, useParams } from "react-router-dom";
@@ -21,7 +21,7 @@ const EditServicePage = () => {
     vendor_id: "",
     challan_no: "",
     challan_date: "",
-      tracking_no: "", 
+    tracking_no: "",
     items: [
       {
         product_id: "",
@@ -54,13 +54,13 @@ const EditServicePage = () => {
             vendor_id: serviceData.vendor_id || "",
             challan_no: serviceData.challan_no || "",
             challan_date: serviceData.challan_date || "",
-             tracking_no: serviceData.tracking_no || "", 
+            tracking_no: serviceData.tracking_no || "",
             receipt_files: serviceData.receipt_files || [null],
             items:
               serviceData.items?.map((item) => ({
                 product_id: item.product_id || "",
                 vci_serial_no: item.vci_serial_no || "",
-                status: item.status || "",
+status: item.status ?? "",
                 remarks: item.remarks || "",
                 upload_image: item.upload_image || null,
               })) || [
@@ -104,16 +104,26 @@ const EditServicePage = () => {
     setFormData((prev) => ({ ...prev, items }));
 
     // Fetch serials if product changes
-    if (name === "product_id" && value) {
-      try {
-        const res = await api.get(`/sales/serials/${value}`);
-        setSerialNumbersByProduct((prev) => ({ ...prev, [value]: res.data || [] }));
-        items[index].vci_serial_no = "";
-        setFormData((prev) => ({ ...prev, items }));
-      } catch {
-        toast.error("Failed to fetch serial numbers!");
-      }
+if (name === "product_id" && value) {
+  try {
+    const res = await api.get(`/sales/serials/${value}`);
+
+    setSerialNumbersByProduct((prev) => ({
+      ...prev,
+      [value]: res.data || []
+    }));
+
+    // Only clear serial if product changes (check previous)
+    if (formData.items[index].product_id !== value) {
+      const updatedItems = [...items];
+      updatedItems[index].vci_serial_no = "";
+      setFormData((prev) => ({ ...prev, items: updatedItems }));
     }
+  } catch {
+    toast.error("Failed to fetch serial numbers!");
+  }
+}
+
 
     setErrors((prev) => ({ ...prev, [`${name}_${index}`]: "" }));
   };
@@ -183,7 +193,7 @@ const EditServicePage = () => {
     payload.append("vendor_id", formData.vendor_id);
     payload.append("challan_no", formData.challan_no);
     payload.append("challan_date", formData.challan_date);
-    payload.append("tracking_no",formData.tracking_no)
+    payload.append("tracking_no", formData.tracking_no)
 
     formData.receipt_files.forEach((file, i) => {
       if (file instanceof File) payload.append(`receipt_files[${i}]`, file);
@@ -277,18 +287,18 @@ const EditServicePage = () => {
             </Form.Group>
           </Col>
           <Col md={6}>
-  <Form.Group>
-    <Form.Label>Tracking No</Form.Label>
-    <Form.Control
-      type="text"
-      name="tracking_no"
-      value={formData.tracking_no}
-      onChange={handleChange}
-      isInvalid={!!errors.tracking_no}
-    />
-    <Form.Control.Feedback type="invalid">{errors.tracking_no}</Form.Control.Feedback>
-  </Form.Group>
-</Col>
+            <Form.Group>
+              <Form.Label>Tracking No</Form.Label>
+              <Form.Control
+                type="text"
+                name="tracking_no"
+                value={formData.tracking_no}
+                onChange={handleChange}
+                isInvalid={!!errors.tracking_no}
+              />
+              <Form.Control.Feedback type="invalid">{errors.tracking_no}</Form.Control.Feedback>
+            </Form.Group>
+          </Col>
           <Col md={6}>
             <Form.Group className="mb-2">
               <Form.Label>
@@ -335,24 +345,25 @@ const EditServicePage = () => {
                     </div>
                   </div>
 
-                  {formData.receipt_files.length > 1 && (
-                    <Button
-                      variant="link"
-                      size="sm"
-                      className="text-danger p-0"
-                      onClick={() => removeFileField(idx)}
-                    >
-                      <i className="bi bi-x-circle"></i>
-                    </Button>
-                  )}
+                  {/* Always show ❌ — but disable when only 1 row */}
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="text-danger p-0"
+                    onClick={() => removeFileField(idx)}
+                    disabled={formData.receipt_files.length === 1}
+                  >
+                    <i className="bi bi-x-circle"></i>
+                  </Button>
                 </div>
               ))}
+
             </Form.Group>
           </Col>
         </Row>
 
         <h5 className="mt-4">Service Items</h5>
-        <Table bordered responsive>
+<Table bordered responsive className="service-table">
           <thead>
             <tr>
               <th>Product</th>

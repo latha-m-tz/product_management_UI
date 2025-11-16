@@ -396,3 +396,14 @@ input[type="file"].form-control-file {
   color: #dc3545 !important;
   font-weight: 500;
 }
+.service-table td:nth-child(2) {
+  width: 150px !important; /* Reduce serial no column */
+}
+
+.service-table td:nth-child(3) {
+  width: 180px !important; /* Increase status column */
+}
+
+.service-table select {
+  width: 100%;
+}

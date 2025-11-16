@@ -59,7 +59,7 @@ const AddServicePage = () => {
           api.get("/vendorsget"),
         ]);
 
-        console.log("✅ Vendor Response:", vendorRes.data); 
+        console.log("✅ Vendor Response:", vendorRes.data);
 
         setProducts(productRes.data);
         setVendors(vendorRes.data);
@@ -258,7 +258,7 @@ const AddServicePage = () => {
               </Form.Control.Feedback>
             </Form.Group>
           </Col>
-             <Col md={6}>
+          <Col md={6}>
             <Form.Group>
               <Form.Label>Tracking No <span className="text-danger"></span></Form.Label>
               <Form.Control
@@ -271,7 +271,7 @@ const AddServicePage = () => {
               <Form.Control.Feedback type="invalid">{errors.tracking_no}</Form.Control.Feedback>
             </Form.Group>
           </Col>
-          </Row>
+        </Row>
 
         <Row className="mb-3">
           {/* ✅ eipt Files */}
@@ -295,25 +295,27 @@ const AddServicePage = () => {
                     accept="image/*,application/pdf"
                     onChange={(e) => handleFileChange(idx, e.target.files[0])}
                   />
-                  {recipientFiles.length > 1 && (
-                    <Button
-                      variant="link"
-                      size="sm"
-                      className="text-danger ms-2 p-0"
-                      onClick={() => removeFileField(idx)}
-                    >
-                      <i className="bi bi-x-circle"></i>
-                    </Button>
-                  )}
+
+                  {/* Always show ❌ button, but disable when only one row */}
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="text-danger ms-2 p-0"
+                    onClick={() => removeFileField(idx)}
+                    disabled={recipientFiles.length === 1}
+                  >
+                    <i className="bi bi-x-circle"></i>
+                  </Button>
                 </div>
               ))}
+
             </Form.Group>
           </Col>
         </Row>
 
         {/* ✅ Service Items Table */}
         <h5 className="mt-4">Service Items</h5>
-        <Table bordered responsive>
+<Table bordered responsive className="service-table">
           <thead>
             <tr>
               <th>Product</th>

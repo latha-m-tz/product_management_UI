@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import api, { setAuthToken ,API_BASE_URL } from "../api";
+import api, { setAuthToken ,API_BASE_URL  } from "../api";
 import {
   Card,
   Row,
@@ -139,7 +139,7 @@ export default function PurchaseViewPage() {
                   purchase.document_recipient.map((file, idx) => {
                     const fileUrl = file.startsWith("http")
                       ? file
-                      : `${STORAGE_BASE_URL}/${file.replace(/^\/+/, "")}`;
+                      : `${API_BASE_URL}/${file.replace(/^\/+/, "")}`;
 
                     return (
                       <div key={idx}>

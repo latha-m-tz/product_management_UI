@@ -194,27 +194,48 @@ if (data.status === "success") {
   //   setCityOptions([]);
   //   toast.error("Could not fetch details. Please enter manually.");
   // };
+const updateCustomer = async () => {
+  if (!validateCustomer()) return;
 
-  const updateCustomer = async () => {
-    if (!validateCustomer()) return;
+  try {
+    const res = await api.put(`/customers/${id}`, customer);
 
-    try {
-      const res = await api.put(`/customers/${id}`, customer);
-
-      const data = res.data;
-      if (!res.ok) {
-        toast.error("Error updating customer!");
-        console.error(data);
-        return;
-      }
-
+    if (res.data.status === "success") {
       toast.success("Customer updated successfully!");
       navigate("/customer");
-    } catch (err) {
-      console.error(err);
-      toast.error("Error updating customer!");
+      return;
     }
-  };
+
+  } catch (err) {
+    console.error("Update Error:", err);
+
+    // 🎯 Case 1: Laravel validation errors (422)
+    if (err.response?.status === 422) {
+      const backendErrors = err.response.data.errors;
+
+      if (backendErrors) {
+        const formatted = {};
+
+        Object.keys(backendErrors).forEach((field) => {
+          formatted[field] = backendErrors[field][0]; // first error message
+        });
+
+        setErrors(formatted);
+        toast.error("Please fix the errors and try again");
+      }
+      return;
+    }
+
+    // 🎯 Case 2: Any custom error message
+    if (err.response?.data?.message) {
+      toast.error(err.response.data.message);
+    }
+
+    toast.error("Error updating customer!");
+  }
+};
+
+
 
   const feedbackStyle = { color: "red", fontSize: "0.85rem", marginTop: "4px" };
 

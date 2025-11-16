@@ -1161,7 +1161,7 @@ const handleSubmit = async () => {
                               </Form.Group>
                             </Col>
 
-                            <Col md={2}>
+                            {/* <Col md={2}>
                               <Form.Group className="mb-2">
                                 <Form.Label>Warranty</Form.Label>
                                 <Form.Select
@@ -1174,7 +1174,7 @@ const handleSubmit = async () => {
                                   <option value="Inactive">Inactive</option>
                                 </Form.Select>
                               </Form.Group>
-                            </Col>
+                            </Col> */}
                           </>
                         );
                       }
@@ -1195,7 +1195,7 @@ const handleSubmit = async () => {
                                 />
                               </Form.Group>
                             </Col>
-                            <Col md={3}>
+                            {/* <Col md={3}>
                               <Form.Group className="mb-2">
                                 <Form.Label>Warranty</Form.Label>
                                 <Form.Select
@@ -1208,7 +1208,7 @@ const handleSubmit = async () => {
                                   <option value="Inactive">Inactive</option>
                                 </Form.Select>
                               </Form.Group>
-                            </Col>
+                            </Col> */}
                           </>
                         );
                       }
