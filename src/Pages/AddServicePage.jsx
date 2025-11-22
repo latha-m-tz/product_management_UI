@@ -32,13 +32,73 @@ const AddServicePage = () => {
       },
     ],
   });
+  const checkSerialStatus = async (serial) => {
+    try {
+      const res = await api.get(`/service-vci`);
+      let history = [];
+
+      res.data.forEach((service) => {
+        (service.items || []).forEach((item) => {
+          if (item.vci_serial_no === serial) {
+            history.push(item.status?.toLowerCase());
+          }
+        });
+      });
+
+      if (history.length === 0) return null; // brand new serial
+
+      return history[history.length - 1]; // last known status
+    } catch (err) {
+      console.error(err);
+      return null;
+    }
+  };
+  const checkSerialLastRecord = async (serial) => {
+    try {
+      const res = await api.get("/service-vci");
+
+      let history = [];
+
+      res.data.forEach(service => {
+        (service.items || []).forEach(item => {
+          if (item.vci_serial_no === serial) {
+            history.push({
+              status: item.status?.toLowerCase(),
+              created_at: item.created_at
+            });
+          }
+        });
+      });
+
+      if (history.length === 0) return null;
+
+      const lastRecord = history[history.length - 1];
+
+      return {
+        status: lastRecord.status,
+        date: new Date(lastRecord.created_at)
+      };
+
+    } catch (err) {
+      console.error(err);
+      return null;
+    }
+  };
 
   const validate = () => {
     const newErrors = {};
     if (!formData.vendor_id) newErrors.vendor_id = "Vendor is required";
     if (!formData.challan_no) newErrors.challan_no = "Challan No is required";
     if (!formData.challan_date) newErrors.challan_date = "Challan Date is required";
+    if (formData.challan_date) {
+      const selected = new Date(formData.challan_date);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
 
+      if (selected > today) {
+        newErrors.challan_date = "Future dates are not allowed";
+      }
+    }
     formData.items.forEach((item, i) => {
       if (!item.product_id) newErrors[`product_id_${i}`] = "Product is required";
       if (!item.vci_serial_no) newErrors[`vci_serial_no_${i}`] = "Serial No is required";
@@ -82,26 +142,86 @@ const AddServicePage = () => {
   const handleItemChange = async (index, e) => {
     const { name, value, files } = e.target;
     const items = [...formData.items];
+
+    // Set normal field value
     items[index][name] = files ? files[0] : value;
 
     setFormData((prev) => ({ ...prev, items }));
 
-    // clear the dynamic field error
     const errorKey = `${name}_${index}`;
     setErrors((prev) => ({ ...prev, [errorKey]: "" }));
 
     if (name === "product_id" && value) {
       try {
         const res = await api.get(`/sales/serials/${value}`);
-        setSerialNumbersByProduct((prev) => ({ ...prev, [value]: res.data || [] }));
+        setSerialNumbersByProduct((prev) => ({
+          ...prev,
+          [value]: res.data || [],
+        }));
       } catch {
         toast.error("Failed to fetch serial numbers!");
       }
     }
+
+    if (name === "vci_serial_no" && value) {
+      await checkSerialStatus(value);
+    }
+
+    if (name === "status" && items[index].vci_serial_no) {
+      const serial = items[index].vci_serial_no;
+
+      const lastRecord = await checkSerialLastRecord(serial);
+      const lastStatus = lastRecord?.status || null;
+      const lastDate = lastRecord?.date || null;
+
+      if (!lastStatus && (value === "Delivered" || value === "Testing")) {
+        toast.error("First status must be 'Inward'. You cannot select Delivered or Testing first.");
+        items[index].status = ""; // reset
+        setFormData((prev) => ({ ...prev, items }));
+        return;
+      }
+
+      // DATE CHECK
+      // if (formData.challan_date && lastDate) {
+      //   const newDate = new Date(formData.challan_date);
+      //   newDate.setHours(0, 0, 0, 0);
+      //   lastDate.setHours(0, 0, 0, 0);
+
+      //   if (newDate < lastDate) {
+      //     toast.error(
+      //       `Invalid date! Last ${lastStatus.toUpperCase()} was on ${lastDate.toLocaleDateString()}.`
+      //     );
+      //   }
+      // }
+
+      // RULE 1 — Inward rules
+      if (value === "Inward") {
+        if (lastStatus === "inward") {
+          toast.error("This serial is already Inward.");
+        }
+        if (lastStatus === "testing") {
+          toast.error("Testing → Inward is not allowed.");
+        }
+      }
+
+      // RULE 2 — Testing rules
+      if (value === "Testing") {
+        if (lastStatus === "delivered") {
+          toast.error("Delivered → Testing is not allowed.");
+        }
+      }
+
+      // RULE 3 — Delivered rules
+      if (value === "Delivered") {
+        if (lastStatus === "delivered") {
+          toast.error("Already delivered.");
+        }
+      }
+    }
+
+    setFormData((prev) => ({ ...prev, items }));
   };
 
-
-  // ✅ Add / Remove receipt file inputs
   const addFileField = () => setRecipientFiles((prev) => [...prev, null]);
   const removeFileField = (index) =>
     setRecipientFiles((prev) => prev.filter((_, i) => i !== index));
@@ -143,7 +263,6 @@ const AddServicePage = () => {
     });
   };
 
-  // ✅ Submit
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
@@ -154,10 +273,12 @@ const AddServicePage = () => {
     payload.append("challan_date", formData.challan_date);
     payload.append("tracking_no", formData.tracking_no);
 
+    // Receipt files
     recipientFiles.forEach((file, i) => {
       if (file) payload.append(`receipt_files[${i}]`, file);
     });
 
+    // Service items
     formData.items.forEach((item, index) => {
       Object.entries(item).forEach(([key, value]) => {
         if (key === "upload_image") {
@@ -170,18 +291,47 @@ const AddServicePage = () => {
       });
     });
 
-
     try {
       await api.post("/service-vci", payload, {
         headers: { "Content-Type": "multipart/form-data" },
       });
+
       toast.success("Service added successfully!");
       navigate("/service-product");
+
     } catch (err) {
-      console.error(err);
+      console.error("Submit Error →", err);
+
+      // -----------------------------
+      // ✅ Laravel Validation: errors {}
+      // -----------------------------
+      if (err.response?.data?.errors) {
+        const errors = err.response.data.errors;
+        const firstKey = Object.keys(errors)[0];
+        const firstMessage = errors[firstKey][0];
+        toast.error(firstMessage);
+        return;
+      }
+      if (err.response?.data?.message) {
+        toast.error(err.response.data.message);
+        return;
+      }
+
+      if (err.response?.data?.error) {
+        toast.error(err.response.data.error);
+        return;
+      }
+
+      if (err.response?.data?.challan_no) {
+        toast.error(err.response.data.challan_no);
+        return;
+      }
+
+      // Fallback general error
       toast.error("Failed to add service!");
     }
   };
+
 
   return (
     <Container fluid>
@@ -315,7 +465,7 @@ const AddServicePage = () => {
 
         {/* ✅ Service Items Table */}
         <h5 className="mt-4">Service Items</h5>
-<Table bordered responsive className="service-table">
+        <Table bordered responsive className="service-table">
           <thead>
             <tr>
               <th>Product</th>

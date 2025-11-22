@@ -6,6 +6,7 @@ import BreadCrumb from "../components/BreadCrumb";
 import Search from "../components/Search";
 import api, { setAuthToken } from "../api";
 import "bootstrap/dist/css/bootstrap.min.css";
+import { downloadShortageExcel } from "../Pages/downloadShortageExcel";
 
 export default function ComponentsRequirement() {
   const navigate = useNavigate();
@@ -262,37 +263,54 @@ export default function ComponentsRequirement() {
             </Form.Group>
           </div>
 
-          <div className="col-md-6 d-flex flex-column align-items-end">
-            <div className="d-flex gap-2 mb-2">
-              <Button
-                size="sm"
-                onClick={() => navigate("/spare-parts")}
-                style={{
-                  backgroundColor: "#2FA64F",
-                  borderColor: "#2FA64F",
-                  color: "#fff",
-                  padding: "0.25rem 0.5rem",
-                  fontSize: "0.8rem",
-                  minWidth: "90px",
-                  height: "28px",
-                }}
-              >
-                + Add Spare Part
-              </Button>
+      <div className="col-md-6 d-flex flex-column align-items-end">
 
-              <Button
-                variant="outline-secondary"
-                size="sm"
-                onClick={() => fetchMultipleSeriesData(selectedSeries)}
-              >
-                <i className="bi bi-arrow-clockwise"></i>
-              </Button>
-            </div>
+  {/* Top buttons */}
+  <div className="d-flex gap-2 mb-2">
+    <Button
+      size="sm"
+      onClick={() => navigate("/spare-parts")}
+      style={{
+        backgroundColor: "#2FA64F",
+        borderColor: "#2FA64F",
+        color: "#fff",
+        padding: "0.25rem 0.5rem",
+        fontSize: "0.8rem",
+        minWidth: "90px",
+        height: "28px",
+      }}
+    >
+      + Add Spare Part
+    </Button>
 
-            <div className="w-100">
-              <Search search={search} setSearch={setSearch} />
-            </div>
-          </div>
+    <Button
+      variant="outline-secondary"
+      size="sm"
+      onClick={() => fetchMultipleSeriesData(selectedSeries)}
+    >
+      <i className="bi bi-arrow-clockwise"></i>
+    </Button>
+  </div>
+
+  {/* Search box */}
+  <div className="w-100 mb-2">
+    <Search search={search} setSearch={setSearch} />
+  </div>
+
+  {/* Download Button */}
+  <div className="w-100 d-flex justify-content-end">
+    <Button
+      variant="success"
+      size="sm"
+      onClick={() => downloadShortageExcel(shortageOverview)}
+      style={{ minWidth: "130px" }}
+    >
+      Download shortage list
+    </Button>
+  </div>
+
+</div>
+
         </div>
         {/* Tables Section */}
         {loading ? (

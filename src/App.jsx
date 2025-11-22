@@ -49,6 +49,8 @@ import ServiceItemsPage from "./Pages/ServiceItemsPage";
 import ServiceDeliveryList from "./Pages/ServiceDeliveryList";
 import AddServiceDelivery from "./Pages/AddServiceDelivery";
 import EditServiceDelivery from "./Pages/EditServiceDelivery";
+import PurchaseOverallPage from "./Pages/PurchaseOverallPage";
+import ProductSaleStatusPage from "./Pages/ProductSaleStatusPage";
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem("authToken"));
 
@@ -121,6 +123,7 @@ export default function App() {
           <Route path="/spare-partsPurchase/add" element={<AddSparepartPurchase />} />
           <Route path="/spare-partsPurchase/:id" element={<EditSparepartPurchase />} />
           <Route path="/spare-partsPurchase/view/:id" element={<PurchaseViewPage />} />
+          <Route path="/purchase/overall" element={<PurchaseOverallPage />} />
 
           <Route path="product" element={<ProductPage />} />
           <Route path="product-type" element={<ProductTypePage />} />
@@ -139,6 +142,7 @@ export default function App() {
           <Route path="/service-delivery" element={<ServiceDeliveryList />} />
           <Route path="/service-delivery/add" element={<AddServiceDelivery />} />
           <Route path="/service-delivery/:id/edit" element={<EditServiceDelivery />} />
+          <Route path="/product-sale-status/:productId" element={<ProductSaleStatusPage />} />
         </Route>
       </Routes>
     </Router>

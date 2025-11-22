@@ -58,12 +58,12 @@ export default function AddCustomer() {
     if (!customer.city.trim()) errs.city = "City is required";
     if (!customer.district.trim()) errs.district = "District is required";
     if (!customer.state.trim()) errs.state = "State is required";
-    if (!customer.address.trim()) errs.address = "Address is required";
+    // if (!customer.address.trim()) errs.address = "Address is required";
     if (!customer.status) errs.status = "Status is required";
 
     // FIX: Simplified and corrected mobile validation logic
     if (!customer.mobile_no.trim()) {
-      errs.mobile_no = "Mobile number is required";
+      // errs.mobile_no = "Mobile number is required";
     } else {
       const phoneNumber = parsePhoneNumberFromString(customer.mobile_no);
       // Check if it's parsable and valid
@@ -112,7 +112,7 @@ export default function AddCustomer() {
     setCustomer(prev => ({ ...prev, mobile_no: inputNumber || "" }));
 
     if (!inputNumber) {
-      setErrors(prev => ({ ...prev, mobile_no: "Mobile number is required" }));
+      setErrors(prev => ({ ...prev, mobile_no: "" }));
       return;
     }
 
@@ -189,30 +189,27 @@ export default function AddCustomer() {
     toast.success("Customer saved successfully!");
     navigate("/customer");
   } 
-  catch (error) {
-    // axios error format
-    if (error.response) {
-      const data = error.response.data;
+ catch (error) {
+  if (error.response) {
+    const data = error.response.data;
 
-      // Show server-level validation errors
-      if (data.errors) {
-        if (data.errors.email) {
-          toast.error(data.errors.email[0]);   // Email already taken
-        }
-        if (data.errors.gst_no) {
-          toast.error(data.errors.gst_no[0]);  // GST already taken
-        }
-        if (data.errors.customer) {
-          toast.error(data.errors.customer[0]); // Customer name exists
-        }
-      }
-
-      if (data.message) {
-        toast.error(data.message);
-      }
-    } else {
-      toast.error("Network error! Check your connection.");
+    // Prefer backend errors[] array
+    if (data.errors) {
+      const firstError = Object.values(data.errors)[0][0]; 
+      toast.error(firstError);
+      return;
     }
+
+    // Otherwise show message only if errors[] does NOT exist
+    if (data.message) {
+      toast.error(data.message);
+      return;
+    }
+  }
+
+  toast.error("Network error! Check your connection.");
+
+
   }
 };
 
@@ -412,7 +409,7 @@ export default function AddCustomer() {
           <Col md={4}>
             <Form.Group className="mb-3 form-field">
               <Form.Label>
-                Mobile No<span style={{ color: "red" }}> *</span>
+                Mobile No<span style={{ color: "red" }}> </span>
               </Form.Label>
 
               <CountryPhoneInput
@@ -450,7 +447,7 @@ export default function AddCustomer() {
           <Col md={6}>
             <Form.Group className="mb-3 form-field">
               <Form.Label>
-                Address<span style={{ color: "red" }}> *</span>
+                Address<span style={{ color: "red" }}> </span>
               </Form.Label>
 
               <Form.Control

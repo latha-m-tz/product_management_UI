@@ -60,7 +60,7 @@ const EditServicePage = () => {
               serviceData.items?.map((item) => ({
                 product_id: item.product_id || "",
                 vci_serial_no: item.vci_serial_no || "",
-status: item.status ?? "",
+                status: item.status ?? "",
                 remarks: item.remarks || "",
                 upload_image: item.upload_image || null,
               })) || [
@@ -90,43 +90,114 @@ status: item.status ?? "",
     };
     fetchData();
   }, [id]);
+  const checkSerialStatus = async (serial) => {
+    try {
+      const res = await api.get(`/serial/status/${serial}`);
+      return res.data?.last_status || "";
+    } catch {
+      return "";
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value, files } = e.target;
     setFormData((prev) => ({ ...prev, [name]: files ? files[0] : value }));
     setErrors((prev) => ({ ...prev, [name]: "" }));
   };
-
   const handleItemChange = async (index, e) => {
     const { name, value, files } = e.target;
     const items = [...formData.items];
+
+    // Set updated value
     items[index][name] = files ? files[0] : value;
+
+    // Update state immediately
     setFormData((prev) => ({ ...prev, items }));
 
-    // Fetch serials if product changes
-if (name === "product_id" && value) {
-  try {
-    const res = await api.get(`/sales/serials/${value}`);
-
-    setSerialNumbersByProduct((prev) => ({
-      ...prev,
-      [value]: res.data || []
-    }));
-
-    // Only clear serial if product changes (check previous)
-    if (formData.items[index].product_id !== value) {
-      const updatedItems = [...items];
-      updatedItems[index].vci_serial_no = "";
-      setFormData((prev) => ({ ...prev, items: updatedItems }));
-    }
-  } catch {
-    toast.error("Failed to fetch serial numbers!");
-  }
-}
-
-
+    // Clear dynamic error
     setErrors((prev) => ({ ...prev, [`${name}_${index}`]: "" }));
+
+    // -----------------------------
+    // 1️⃣ PRODUCT CHANGE → Fetch Serials
+    // -----------------------------
+    if (name === "product_id" && value) {
+      try {
+        const res = await api.get(`/sales/serials/${value}`);
+
+        setSerialNumbersByProduct((prev) => ({
+          ...prev,
+          [value]: res.data || [],
+        }));
+
+        // Reset serial when selecting a new product
+        if (formData.items[index].product_id !== value) {
+          const updatedItems = [...items];
+          updatedItems[index].vci_serial_no = "";
+          setFormData((prev) => ({ ...prev, items: updatedItems }));
+        }
+      } catch {
+        toast.error("Failed to fetch serial numbers!");
+      }
+    }
+
+    if (name === "vci_serial_no" && value) {
+      await checkSerialStatus(value);
+    }
+
+    if (name === "status" && items[index].vci_serial_no) {
+      const serial = items[index].vci_serial_no;
+
+      const lastRecord = await checkSerialLastRecord(serial);
+      const lastStatus = lastRecord?.status || null;
+      const lastDate = lastRecord?.date || null;
+
+      // if (formData.challan_date && lastDate) {
+      //   const newDate = new Date(formData.challan_date);
+      //   newDate.setHours(0, 0, 0, 0);
+      //   lastDate.setHours(0, 0, 0, 0);
+
+      //   if (newDate < lastDate) {
+      //     toast.error(
+      //       `Invalid date! Last ${lastStatus.toUpperCase()} was on ${lastDate.toLocaleDateString()}.`
+      //     );
+      //     // 🚫 Do NOT block (non-blocking)
+      //   }
+      // }
+
+      // Normalize for status validation
+      const last = (lastStatus || "").toLowerCase();
+      const newStatus = value.toLowerCase();
+
+      // RULE 1: INWARD
+      if (newStatus === "inward") {
+        if (last === "inward") {
+          toast.error("This serial is already Inward.");
+        }
+        if (last === "testing") {
+          toast.error("Testing → Inward is not allowed.");
+        }
+      }
+
+      // RULE 2: TESTING
+      if (newStatus === "testing") {
+        if (last === "delivered") {
+          toast.error("Delivered → Testing is not allowed.");
+        }
+      }
+
+      // RULE 3: DELIVERED
+      if (newStatus === "delivered") {
+        if (last === "delivered") {
+          toast.error("This serial is already Delivered.");
+        }
+      }
+    }
+
+    // Final update
+    setFormData((prev) => ({ ...prev, items }));
   };
+
+
 
   const addRow = () =>
     setFormData((prev) => ({
@@ -176,6 +247,15 @@ if (name === "product_id" && value) {
     if (!formData.vendor_id) newErrors.vendor_id = "Vendor is required";
     if (!formData.challan_no) newErrors.challan_no = "Challan No is required";
     if (!formData.challan_date) newErrors.challan_date = "Challan Date is required";
+    if (formData.challan_date) {
+      const selected = new Date(formData.challan_date);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);  // ignore time
+
+      if (selected > today) {
+        newErrors.challan_date = "Future dates are not allowed";
+      }
+    }
     formData.items.forEach((item, i) => {
       if (!item.product_id) newErrors[`product_id_${i}`] = "Product is required";
       if (!item.vci_serial_no) newErrors[`vci_serial_no_${i}`] = "Serial No is required";
@@ -363,7 +443,7 @@ if (name === "product_id" && value) {
         </Row>
 
         <h5 className="mt-4">Service Items</h5>
-<Table bordered responsive className="service-table">
+        <Table bordered responsive className="service-table">
           <thead>
             <tr>
               <th>Product</th>

@@ -8,7 +8,7 @@ import "bootstrap-icons/font/bootstrap-icons.css";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useParams, useNavigate } from "react-router-dom";
-import {  isValidPhoneNumber } from "libphonenumber-js";
+import { isValidPhoneNumber } from "libphonenumber-js";
 import CountrySelect from "../components/CountrySelect";
 import CountryPhoneInput from "../components/CountryPhoneInput";
 
@@ -50,13 +50,13 @@ export default function EditCustomer() {
 
 
   useEffect(() => {
-  const token = localStorage.getItem("authToken");
-  setAuthToken(token);
+    const token = localStorage.getItem("authToken");
+    setAuthToken(token);
     const fetchCustomer = async () => {
       try {
         const res = await api.get(`/customers/${id}/edit`);
         const data = res.data;
-if (data.status === "success") {
+        if (data.status === "success") {
           setCustomer({
             ...data.customer,
             customer: data.customer.customer ?? "",
@@ -97,7 +97,7 @@ if (data.status === "success") {
 
 
     if (!customer.mobile_no) {
-      errs.mobile_no = "Mobile number is required";
+      // errs.mobile_no = "Mobile number is required";
     } else if (!isValidPhoneNumber(customer.mobile_no)) {
       errs.mobile_no = "Invalid mobile number";
     }
@@ -110,7 +110,7 @@ if (data.status === "success") {
     if (!customer.city.trim()) errs.city = "City is required";
     if (!customer.district.trim()) errs.district = "District is required";
     if (!customer.state.trim()) errs.state = "State is required";
-    if (!customer.address.trim()) errs.address = "Address is required";
+    // if (!customer.address.trim()) errs.address = "Address is required";
 
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -146,7 +146,7 @@ if (data.status === "success") {
     setCustomer((prev) => ({ ...prev, mobile_no: val }));
 
     if (!val) {
-      setMobileError("Mobile number is required");
+      setMobileError("");
       return;
     }
 
@@ -175,7 +175,7 @@ if (data.status === "success") {
           state: postOffices[0].State,
           district: postOffices[0].District,
 
-          city: cities.includes(prev.city) ? prev.city : cities[0],
+          city: prev.city ? prev.city : cities[0],
         }));
 
 
@@ -194,46 +194,46 @@ if (data.status === "success") {
   //   setCityOptions([]);
   //   toast.error("Could not fetch details. Please enter manually.");
   // };
-const updateCustomer = async () => {
-  if (!validateCustomer()) return;
+  const updateCustomer = async () => {
+    if (!validateCustomer()) return;
 
-  try {
-    const res = await api.put(`/customers/${id}`, customer);
+    try {
+      const res = await api.put(`/customers/${id}`, customer);
 
-    if (res.data.status === "success") {
-      toast.success("Customer updated successfully!");
-      navigate("/customer");
-      return;
-    }
-
-  } catch (err) {
-    console.error("Update Error:", err);
-
-    // 🎯 Case 1: Laravel validation errors (422)
-    if (err.response?.status === 422) {
-      const backendErrors = err.response.data.errors;
-
-      if (backendErrors) {
-        const formatted = {};
-
-        Object.keys(backendErrors).forEach((field) => {
-          formatted[field] = backendErrors[field][0]; // first error message
-        });
-
-        setErrors(formatted);
-        toast.error("Please fix the errors and try again");
+      if (res.data.status === "success") {
+        toast.success("Customer updated successfully!");
+        navigate("/customer");
+        return;
       }
-      return;
-    }
 
-    // 🎯 Case 2: Any custom error message
-    if (err.response?.data?.message) {
-      toast.error(err.response.data.message);
-    }
+    } catch (err) {
+      console.error("Update Error:", err);
 
-    toast.error("Error updating customer!");
-  }
-};
+      // 🎯 Case 1: Laravel validation errors (422)
+      if (err.response?.status === 422) {
+        const backendErrors = err.response.data.errors;
+
+        if (backendErrors) {
+          const formatted = {};
+
+          Object.keys(backendErrors).forEach((field) => {
+            formatted[field] = backendErrors[field][0]; // first error message
+          });
+
+          setErrors(formatted);
+          toast.error("Please fix the errors and try again");
+        }
+        return;
+      }
+
+      // 🎯 Case 2: Any custom error message
+      if (err.response?.data?.message) {
+        toast.error(err.response.data.message);
+      }
+
+      toast.error("Error updating customer!");
+    }
+  };
 
 
 
@@ -319,7 +319,7 @@ const updateCustomer = async () => {
                   }
                 }}
                 placeholder="Enter GST No"
-                maxLength={15} 
+                maxLength={15}
               />
 
               {errors.gst_no && (
@@ -362,7 +362,9 @@ const updateCustomer = async () => {
               />
 
               {errors.pincode && (
-                <div style={feedbackStyle}>{errors.pincode}</div>
+                <div style={{ color: "red", fontSize: "0.85rem", marginTop: "4px" }}>
+                  {errors.pincode}
+                </div>
               )}
             </Form.Group>
           </Col>
@@ -390,7 +392,7 @@ const updateCustomer = async () => {
                   }))
                 }
                 placeholder="Select or type city"
-                classNamePrefix="my-select"   
+                classNamePrefix="my-select"
               />
               {errors.city && (
                 <div style={feedbackStyle}>{errors.city}</div>
@@ -454,7 +456,7 @@ const updateCustomer = async () => {
           <Col md={4}>
             <Form.Group className="mb-3 form-field">
               <Form.Label>
-                Mobile No<span style={{ color: "red" }}> *</span>
+                Mobile No<span style={{ color: "red" }}> </span>
               </Form.Label>
 
               <CountryPhoneInput
@@ -477,7 +479,7 @@ const updateCustomer = async () => {
 
                   // Live validation
                   if (!formattedNumber) {
-                    setErrors((prev) => ({ ...prev, mobile_no: "Mobile number is required" }));
+                    setErrors((prev) => ({ ...prev, mobile_no: "" }));
                   } else {
                     try {
                       if (!isValidPhoneNumber(formattedNumber)) {
@@ -522,7 +524,7 @@ const updateCustomer = async () => {
           <Col md={6}>
             <Form.Group className="mb-3 form-field">
               <Form.Label>
-                Address<span style={{ color: "red" }}> *</span>
+                Address<span style={{ color: "red" }}> </span>
               </Form.Label>
 
               <Form.Control

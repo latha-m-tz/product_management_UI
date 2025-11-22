@@ -263,7 +263,6 @@ const getProductName = (item) => {
 
   if (item.product_name) return item.product_name;
 
-  // Fallback by product_id lookup
   const found = products.find(
     (p) => String(p.id) === String(item.product_id)
   );

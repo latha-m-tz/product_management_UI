@@ -136,18 +136,25 @@ export default function AddSalesPage() {
     }
   }, [navigate]);
 
-  /** ✅ Validation logic */
   const validateForm = () => {
     const errors = {};
 
     if (!customerId || parseInt(customerId) <= 0)
       errors.customerId = "Customer is required";
     if (!challanNo.trim()) errors.challanNo = "Challan No is required";
-    if (!challanDate) errors.challanDate = "Challan Date is required";
-    if (!shipmentDate) errors.shipmentDate = "Shipment Date is required";
-    else if (new Date(shipmentDate) < new Date(challanDate))
-      errors.shipmentDate = "Shipment Date cannot be before Challan Date";
-    if (!shipmentName.trim()) errors.shipmentName = "Shipment Name is required";
+ if (!challanDate) {
+    errors.challanDate = "Challan Date is required";
+  } else if (new Date(challanDate) > new Date()) {
+    errors.challanDate = "Challan Date cannot be in the future";
+  }
+
+  if (!shipmentDate) {
+    errors.shipmentDate = "Shipment Date is required";
+  } else if (new Date(shipmentDate) > new Date()) {
+    errors.shipmentDate = "Shipment Date cannot be in the future";
+  } else if (new Date(shipmentDate) < new Date(challanDate)) {
+    errors.shipmentDate = "Shipment Date cannot be before Challan Date";
+  }
 
     if (items.length === 0) {
       errors.items = "Please add at least one product";
@@ -208,7 +215,6 @@ export default function AddSalesPage() {
     }
   };
 
-  /** ✅ Field change handlers */
   const handleChange = (field, value) => {
     const setters = {
       customerId: setCustomerId,
