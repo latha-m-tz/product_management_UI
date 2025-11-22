@@ -59,7 +59,7 @@ export default function SalesOverviewPage() {
     challan_date: sale.challan_date,
     shipment_date: sale.shipment_date,
     serial_no: item.serial_no,
-product: item.product, // keep as object, Table handles accessor
+    product: item.product, // keep as object, Table handles accessor
     quantity: item.quantity,
   }));
 
@@ -70,17 +70,18 @@ product: item.product, // keep as object, Table handles accessor
     { header: "Challan Date", accessor: (row) => row.challan_date },
     { header: "Shipment Date", accessor: (row) => row.shipment_date },
     { header: "Serial No", accessor: (row) => row.serial_no },
-{ header: "Product", accessor: (row) => row.product?.name || "N/A" }
-    // { header: "Quantity", accessor: (row) => row.quantity },
+    { header: "Product", accessor: (row) => row.product?.name || "N/A" }
   ];
+  const filteredRows = allRows.filter((row) => {
+    const searchText = search.toLowerCase();
 
-  const filteredRows = allRows.filter(
-    (row) =>
-      row.challan_no?.toLowerCase().includes(search.toLowerCase()) ||
-      row.customer?.toLowerCase().includes(search.toLowerCase()) ||
-      row.serial_no?.toLowerCase().includes(search.toLowerCase()) ||
-      row.product?.toLowerCase().includes(search.toLowerCase())
-  );
+    return (
+      row.challan_no?.toLowerCase().includes(searchText) ||
+      row.customer?.toLowerCase().includes(searchText) ||
+      row.serial_no?.toLowerCase().includes(searchText) ||
+      row.product?.name?.toLowerCase().includes(searchText) // FIXED
+    );
+  });
 
   const paginatedRows = filteredRows.slice(
     (page - 1) * perPage,
@@ -129,14 +130,14 @@ product: item.product, // keep as object, Table handles accessor
               >
                 <ArrowClockwise />
               </Button>
-  {/* <h5 className="mb-0">Sale Overview</h5> */}
-  <Button
-    variant="outline-secondary"
-    size="sm"
-    onClick={() => navigate(-1)} // Go back to previous page
-  >
-    ← Back
-  </Button>
+              {/* <h5 className="mb-0">Sale Overview</h5> */}
+              <Button
+                variant="outline-secondary"
+                size="sm"
+                onClick={() => navigate(-1)} // Go back to previous page
+              >
+                ← Back
+              </Button>
 
             </div>
 

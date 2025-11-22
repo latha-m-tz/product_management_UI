@@ -97,27 +97,38 @@ setAuthToken(token);
     }
   };
 
-  const handleDelete = async (id) => {
-    const result = await MySwal.fire({
-      title: "Are you sure?",
-      text: "Do you want to delete this vendor?",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#2FA64F",
-      confirmButtonText: "Yes, delete it!",
-    });
+const handleDelete = async (id) => {
+  const result = await MySwal.fire({
+    title: "Are you sure?",
+    text: "Do you want to delete this vendor?",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonColor: "#d33",
+    cancelButtonColor: "#2FA64F",
+    confirmButtonText: "Yes, delete it!",
+  });
 
-    if (!result.isConfirmed) return;
+  if (!result.isConfirmed) return;
 
-    try {
-      await api.delete(`/vendors/${id}`);
-      toast.success("Vendor deleted successfully!");
-      fetchVendors();
-    } catch {
+  try {
+    await api.delete(`/vendors/${id}`);
+
+    toast.success("Vendor deleted successfully!");
+    fetchVendors();
+  } catch (error) {
+    // ⛔ SHOW EXACT ERROR FROM BACKEND
+    if (error.response && error.response.status === 409) {
+      toast.error(error.response.data.error);
+    } 
+    else if (error.response && error.response.data.error) {
+      toast.error(error.response.data.error);
+    }
+    else {
       toast.error("Failed to delete vendor.");
     }
-  };
+  }
+};
+
 
   const handleSort = (field) => {
     const direction =

@@ -9,7 +9,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 
 import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../api";
-import BreadCrumb from "../components/BreadCrumb"; 
+import BreadCrumb from "../components/BreadCrumb";
 import ActionButtons from "../components/ActionButton";
 import Pagination from "../components/Pagination";
 import Search from "../components/Search";
@@ -21,6 +21,7 @@ export default function SalesListPage() {
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
   const [search, setSearch] = useState("");
+  const [productSummary, setProductSummary] = useState([]);
 
   const MySwal = withReactContent(Swal);
   const navigate = useNavigate();
@@ -29,8 +30,17 @@ export default function SalesListPage() {
     const token = localStorage.getItem("authToken");
     if (token) setAuthToken(token);
     fetchSales();
+    fetchProductSummary();
   }, []);
-
+  const fetchProductSummary = async () => {
+    try {
+      const res = await api.get(`/sales/product-summary`);
+      setProductSummary(res.data);
+    } catch (error) {
+      console.error("Failed to load product summary:", error);
+      toast.error("Failed to load product summary!");
+    }
+  };
   const fetchSales = async () => {
     setLoading(true);
     try {
@@ -79,18 +89,18 @@ export default function SalesListPage() {
 
   const paginatedSales = filteredSales.slice((page - 1) * perPage, page * perPage);
 
-const headerStyle = {
-  backgroundColor: "#2E3A59",
-  color: "white",
-  padding: "2px 6px", 
-  height: "28px", 
-  lineHeight: "1.2", 
-};
-const rowStyle = {
-  fontSize: "0.85rem",  
-  padding: "4px 6px",   
-  lineHeight: "1.2rem", 
-};
+  const headerStyle = {
+    backgroundColor: "#2E3A59",
+    color: "white",
+    padding: "2px 6px",
+    height: "28px",
+    lineHeight: "1.2",
+  };
+  const rowStyle = {
+    fontSize: "0.85rem",
+    padding: "4px 6px",
+    lineHeight: "1.2rem",
+  };
 
 
   const columns = [
@@ -111,8 +121,80 @@ const rowStyle = {
   ];
 
   return (
-    <div className="px-4" style={{ fontSize: "0.95rem" ,fontFamily:"productsans-serif"}}>
+    <div className="px-4" style={{ fontSize: "0.95rem", fontFamily: "productsans-serif" }}>
       <BreadCrumb title="Sales List" />
+      <Card className="border-0 shadow-sm rounded-3 p-3 mb-3 bg-white">
+
+        {/* Card Header */}
+        <div className="d-flex justify-content-between align-items-center mb-2">
+          <h5 className="mb-0 fw-semibold">Product Summary</h5>
+        </div>
+
+        {/* Table */}
+        <div className="table-responsive">
+          <table className="table table-sm align-middle mb-0" style={{ fontSize: "0.85rem" }}>
+            <thead
+              style={{
+                backgroundColor: "#2E3A59",
+                color: "white",
+                fontSize: "0.82rem",
+                height: "40px",
+                verticalAlign: "middle",
+              }}
+            >
+              <tr>
+                <th style={{ backgroundColor: "#2E3A59", color: "white" }}>Product</th>
+                <th className="text-center" style={{ width: "120px", backgroundColor: "#2E3A59", color: "white" }}>Assembled</th>
+                <th className="text-center" style={{ width: "120px", backgroundColor: "#2E3A59", color: "white" }}>Sold</th>
+                <th className="text-center" style={{ width: "120px", backgroundColor: "#2E3A59", color: "white" }}>Available</th>
+                <th className="text-center" style={{ width: "120px", backgroundColor: "#2E3A59", color: "white" }}>Action</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {productSummary.length === 0 ? (
+                <tr>
+                  <td colSpan="5" className="text-center py-3 text-muted">
+                    <img
+                      src="/empty-box.png"
+                      alt="No Data"
+                      style={{ width: "80px", opacity: 0.6 }}
+                    />
+                  </td>
+                </tr>
+              ) : (
+                productSummary.map((p, index) => (
+                  <tr key={index}>
+                    <td style={{ fontSize: "0.90rem" }}>{p.product_name}</td>
+
+                    <td className="text-center">{p.assembled_qty}</td>
+                    <td className="text-center">{p.sold_qty}</td>
+                    <td className="text-center text-success fw-bold">
+                      {p.available_qty}
+                    </td>
+
+                    <td className="text-center">
+                      <Button
+                        size="sm"
+                        onClick={() => navigate(`/product-sale-status/${p.product_id}`)}
+                        style={{
+                          backgroundColor: "#2E3A59",
+                          borderColor: "#2E3A59",
+                          padding: "2px 10px",
+                          fontSize: "0.75rem",
+                        }}
+                      >
+                        View
+                      </Button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
 
       <Card className="border-0 shadow-sm rounded-3 p-2 px-4 mt-2 bg-white">
         <div className="row mb-2">

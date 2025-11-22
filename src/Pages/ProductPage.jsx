@@ -16,6 +16,7 @@ import withReactContent from "sweetalert2-react-content";
 import "datatables.net-dt/css/dataTables.dataTables.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
+import CreatableSelect from "react-select/creatable";
 import Select from "react-select";
 
 import BreadCrumb from "../components/BreadCrumb";
@@ -31,6 +32,7 @@ export default function ProductPage() {
   const [productName, setProductName] = useState("");
   const [requirementPerProduct, setRequirementPerProduct] = useState("");
   const [productTypeName, setProductTypeName] = useState("");
+  const [prevSelectedSpareparts, setPrevSelectedSpareparts] = useState([]);
   const [selectedSpareparts, setSelectedSpareparts] = useState([]);
   const [productNameError, setProductNameError] = useState(false);
 
@@ -66,7 +68,7 @@ export default function ProductPage() {
 
   const fetchSpareparts = async () => {
     try {
-    const res = await api.get("/spareparts/get");
+      const res = await api.get("/spareparts/get");
       setSpareparts(Array.isArray(res.data) ? res.data : res.data.spareparts || []);
     } catch {
       toast.error("Failed to load spare parts!");
@@ -117,6 +119,24 @@ export default function ProductPage() {
       return;
     }
 
+    // ✅ Validation: Spareparts required ONLY when product type = VCI
+    if (productTypeName?.toUpperCase() === "VCI") {
+      if (selectedSpareparts.length === 0) {
+        toast.error("Spareparts with required quantity are mandatory for VCI products!");
+        return;
+      }
+
+      const invalidQty = selectedSpareparts.some(
+        (sp) => !sp.required_quantity || Number(sp.required_quantity) <= 0
+      );
+
+      if (invalidQty) {
+        toast.error("Please enter valid required quantities for all selected spareparts!");
+        return;
+      }
+    }
+
+
     const payload = {
       name: productName.trim(),
       requirement_per_product: requirementPerProduct || 0,
@@ -135,6 +155,7 @@ export default function ProductPage() {
         await api.post(`/product`, payload);
         toast.success("Product added successfully!");
       }
+
       await fetchProducts();
       handleModalClose();
     } catch (error) {
@@ -142,6 +163,7 @@ export default function ProductPage() {
       toast.error("Failed to save product!");
     }
   };
+
 
   const handleDelete = async (id) => {
     MySwal.fire({
@@ -362,15 +384,31 @@ export default function ProductPage() {
 
           <Form.Group className="mb-3">
             <Form.Label>Product Type</Form.Label>
-            <Form.Select
-              value={productTypeName || "VCI"} // default to VCI
-              onChange={(e) => setProductTypeName(e.target.value)}
-            >
-              <option value="VCI">VCI</option>
-              {/* Add more options as needed */}
-            </Form.Select>
-          </Form.Group>
 
+            <CreatableSelect
+              isClearable
+              isSearchable
+              formatCreateLabel={(inputValue) => `Use "${inputValue}" as Product Type`}
+              placeholder="Type or select product type"
+              value={
+                productTypeName
+                  ? { label: productTypeName, value: productTypeName }
+                  : null
+              }
+              onChange={(selected) => {
+                setProductTypeName(selected ? selected.value : "");
+              }}
+              onCreateOption={(inputValue) => {
+                // User typed a custom value
+                setProductTypeName(inputValue);
+              }}
+              options={[
+                { value: "VCI", label: "VCI" },  // default option
+              ]}
+            />
+
+
+          </Form.Group>
 
           {/* <Form.Group className="mb-3">
             <Form.Label>Requirement per Product</Form.Label>
@@ -391,11 +429,44 @@ export default function ProductPage() {
                 value: sp.id,
                 label: `${sp.name} (${sp.required_quantity || 0})`,
               }))}
-              onChange={(options) => {
-                const updated = options.map((opt) => {
-                  const existing = selectedSpareparts.find((sp) => sp.id === opt.value);
+              onChange={async (options) => {
+
+                const updated = options?.map((opt) => {
+                  const existing = selectedSpareparts.find(sp => sp.id === opt.value);
                   return existing || { id: opt.value, name: opt.label, required_quantity: 0 };
-                });
+                }) || [];
+
+                // Detect removed sparepart
+                const removedList = selectedSpareparts.filter(
+                  sp => !updated.some(u => u.id === sp.id)
+                );
+
+                if (removedList.length > 0) {
+                  const removedItem = removedList[0];
+
+                  const result = await MySwal.fire({
+                    title: "Remove Sparepart?",
+                    text: `${removedItem.name} will be removed from this product.`,
+                    icon: "warning",
+                    showCancelButton: true,
+                    confirmButtonColor: "#d33",
+                    cancelButtonColor: "#2FA64F",
+                    confirmButtonText: "Yes, remove",
+                    cancelButtonText: "Cancel"
+                  });
+
+                  if (result.isConfirmed) {
+                    toast.error(`${removedItem.name} removed from product`);
+                    setSelectedSpareparts(updated);
+                  } else {
+                    // Restore original selection  ❗
+                    setSelectedSpareparts([...selectedSpareparts]);
+                  }
+
+                  return;
+                }
+
+                // No deletion, regular change
                 setSelectedSpareparts(updated);
               }}
               options={spareparts.map((sp) => ({ value: sp.id, label: sp.name }))}
