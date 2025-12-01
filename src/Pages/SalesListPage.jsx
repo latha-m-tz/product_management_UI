@@ -6,9 +6,7 @@ import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
 import "bootstrap/dist/css/bootstrap.min.css";
 
-
 import { useNavigate } from "react-router-dom";
-import { API_BASE_URL } from "../api";
 import BreadCrumb from "../components/BreadCrumb";
 import ActionButtons from "../components/ActionButton";
 import Pagination from "../components/Pagination";
@@ -26,33 +24,38 @@ export default function SalesListPage() {
   const MySwal = withReactContent(Swal);
   const navigate = useNavigate();
 
+  const pageFontStyle = {
+    fontFamily: `"Product Sans", sans-serif`,
+    fontSize: "0.92rem",
+    color: "#333",
+  };
+
   useEffect(() => {
     const token = localStorage.getItem("authToken");
     if (token) setAuthToken(token);
     fetchSales();
     fetchProductSummary();
   }, []);
+
   const fetchProductSummary = async () => {
     try {
       const res = await api.get(`/sales/product-summary`);
       setProductSummary(res.data);
-    } catch (error) {
-      console.error("Failed to load product summary:", error);
+    } catch {
       toast.error("Failed to load product summary!");
     }
   };
+
   const fetchSales = async () => {
     setLoading(true);
     try {
       const res = await api.get(`/sales`, {
         headers: { "Cache-Control": "no-cache" },
-        params: { _: new Date().getTime() },
+        params: { _: Date.now() },
       });
       setSales(Array.isArray(res.data) ? res.data : []);
-    } catch (error) {
-      console.error("Failed to fetch sales:", error);
+    } catch {
       toast.error("Failed to fetch sales!");
-      setSales([]);
     } finally {
       setLoading(false);
     }
@@ -67,7 +70,7 @@ export default function SalesListPage() {
         showCancelButton: true,
         confirmButtonColor: "#d33",
         cancelButtonColor: "#2FA64F",
-        confirmButtonText: "Yes, delete it!",
+        confirmButtonText: "Yes, delete!",
       });
 
       if (result.isConfirmed) {
@@ -81,27 +84,17 @@ export default function SalesListPage() {
   };
 
   const filteredSales = sales.filter((sale) => {
-    const searchTerm = search.toLowerCase();
-    const challan = (sale.challan_no || "").toLowerCase();
-    const customer = (sale.customer?.customer || "").toLowerCase();
-    return challan.includes(searchTerm) || customer.includes(searchTerm);
+    const term = search.toLowerCase();
+    return (
+      (sale.challan_no || "").toLowerCase().includes(term) ||
+      (sale.customer?.customer || "").toLowerCase().includes(term)
+    );
   });
 
-  const paginatedSales = filteredSales.slice((page - 1) * perPage, page * perPage);
-
-  const headerStyle = {
-    backgroundColor: "#2E3A59",
-    color: "white",
-    padding: "2px 6px",
-    height: "28px",
-    lineHeight: "1.2",
-  };
-  const rowStyle = {
-    fontSize: "0.85rem",
-    padding: "4px 6px",
-    lineHeight: "1.2rem",
-  };
-
+  const paginatedSales = filteredSales.slice(
+    (page - 1) * perPage,
+    page * perPage
+  );
 
   const columns = [
     { header: "Customer", accessor: (row) => row.customer?.customer },
@@ -120,34 +113,41 @@ export default function SalesListPage() {
     },
   ];
 
-  return (
-    <div className="px-4" style={{ fontSize: "0.95rem", fontFamily: "productsans-serif" }}>
-      <BreadCrumb title="Sales List" />
-      <Card className="border-0 shadow-sm rounded-3 p-3 mb-3 bg-white">
+  const headerStyle = {
+    backgroundColor: "#2E3A59",
+    color: "white",
+    padding: "6px",
+    height: "32px",
+    lineHeight: "1.2",
+    fontFamily: `"Product Sans", sans-serif`,
+    fontSize: "0.82rem",
+  };
 
-        {/* Card Header */}
+  return (
+    <div className="px-4" style={pageFontStyle}>
+
+      {/* Load Google Sans ONLY for this page */}
+      {/* <style>{`
+        @import url("https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600&display=swap");
+      `}</style> */}
+
+      <BreadCrumb title="Sales List" />
+
+      {/* PRODUCT SUMMARY CARD */}
+      <Card className="border-0 shadow-sm rounded-3 p-3 mb-3 bg-white">
         <div className="d-flex justify-content-between align-items-center mb-2">
           <h5 className="mb-0 fw-semibold">Product Summary</h5>
         </div>
 
-        {/* Table */}
         <div className="table-responsive">
-          <table className="table table-sm align-middle mb-0" style={{ fontSize: "0.85rem" }}>
-            <thead
-              style={{
-                backgroundColor: "#2E3A59",
-                color: "white",
-                fontSize: "0.82rem",
-                height: "40px",
-                verticalAlign: "middle",
-              }}
-            >
+          <table className="table table-sm align-middle mb-0">
+            <thead style={headerStyle}>
               <tr>
                 <th style={{ backgroundColor: "#2E3A59", color: "white" }}>Product</th>
-                <th className="text-center" style={{ width: "120px", backgroundColor: "#2E3A59", color: "white" }}>Assembled</th>
-                <th className="text-center" style={{ width: "120px", backgroundColor: "#2E3A59", color: "white" }}>Sold</th>
-                <th className="text-center" style={{ width: "120px", backgroundColor: "#2E3A59", color: "white" }}>Available</th>
-                <th className="text-center" style={{ width: "120px", backgroundColor: "#2E3A59", color: "white" }}>Action</th>
+                <th style={{ backgroundColor: "#2E3A59", color: "white" }} className="text-center">Assembled</th>
+                <th style={{ backgroundColor: "#2E3A59", color: "white" }} className="text-center">Sold</th>
+                <th style={{ backgroundColor: "#2E3A59", color: "white" }} className="text-center">Available</th>
+                <th style={{ backgroundColor: "#2E3A59", color: "white" }} className="text-center">Action</th>
               </tr>
             </thead>
 
@@ -157,31 +157,29 @@ export default function SalesListPage() {
                   <td colSpan="5" className="text-center py-3 text-muted">
                     <img
                       src="/empty-box.png"
-                      alt="No Data"
                       style={{ width: "80px", opacity: 0.6 }}
                     />
                   </td>
                 </tr>
               ) : (
-                productSummary.map((p, index) => (
-                  <tr key={index}>
-                    <td style={{ fontSize: "0.90rem" }}>{p.product_name}</td>
-
+                productSummary.map((p, i) => (
+                  <tr key={i}>
+                    <td>{p.product_name}</td>
                     <td className="text-center">{p.assembled_qty}</td>
                     <td className="text-center">{p.sold_qty}</td>
-                    <td className="text-center text-success fw-bold">
+                    <td className="text-center fw-bold text-success">
                       {p.available_qty}
                     </td>
-
                     <td className="text-center">
                       <Button
                         size="sm"
-                        onClick={() => navigate(`/product-sale-status/${p.product_id}`)}
+                        onClick={() =>
+                          navigate(`/product-sale-status/${p.product_id}`)
+                        }
                         style={{
                           backgroundColor: "#2E3A59",
                           borderColor: "#2E3A59",
-                          padding: "2px 10px",
-                          fontSize: "0.75rem",
+                          fontFamily: `"Product Sans", sans-serif`,
                         }}
                       >
                         View
@@ -195,15 +193,14 @@ export default function SalesListPage() {
         </div>
       </Card>
 
-
+      {/* SALES TABLE */}
       <Card className="border-0 shadow-sm rounded-3 p-2 px-4 mt-2 bg-white">
         <div className="row mb-2">
-          {/* Left Controls */}
-          <div className="col-md-6 d-flex align-items-center mb-2 mb-md-0">
+          <div className="col-md-6 d-flex align-items-center">
             <label className="me-2 fw-semibold mb-0">Records Per Page:</label>
             <Form.Select
               size="sm"
-              style={{ width: "50px" }}
+              style={{ width: "60px" }}
               value={perPage}
               onChange={(e) => {
                 setPerPage(Number(e.target.value));
@@ -218,54 +215,34 @@ export default function SalesListPage() {
             </Form.Select>
           </div>
 
-          {/* Right Controls */}
-          <div className="col-md-6 text-md-end" style={{ fontSize: "0.8rem" }}>
-            <div className="mt-2 d-inline-block mb-2">
-              <Button
-                variant="outline-secondary"
-                size="sm"
-                className="me-2"
-                onClick={fetchSales}
-              >
-                <i className="bi bi-arrow-clockwise"></i>
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => navigate("/sales-order/add")}
-                style={{
-                  backgroundColor: "#2FA64F",
-                  borderColor: "#2FA64F",
-                  color: "#fff",
-                  padding: "0.25rem 0.5rem",
-                  fontSize: "0.8rem",
-                  minWidth: "90px",
-                  height: "28px",
-                }}
-              >
-                + Add Sale
-              </Button>
-            </div>
+          <div className="col-md-6 text-md-end">
+            <Button
+              variant="outline-secondary"
+              size="sm"
+              className="me-2"
+              onClick={fetchSales}
+            >
+              <i className="bi bi-arrow-clockwise"></i>
+            </Button>
 
-            <div
+            <Button
+              size="sm"
+              onClick={() => navigate("/sales-order/add")}
               style={{
-                display: "flex",
-                justifyContent: "flex-end",
-                alignItems: "center",
+                backgroundColor: "#2FA64F",
+                borderColor: "#2FA64F",
+                color: "#fff",
+                minWidth: "90px",
+                fontFamily: `"Google Sans", sans-serif`,
               }}
             >
-              <Search
-                search={search}
-                setSearch={setSearch}
-                perPage={perPage}
-                setPerPage={setPerPage}
-                setPage={setPage}
-                style={{ fontSize: "0.8rem" }}
-              />
-            </div>
+              + Add Sale
+            </Button>
+
+            <Search search={search} setSearch={setSearch} />
           </div>
         </div>
 
-        {/* ✅ Reusable DataTable */}
         <DataTable
           loading={loading}
           data={paginatedSales}

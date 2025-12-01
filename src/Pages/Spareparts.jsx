@@ -13,7 +13,6 @@ import BreadCrumb from "../components/BreadCrumb";
 import Search from "../components/Search.jsx";
 import Pagination from "../components/Pagination.jsx";
 import { useLocation, useNavigate } from "react-router-dom";
-import Select from "react-select";
 
 const MySwal = withReactContent(Swal);
 
@@ -32,7 +31,7 @@ export default function App() {
   const [sortField, setSortField] = useState("");
   const [sortDirection, setSortDirection] = useState("asc");
   const location = useLocation();
-  const [productTypes, setProductTypes] = useState([]);
+  // const [productTypes, setProductTypes] = useState([]);
 
   function initialFormState() {
     return {
@@ -291,7 +290,7 @@ export default function App() {
                     color: "white",
                     fontSize: "0.82rem",
                     height: "40px",
-                    textAlign: "center"
+                    textAlign: "start"
                   }}
                 >
                   S.No
@@ -305,7 +304,7 @@ export default function App() {
                     fontSize: "0.82rem",
                     height: "40px",
                     cursor: "pointer",
-                    textAlign: "center"
+                    textAlign: "start"
                   }}
                 >
                   Spare Part Name{" "}

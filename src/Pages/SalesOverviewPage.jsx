@@ -59,7 +59,7 @@ export default function SalesOverviewPage() {
     challan_date: sale.challan_date,
     shipment_date: sale.shipment_date,
     serial_no: item.serial_no,
-    product: item.product, // keep as object, Table handles accessor
+    product: item.product, 
     quantity: item.quantity,
   }));
 
@@ -138,9 +138,7 @@ export default function SalesOverviewPage() {
               >
                 ← Back
               </Button>
-
             </div>
-
             <div
               style={{
                 display: "flex",

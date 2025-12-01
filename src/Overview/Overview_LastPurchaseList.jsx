@@ -1,6 +1,7 @@
 import React from "react";
 import "./LastSalesList.css";
-import { API_BASE_URL } from "../api"; // ✅ corrected path
+import { API_BASE_URL } from "../api";  
+import api, { setAuthToken } from "../api";
 
 const salesData = [
   { vendor: "MAHLE", invoiceDate: "10/05/2025", batch: "Batch 1", product: "7 series", quantity: 400 },
@@ -21,7 +22,7 @@ const LastPurchaseList = () => {
                 <th>S.No.</th>
                 <th>Vendor</th>
                 <th>Invoice Date</th>
-                <th>Batch</th>
+                {/* <th>Batch</th> */}
                 <th>Product</th>
                 <th>Quantity</th>
               </tr>

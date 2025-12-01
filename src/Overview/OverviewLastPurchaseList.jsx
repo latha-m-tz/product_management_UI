@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
 import { Card, Spinner } from "react-bootstrap";
-import { API_BASE_URL } from "../api"; 
+import api, { setAuthToken } from "../api";   // ✅ FIXED IMPORT
 import "./LastSalesList.css";
 
 const LastPurchaseList = () => {
@@ -9,30 +8,32 @@ const LastPurchaseList = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const token = localStorage.getItem("authToken");
+
+    if (token) setAuthToken(token); // ✅ Now works
+
     fetchLastPurchases();
   }, []);
 
   const fetchLastPurchases = async () => {
     try {
-      const res = await axios.get(`${API_BASE_URL}/get-purchase`);
+      const res = await api.get(`/get-purchase`); // ✅ api now defined
 
       const purchases = Array.isArray(res.data)
         ? res.data
         : Array.isArray(res.data.data)
-        ? res.data.data
-        : [];
+          ? res.data.data
+          : [];
 
       if (purchases.length === 0) {
         setPurchaseData([]);
         return;
       }
 
-      // Sort by latest invoice date
       const sorted = [...purchases].sort(
         (a, b) => new Date(b.invoice_date) - new Date(a.invoice_date)
       );
 
-      // Take the latest 10
       setPurchaseData(sorted.slice(0, 10));
     } catch (error) {
       console.error("Error fetching purchases:", error);
@@ -59,7 +60,7 @@ const LastPurchaseList = () => {
                   <th>S.No.</th>
                   <th>Vendor</th>
                   <th>Challan Date</th>
-                  <th>Product</th>
+                  <th>Sparepart</th>
                   <th>Quantity</th>
                 </tr>
               </thead>
@@ -70,7 +71,7 @@ const LastPurchaseList = () => {
                       <td>{index + 1}</td>
                       <td>{item.vendor}</td>
                       <td>{new Date(item.challan_date).toLocaleDateString()}</td>
-                      <td>{item.product}</td>
+                      <td>{item.sparepart}</td>
                       <td>{item.quantity}</td>
                     </tr>
                   ))

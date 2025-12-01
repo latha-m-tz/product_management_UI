@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
 import api, { setAuthToken } from "../api";
-import { Table, Spinner, Card, Button, Form } from "react-bootstrap";
+import { Table, Spinner, Card, Button, Form, Col } from "react-bootstrap";
 import BreadCrumb from "../components/BreadCrumb";
 import Pagination from "../components/Pagination";
 import Search from "../components/Search";
 import { toast } from "react-toastify";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 export default function PurchaseOverallPage() {
   const [loading, setLoading] = useState(true);
@@ -13,8 +13,8 @@ export default function PurchaseOverallPage() {
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
   const [search, setSearch] = useState("");
-
   const location = useLocation();
+  const navigate = useNavigate();
   const selectedSparepartName = location.state?.sparepart_name || null;
 
   const isPCB =
@@ -31,7 +31,6 @@ export default function PurchaseOverallPage() {
     setLoading(true);
     try {
       const res = await api.get("/sparepart-purchases/overall");
-      // Expect an array of objects with available_serials and available_quantity
       setStock(res.data || []);
     } catch (err) {
       toast.error("Failed to load overall stock data");
@@ -39,61 +38,41 @@ export default function PurchaseOverallPage() {
       setLoading(false);
     }
   };
-
-  // Expand serial list to one row per serial number (but use available_serials when provided)
-  const expandedStock = stock.flatMap((row) => {
-    // if server returned available_serials (preferred)
-    if (Array.isArray(row.available_serials) && row.available_serials.length > 0) {
-      return row.available_serials.map((serial) => ({
-        ...row,
-        serial_number: serial,
-        // set total_quantity to available count for display in non-PCB mode
-        total_quantity: row.available_quantity ?? row.available_serials.length,
+  const expanded = stock.flatMap((row) => {
+    if (row.type === "pcb") {
+      return (row.available_serials || []).map((x) => ({
+        sparepart_id: row.sparepart_id,
+        sparepart_name: row.sparepart_name,
+        serial: x.serial,
+        in_service: x.in_service,
+        type: "pcb",
       }));
     }
 
-    // fallback: if server returned from/to range (older clients)
-    if (row.from_serial && row.to_serial) {
-      const start = parseInt(row.from_serial);
-      const end = parseInt(row.to_serial);
-      if (!isNaN(start) && !isNaN(end) && end >= start) {
-        let serials = [];
-        for (let s = start; s <= end; s++) serials.push(s);
-        return serials.map((serial) => ({
-          ...row,
-          serial_number: serial,
-          total_quantity: row.purchased_quantity,
-        }));
-      }
-    }
-
-    // fallback: show one line with '-' serial and use available_quantity/purchased_quantity
-    return [{
-      ...row,
-      serial_number: "-",
-      total_quantity: row.available_quantity ?? row.purchased_quantity,
-    }];
+    // NON-PCB: only one row
+    return [
+      {
+        sparepart_id: row.sparepart_id,
+        sparepart_name: row.sparepart_name,
+        type: "non-pcb",
+        available_quantity: row.available_quantity,
+        service_quantity: row.service_quantity,
+      },
+    ];
   });
 
-  // PCB-specific filtering (coming from View Details)
   const filtered = selectedSparepartName
-    ? expandedStock.filter(
-      (item) => item.sparepart_name === selectedSparepartName
-    )
-    : expandedStock;
+    ? expanded.filter((item) => item.sparepart_name === selectedSparepartName)
+    : expanded;
 
-  // Search filter
-  const searched = filtered.filter(
-    (item) =>
-      item.serial_number.toString().toLowerCase().includes(search.toLowerCase()) ||
-      item.sparepart_name.toLowerCase().includes(search.toLowerCase())
-  );
+  const searched = filtered.filter((item) => {
+    return (
+      item.sparepart_name.toLowerCase().includes(search.toLowerCase()) ||
+      (item.serial || "").toString().toLowerCase().includes(search.toLowerCase())
+    );
+  });
 
-  // Pagination
-  const paginatedStock = searched.slice(
-    (page - 1) * perPage,
-    page * perPage
-  );
+  const paginated = searched.slice((page - 1) * perPage, page * perPage);
 
   const headerStyle = {
     backgroundColor: "#2E3A59",
@@ -108,9 +87,10 @@ export default function PurchaseOverallPage() {
       <BreadCrumb title="Overall Inventory Stock Summary" />
 
       <Card className="border-0 shadow-sm rounded-3 p-3 mt-2 bg-white">
-        {/* Top Controls */}
+        {/* Controls */}
         <div className="row mb-2">
-          <div className="col-md-6 d-flex align-items-center mb-2 mb-md-0">
+          {/* LEFT SIDE: Records Per Page */}
+          <div className="col-md-6 d-flex align-items-center">
             <label className="me-2 fw-semibold mb-0">Records Per Page:</label>
 
             <Form.Select
@@ -126,47 +106,45 @@ export default function PurchaseOverallPage() {
                 <option key={n}>{n}</option>
               ))}
             </Form.Select>
-
-            <Button
-              size="sm"
-              className="ms-3"
-              style={{ backgroundColor: "#2E3A59", borderColor: "#2E3A59" }}
-              onClick={() => window.history.back()}
-            >
-              ← Back
-            </Button>
           </div>
 
-          <div className="col-md-6 text-md-end">
-            <Search
-              search={search}
-              setSearch={setSearch}
-              perPage={perPage}
-              setPerPage={setPerPage}
-              setPage={setPage}
-            />
+          {/* RIGHT SIDE: BACK BUTTON + SEARCH */}
+          <div className="col-md-6 d-flex justify-content-end align-items-center">
+            <Button
+              variant="outline-secondary"
+              size="sm"
+              className="me-2"
+              onClick={() => navigate(-1)}
+            >
+              <i className="bi bi-arrow-left"></i> Back
+            </Button>
+
+            <Search search={search} setSearch={setSearch} setPage={setPage} />
           </div>
         </div>
 
+
         {/* Table */}
         <div className="table-responsive">
-          <Table className="table-sm align-middle mb-0" style={{ fontSize: "0.85rem" }}>
+          <Table
+            className="table-sm align-middle mb-0"
+            style={{ fontSize: "0.85rem" }}
+          >
             <thead style={headerStyle}>
               <tr>
-                <th style={{ width: "60px", textAlign: "center",backgroundColor:"#2E3A59" ,color:"white"}}>S.No</th>
+                <th style={{ width: "60px", textAlign: "center", backgroundColor: "#2E3A59", color: "white" }}>S.No</th>
 
                 {isPCB ? (
                   <>
-                    <th style={{ backgroundColor: "#2E3A59", color: "white" }}>
-                      Sparepart
-                    </th>
+                    <th style={{ backgroundColor: "#2E3A59", color: "white" }}>Sparepart</th>
                     <th style={{ backgroundColor: "#2E3A59", color: "white" }}>Serial Number</th>
+                    <th style={{ backgroundColor: "#2E3A59", color: "white" }}>Status</th>
                   </>
                 ) : (
                   <>
                     <th style={{ backgroundColor: "#2E3A59", color: "white" }}>Sparepart</th>
-                    <th style={{ backgroundColor: "#2E3A59", color: "white" }}>Total Qty</th>
-                    <th style={{ backgroundColor: "#2E3A59", color: "white" }}>Serial Number</th>
+                    <th style={{ backgroundColor: "#2E3A59", color: "white" }}>Available Qty</th>
+                    <th style={{ backgroundColor: "#2E3A59", color: "white" }}>Qty In Service</th>
                   </>
                 )}
               </tr>
@@ -175,37 +153,42 @@ export default function PurchaseOverallPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="4" className="text-center py-4">
+                  <td colSpan="5" className="text-center py-4">
                     <Spinner animation="border" />
                   </td>
                 </tr>
-              ) : paginatedStock.length === 0 ? (
+              ) : paginated.length === 0 ? (
                 <tr>
-                  <td colSpan="4" className="text-center py-4 text-muted">
-                    <img
-                      src="/empty-box.png"
-                      alt="No records"
-                      style={{ width: "80px", opacity: 0.6 }}
-                    />
+                  <td colSpan="5" className="text-center py-4 text-muted">
+                    No Records Found
                   </td>
                 </tr>
               ) : (
-                paginatedStock.map((row, index) => (
-                  <tr key={(row.sparepart_id || '') + '-' + index + '-' + row.serial_number}>
+                paginated.map((row, index) => (
+                  <tr key={index}>
                     <td className="text-center">
                       {(page - 1) * perPage + index + 1}
                     </td>
 
-                    {isPCB ? (
+                    {row.type === "pcb" ? (
                       <>
                         <td>{row.sparepart_name}</td>
-                        <td>{row.serial_number}</td>
+                        <td>{row.serial}</td>
+                        <td>
+                          {row.in_service ? (
+                            <span className="badge bg-warning text-dark">
+                              In Service
+                            </span>
+                          ) : (
+                            <span className="badge bg-success">Available</span>
+                          )}
+                        </td>
                       </>
                     ) : (
                       <>
                         <td>{row.sparepart_name}</td>
-                        <td>{row.total_quantity}</td>
-                        <td>{row.serial_number}</td>
+                        <td>{row.available_quantity}</td>
+                        <td>{row.service_quantity}</td>
                       </>
                     )}
                   </tr>

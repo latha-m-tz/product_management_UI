@@ -109,8 +109,8 @@ export default function PurchaseListPage() {
       <BreadCrumb title="Purchase List" />
 
       {/* STOCK OVERALL SUMMARY */}
-      <Card className="p-3 mb-3 shadow-sm" style={{ background: "#F8F9FA" }}>
-        <h6 className="fw-bold mb-3">Stock Overall Summary</h6>
+      <Card className="p-3 mb-3 shadow-sm" style={{ background: "#F8F9FA" ,fontSize: "0.90rem" ,fontFamily:"product-sans,sans-serif"}}>
+        <h6 className="fw-bold mb-3">Current Stock Overall Summary</h6>
 
         <div className="list-group">
           {overallStock.map((item) => (
@@ -234,7 +234,7 @@ export default function PurchaseListPage() {
                 <th
                   style={{
                     width: "70px",
-                    textAlign: "center",
+                    textAlign: "start",
                     cursor: "pointer",
                     backgroundColor: "#2E3A59",
                     color: "white"
@@ -254,7 +254,7 @@ export default function PurchaseListPage() {
                       color: "white",
                       padding: "8px",
                       fontSize: "0.85rem",
-                      textAlign: "center",
+                      textAlign: "start",
                     }}
                   >
                     {label}

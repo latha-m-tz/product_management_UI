@@ -20,7 +20,7 @@ import BreadCrumb from "../components/BreadCrumb";
 import Pagination from "../components/Pagination";
 import Search from "../components/Search";
 
-// API base URL
+// API base URLa
 import { API_BASE_URL } from "../api";
 
 export default function ProductTypePage() {

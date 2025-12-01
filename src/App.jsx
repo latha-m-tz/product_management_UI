@@ -7,7 +7,7 @@ import LoginPage from "./Pages/LoginPage";
 import AppLayout from "./Layout/AppLayout";
 
 // Pages
-// import Overview from "./Overview/Overview";
+import Overview from "./Overview/Overview";
 import ComponentsPage from "./Pages/ComponentsPage";
 import SalesListPage from "./Pages/SalesListPage";
 import SalesOverviewPage from "./Pages/SalesOverviewPage";
@@ -94,10 +94,10 @@ export default function App() {
           }
         >
           {/* Default redirect */}
-          {/* <Route index element={<Navigate to="overview" replace />} /> */}
+          {<Route index element={<Navigate to="overview" replace />} />}
 
           {/* Pages */}
-          {/* <Route path="overview" element={<Overview />} /> */}
+          { <Route path="overview" element={<Overview />} /> }
           <Route path="sales-order" element={<SalesListPage />} />
           <Route path="sales-order/add" element={<AddSalesPage />} />
           <Route path="sales/edit/:id" element={<EditSalesPage />} />
@@ -149,3 +149,4 @@ export default function App() {
   )
 }
 
+        

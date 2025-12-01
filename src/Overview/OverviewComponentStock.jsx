@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { FaArrowUp, FaArrowDown, FaBell } from "react-icons/fa";
 import axios from "axios";
-import { API_BASE_URL } from "../api"; // ✅ corrected path
+import { API_BASE_URL } from "../api";
 import "./Componentstock.css";
+import api, { setAuthToken } from "../api";
 
 const SkeletonCard = () => (
   <div className="five-col mb-3">
@@ -27,8 +28,11 @@ const ComponentStock = () => {
   const [isAvailable, setIsAvailable] = useState(true);
 
   useEffect(() => {
-    axios
-      .get(`${API_BASE_URL}/vci-capacity`)
+      const token = localStorage.getItem("authToken");
+  if (token) setAuthToken(token);
+
+    api
+      .get(`/vci-capacity`)
       .then((res) => {
         if (res.data?.success && res.data?.data?.spare_parts) {
           const parts = res.data.data.spare_parts;
@@ -37,19 +41,19 @@ const ComponentStock = () => {
           const unavailablePart = parts.find((p) => p.status === "Unavailable" || p.boards_possible <= 0);
           if (unavailablePart) {
             setIsAvailable(false); 
-            setMessage(`Using available parts, we can make ${res.data.data.available_vci_boards_possible} VCI's`);
+            // setMessage(`Using available parts, we can make ${res.data.data.available_vci_boards_possible} VCI's`);
           } else {
             setIsAvailable(true);
-            setMessage(`Using these spare parts, we can make ${res.data.data.max_vci_boards_possible} VCI's`);
+            // setMessage(`Using these spare parts, we can make ${res.data.data.max_vci_boards_possible} VCI's`);
           }
         } else {
           setStockData([]);
-          setMessage(null);
+          // setMessage(null);
         }
       })
       .catch(() => {
         setStockData([]);
-        setMessage(null);
+        // setMessage(null);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -97,7 +101,7 @@ const ComponentStock = () => {
                   <div className="d-flex flex-column justify-content-center">
                     <small className="custom-small-text">{item.name}</small>
                     <div className="fw-bold fs-5">{item.total_quantity} Qty</div>
-                    <small
+                    {/* <small
                       className={`d-block ${
                         item.boards_possible > 0 ? "text-muted" : "text-danger fw-semibold"
                       }`}
@@ -105,8 +109,8 @@ const ComponentStock = () => {
                       {item.boards_possible > 0
                         ? `Stock supports ${item.boards_possible} VCI's`
                         : "Unavailable"}
-                    </small>
-                    <small
+                    </small> */}
+                    {/* <small
                       className={item.boards_possible > 0 ? "#28a745" : "text-danger"}
                       style={item.boards_possible > 0 ? { color: "#28a745" } : {}}
                     >
@@ -115,7 +119,7 @@ const ComponentStock = () => {
                       ) : (
                         <FaArrowDown style={{ fontSize: "10px" }} />
                       )}
-                    </small>
+                    </small> */}
                   </div>
                 </div>
               </div>
@@ -137,3 +141,5 @@ const ComponentStock = () => {
 };
 
 export default ComponentStock;
+
+

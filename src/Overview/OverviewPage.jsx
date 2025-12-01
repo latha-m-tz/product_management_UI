@@ -1,6 +1,4 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
-import { API_BASE_URL } from "../api"; // ✅ corrected path
 import { Card, Row, Col, Form } from "react-bootstrap";
 import {
   Chart as ChartJS,
@@ -10,9 +8,9 @@ import {
   LinearScale,
   Tooltip,
   Legend,
-  Filler
 } from "chart.js";
 import { Line } from "react-chartjs-2";
+import api, { setAuthToken } from "../api";
 
 ChartJS.register(
   LineElement,
@@ -49,18 +47,11 @@ const SkeletonChart = () => (
 function getYAxisConfig(maxVal) {
   const paddedMax = maxVal * 1.1;
 
-  if (paddedMax <= 10) {
-    return { min: 1, max: 10, stepSize: 1 };
-  } else if (paddedMax <= 100) {
-    const roundedMax = Math.ceil(paddedMax / 10) * 10;
-    return { min: 0, max: roundedMax, stepSize: 10 };
-  } else if (paddedMax <= 1000) {
-    const roundedMax = Math.ceil(paddedMax / 100) * 100;
-    return { min: 0, max: roundedMax, stepSize: 100 };
-  } else {
-    const roundedMax = Math.ceil(paddedMax / 1000) * 1000;
-    return { min: 0, max: roundedMax, stepSize: 1000 };
-  }
+  if (paddedMax <= 10) return { min: 1, max: 10, stepSize: 1 };
+  if (paddedMax <= 100) return { min: 0, max: Math.ceil(paddedMax / 10) * 10, stepSize: 10 };
+  if (paddedMax <= 1000) return { min: 0, max: Math.ceil(paddedMax / 100) * 100, stepSize: 100 };
+
+  return { min: 0, max: Math.ceil(paddedMax / 1000) * 1000, stepSize: 1000 };
 }
 
 export default function OverviewPage() {
@@ -68,39 +59,69 @@ export default function OverviewPage() {
     customers: 0,
     vendors: 0,
     productSales: 0,
+    soldCount: 0,
   });
+
   const [graphData, setGraphData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [countLoading, setCountLoading] = useState(true);
   const [duration, setDuration] = useState("Month");
-
   const [availableYears, setAvailableYears] = useState([]);
   const [selectedYear, setSelectedYear] = useState(null);
 
   useEffect(() => {
+    const token = localStorage.getItem("authToken");
+    if (token) setAuthToken(token);
+
     fetchCounts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [duration, selectedYear]);
 
   const fetchCounts = async () => {
     setCountLoading(true);
     setLoading(true);
+
     try {
-      const [vendorsRes, customersRes, salesSummaryRes, productsold] = await Promise.all([
-        axios.get(`${API_BASE_URL}/vendors/count`),
-        axios.get(`${API_BASE_URL}/customers/count`),
-        axios.get(`${API_BASE_URL}/sales-summary`),
-        axios.get(`${API_BASE_URL}/products/sold/count`),
-      ]);
+      const [vendorsRes, customersRes, salesSummaryRes, productsold] =
+        await Promise.all([
+          api.get("/vendors/count"),
+          api.get("/customers/count"),
+          api.get("/sales-summary"),
+          api.get("/products/sold/count"),
+        ]);
+
+      console.log("VENDORS:", vendorsRes.data);
+      console.log("CUSTOMERS:", customersRes.data);
+      console.log("SALES SUMMARY:", salesSummaryRes.data);
+      console.log("SOLD COUNT:", productsold.data);
+
+      const extract = (obj) => {
+        if (!obj) return 0;
+        return (
+          obj.count ??
+          obj.total ??
+          obj.data ??
+          obj.totalProductsSold ??
+          obj.total_products_sold ??
+          0
+        );
+      };
 
       setStats({
-        vendors: vendorsRes.data.count ?? 0,
-        customers: customersRes.data.count ?? 0,
-        productSales: salesSummaryRes.data.totalProductsSold ?? 0,
-        soldCount: productsold.data.count ?? 0,
+        customers: extract(customersRes.data),
+        vendors: extract(vendorsRes.data),
+        productSales: extract(
+          salesSummaryRes.data.totalProductsSold ??
+          salesSummaryRes.data.total_products_sold
+        ),
+        soldCount: extract(productsold.data),
       });
 
-      const years = salesSummaryRes.data.yearlySales.map((y) => y.year);
+      // 📌 FIX GRAPH DATA KEYS
+      const summary = salesSummaryRes.data;
+      const yearly = summary.yearlySales ?? summary.yearly_sales ?? [];
+      const monthly = summary.monthlySales ?? summary.monthly_sales ?? [];
+
+      const years = yearly.map((y) => y.year);
       setAvailableYears(years);
 
       if (!selectedYear && years.length) {
@@ -108,67 +129,53 @@ export default function OverviewPage() {
         setSelectedYear(years.includes(currentYear) ? currentYear : Math.max(...years));
       }
 
-      const summaryData = salesSummaryRes.data;
-
       if (duration === "Year") {
         setGraphData(
-          summaryData.yearlySales.map((item) => ({
+          yearly.map((item) => ({
             label: item.year.toString(),
-            value: item.total_quantity,
+            value: item.total_quantity ?? item.totalQuantity ?? 0,
           }))
         );
       } else {
-        // Here is the change:
-        // Always show 12 months in x axis, filling zero for missing months
         const filteredMonthly = selectedYear
-          ? summaryData.monthlySales.filter((m) => m.year === selectedYear)
-          : summaryData.monthlySales;
+          ? monthly.filter((m) => m.year === selectedYear)
+          : monthly;
 
         const allMonths = [
           "January", "February", "March", "April", "May", "June",
-          "July", "August", "September", "October", "November", "December"
+          "July", "August", "September", "October", "November", "December",
         ];
 
-        // Map month name to short label (Jan, Feb, etc)
-        const monthShortNames = {
-          January: "Jan",
-          February: "Feb",
-          March: "Mar",
-          April: "Apr",
-          May: "May",
-          June: "Jun",
-          July: "Jul",
-          August: "Aug",
-          September: "Sep",
-          October: "Oct",
-          November: "Nov",
-          December: "Dec",
+        const short = {
+          January: "Jan", February: "Feb", March: "Mar", April: "Apr",
+          May: "May", June: "Jun", July: "Jul", August: "Aug",
+          September: "Sep", October: "Oct", November: "Nov", December: "Dec",
         };
 
-        // Create a lookup of sales by month name from DB data
-        const salesByMonth = {};
-        filteredMonthly.forEach(item => {
-          salesByMonth[item.month_name] = item.total_quantity;
+        const lookup = {};
+        filteredMonthly.forEach((item) => {
+          lookup[item.month_name] = item.total_quantity ?? 0;
         });
 
-        // Build graphData ensuring all 12 months present with 0 if missing
-        const fullYearData = allMonths.map(month => ({
-          label: monthShortNames[month],
-          value: salesByMonth[month] ?? 0,
+        const fullYear = allMonths.map((month) => ({
+          label: short[month],
+          value: lookup[month] ?? 0,
         }));
 
-        setGraphData(fullYearData);
+        setGraphData(fullYear);
       }
-    } catch {
-      setStats({ vendors: 0, customers: 0, productSales: 0 });
+    } catch (error) {
+      console.error("Dashboard API Error:", error);
+
+      setStats({ vendors: 0, customers: 0, productSales: 0, soldCount: 0 });
       setGraphData([]);
-      setAvailableYears([]);
-      setSelectedYear(null);
     } finally {
       setCountLoading(false);
       setLoading(false);
     }
   };
+
+
 
   const formatCount = (num) => {
     if (!num) return 0;
@@ -203,24 +210,17 @@ export default function OverviewPage() {
       tooltip: { mode: "index", intersect: false },
     },
     scales: {
-      x: {
-        grid: { display: false, drawBorder: false },
-        ticks: { font: { size: 12 } },
-      },
+      x: { grid: { display: false } },
       y: {
-        grid: { display: false, drawBorder: false },
+        grid: { display: false },
         min: yMin,
         max: yMax,
         ticks: {
           stepSize: stepSize,
           callback: (val) => {
-            if (val === 0) return "0";
-            if (yMax >= 1000) {
-              return val % 1000 === 0 ? `${val / 1000}k` : val;
-            }
+            if (yMax >= 1000 && val % 1000 === 0) return `${val / 1000}k`;
             return val;
           },
-          font: { size: 12 },
         },
       },
     },
@@ -228,92 +228,68 @@ export default function OverviewPage() {
 
   return (
     <>
-      <Row className="mb-4 g-3">
-        <Col xs={12} sm={6} md={3}>
-          <Card
-            className="border-0 shadow-sm h-100"
-            style={{ backgroundColor: "#E3F5FF" }}
-          >
-            <Card.Body>
-              <h6 className="fw-semibold">Customer</h6>
-              {countLoading ? (
-                <SkeletonCard />
-              ) : (
-                <h2>{formatCount(stats.customers)}</h2>
-              )}
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col xs={12} sm={6} md={3}>
-          <Card
-            className="border-0 shadow-sm h-100"
-            style={{ backgroundColor: "#E5ECF6" }}
-          >
-            <Card.Body>
-              <h6 className="fw-semibold">Vendor</h6>
-              {countLoading ? (
-                <SkeletonCard />
-              ) : (
-                <h2>{formatCount(stats.vendors)}</h2>
-              )}
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col xs={12} sm={6} md={3}>
-          <Card
-            className="border-0 shadow-sm h-100"
-            style={{ backgroundColor: "#E5ECF6" }}
-          >
-            <Card.Body>
-              <h6 className="fw-semibold">Product Sale</h6>
-              {countLoading ? (
-                <SkeletonCard />
-              ) : (
-                <h2>{formatCount(stats.productSales)}</h2>
-              )}
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col xs={12} sm={6} md={3}>
-          <Card
-            className="border-0 shadow-sm h-100"
-            style={{ backgroundColor: "#cbddf8ff" }}
-          >
-            <Card.Body>
-              <h6 className="fw-semibold">Sold Products</h6>
-              {countLoading ? (
-                <SkeletonCard />
-              ) : (
-                <h2>{formatCount(stats.soldCount)}</h2>
-              )}
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+      <div className="container-fluid px-0">
+        <Row className="mb-4 g-3 w-100 mx-0">
+
+          <Col xs={12} sm={6} md={3} className="px-2">
+            <Card className="border-0 shadow-sm h-100" style={{ backgroundColor: "#E3F5FF" }}>
+              <Card.Body>
+                <h6 className="fw-semibold">Customer</h6>
+                {countLoading ? <SkeletonCard /> : <h2>{formatCount(stats.customers)}</h2>}
+              </Card.Body>
+            </Card>
+          </Col>
+
+          <Col xs={12} sm={6} md={3} className="px-2">
+            <Card className="border-0 shadow-sm h-100" style={{ backgroundColor: "#E5ECF6" }}>
+              <Card.Body>
+                <h6 className="fw-semibold">Vendor</h6>
+                {countLoading ? <SkeletonCard /> : <h2>{formatCount(stats.vendors)}</h2>}
+              </Card.Body>
+            </Card>
+          </Col>
+
+          <Col xs={12} sm={6} md={3} className="px-2">
+            <Card className="border-0 shadow-sm h-100" style={{ backgroundColor: "#E5ECF6" }}>
+              <Card.Body>
+                <h6 className="fw-semibold">Product Sale</h6>
+                {countLoading ? <SkeletonCard /> : <h2>{formatCount(stats.productSales)}</h2>}
+              </Card.Body>
+            </Card>
+          </Col>
+
+          <Col xs={12} sm={6} md={3} className="px-2">
+            <Card className="border-0 shadow-sm h-100" style={{ backgroundColor: "#cbddf8" }}>
+              <Card.Body>
+                <h6 className="fw-semibold">Sold Products</h6>
+                {countLoading ? <SkeletonCard /> : <h2>{formatCount(stats.soldCount)}</h2>}
+              </Card.Body>
+            </Card>
+          </Col>
+
+        </Row>
+      </div>
 
       <Card className="shadow-sm border-0 mb-4">
         <Card.Body>
           <div className="d-flex justify-content-between align-items-center mb-3">
             <h6 className="fw-semibold mb-0">Product Sales</h6>
 
-            <div className="d-flex align-items-center" style={{ gap: "4px" }}>
-              {duration === "Month" && (
-                <Form.Select
-                  className="form-select w-auto"
-                  value={selectedYear ?? ""}
-                  onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                  disabled={loading}
-                  aria-label="Select Year"
-                >
-                  {availableYears.map((year) => (
-                    <option key={year} value={year}>
-                      {year}
-                    </option>
-                  ))}
-                </Form.Select>
-              )}
-            </div>
+            {duration === "Month" && (
+              <Form.Select
+                className="form-select w-auto"
+                value={selectedYear ?? ""}
+                onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+              >
+                {availableYears.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </Form.Select>
+            )}
           </div>
+
           {loading ? (
             <SkeletonChart />
           ) : (

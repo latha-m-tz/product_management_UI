@@ -401,9 +401,15 @@ input[type="file"].form-control-file {
 }
 
 .service-table td:nth-child(3) {
-  width: 180px !important; /* Increase status column */
+  width: 180px !important; 
 }
 
 .service-table select {
   width: 100%;
+}
+.sidebar-icon {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  filter: brightness(0) invert(1); /* makes ANY icon white */
 }

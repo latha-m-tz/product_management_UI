@@ -26,6 +26,7 @@ export default function AddProductPage({ onProductsSelected }) {
   const [loading, setLoading] = useState(false);
   const [alreadySoldSerials, setAlreadySoldSerials] = useState([]);
   const [inSaleProducts, setInSaleProducts] = useState([]);
+  const [pageLoading, setPageLoading] = useState(true);
 
   useEffect(() => {
     const loadInSaleProducts = () => {
@@ -44,7 +45,6 @@ export default function AddProductPage({ onProductsSelected }) {
     return () => window.removeEventListener("inSaleProductsUpdated", handleUpdate);
   }, []);
 
-  // 📦 Fetch all products
   const fetchProducts = async () => {
     try {
       const res = await api.get("/product");
@@ -79,128 +79,124 @@ export default function AddProductPage({ onProductsSelected }) {
   };
 
   // 🔍 Fetch serial/testing data
-const fetchTestingData = async () => {
-  try {
-    setLoading(true);
-    let records = [];
+  const fetchTestingData = async () => {
+    try {
+      setLoading(true);
+      let records = [];
 
-    if (selectedProductId) {
-      const res = await api.get(`/products/${selectedProductId}/serials`);
-      
-      console.log("API RAW DATA (BY PRODUCT):", res.data);
+      if (selectedProductId) {
+        const res = await api.get(`/products/${selectedProductId}/serials`);
 
-      records = Array.isArray(res.data) ? res.data : [];
-    } else {
-      const params = {};
-      if (serialFrom) params.serial_from = serialFrom;
-      if (serialTo) params.serial_to = serialTo;
+        console.log("API RAW DATA (BY PRODUCT):", res.data);
 
-      const res = await api.get("/inventory/serial-numbers", { params });
+        records = Array.isArray(res.data) ? res.data : [];
+      } else {
+        const params = {};
+        if (serialFrom) params.serial_from = serialFrom;
+        if (serialTo) params.serial_to = serialTo;
 
-      console.log("API RAW DATA (ALL SERIALS):", res.data);
+        const res = await api.get("/inventory/serial-numbers", { params });
 
-      records = Array.isArray(res.data)
-        ? res.data
-        : res.data?.data ?? [];
-    }
+        console.log("API RAW DATA (ALL SERIALS):", res.data);
 
-    // 🔍 Log BEFORE mapping
-    console.log("BEFORE NORMALIZATION:", records);
+        records = Array.isArray(res.data)
+          ? res.data
+          : res.data?.data ?? [];
+      }
 
-    // Normalize
-records = records.map((r) => ({
-  ...r,
+      // 🔍 Log BEFORE mapping
+      console.log("BEFORE NORMALIZATION:", records);
 
-  // ✅ FIX: Ensure every record has a valid id
-  id:
-    r.id ??
-    r.serial_id ??
-    r.sid ??
-    r._id ??
-    r.item_id ??
-    r.testing_id ??
-    null,
+      // Normalize
+      records = records.map((r) => ({
+        ...r,
 
-  product_id:
-    r.product_id ??
-    r.productId ??
-    r.productID ??
-    selectedProductId ??
-    null,
+        // ✅ FIX: Ensure every record has a valid id
+        id:
+          r.id ??
+          r.serial_id ??
+          r.sid ??
+          r._id ??
+          r.item_id ??
+          r.testing_id ??
+          null,
 
-  serial_no:
-    r.serial_no ??
-    r.serial ??
-    r.serialNumber ??
-    r.serialNo ??
-    null,
+        product_id:
+          r.product_id ??
+          r.productId ??
+          r.productID ??
+          selectedProductId ??
+          null,
 
-  tested_status:
-    r.tested_status ??
-    r.testStatus ??
-    r.testedStatus ??
-    r.status ??
-    null,
-}));
+        serial_no:
+          r.serial_no ??
+          r.serial ??
+          r.serialNumber ??
+          r.serialNo ??
+          null,
 
-    // 🔍 Log After Normalization
-    console.log("AFTER NORMALIZATION:", records);
+        tested_status:
+          r.tested_status ??
+          r.testStatus ??
+          r.testedStatus ??
+          r.status ??
+          null,
+      }));
 
-    // Remove sold serials
-    records = records.filter(
-      (r) =>
-        r.serial_no &&
-        !alreadySoldSerials.includes(String(r.serial_no).trim())
-    );
+      console.log("AFTER NORMALIZATION:", records);
 
-    // 🔍 Log After Sold Filter
-    console.log("AFTER SOLD FILTER:", records);
-
-    const from = serialFrom ? Number(serialFrom) : null;
-    const to = serialTo ? Number(serialTo) : null;
-    if (from !== null)
-      records = records.filter(
-        (r) => !isNaN(r.serial_no) && Number(r.serial_no) >= from
-      );
-    if (to !== null)
-      records = records.filter(
-        (r) => !isNaN(r.serial_no) && Number(r.serial_no) <= to
-      );
-
-    if (testFilter) {
       records = records.filter(
         (r) =>
-          String(r.tested_status).toUpperCase() ===
-          testFilter.toUpperCase()
+          r.serial_no &&
+          !alreadySoldSerials.includes(String(r.serial_no).trim())
       );
+
+      console.log("AFTER SOLD FILTER:", records);
+
+      const from = serialFrom ? Number(serialFrom) : null;
+      const to = serialTo ? Number(serialTo) : null;
+      if (from !== null)
+        records = records.filter(
+          (r) => !isNaN(r.serial_no) && Number(r.serial_no) >= from
+        );
+      if (to !== null)
+        records = records.filter(
+          (r) => !isNaN(r.serial_no) && Number(r.serial_no) <= to
+        );
+
+      if (testFilter) {
+        records = records.filter(
+          (r) =>
+            String(r.tested_status).toUpperCase() ===
+            testFilter.toUpperCase()
+        );
+      }
+
+      const storedInSale = (
+        JSON.parse(localStorage.getItem("inSaleProducts") || "[]") || []
+      ).map(String);
+
+      const filtered = records;
+
+      // 🔍 FINAL DATA FOR TABLE
+      console.log("FINAL TABLE DATA:", filtered);
+
+      setTestingData(filtered);
+
+      setSelectedSerials((prev) =>
+        prev.filter((s) => filtered.some((r) => r.id === s))
+      );
+
+    } catch (err) {
+      console.error("Error fetching testing data:", err);
+      setTestingData([]);
+      toast.error("Failed to fetch product serials");
+    } finally {
+      setLoading(false);
     }
-
-    const storedInSale = (
-      JSON.parse(localStorage.getItem("inSaleProducts") || "[]") || []
-    ).map(String);
-
-   const filtered = records;  
-
-    // 🔍 FINAL DATA FOR TABLE
-    console.log("FINAL TABLE DATA:", filtered);
-
-    setTestingData(filtered);
-
-    setSelectedSerials((prev) =>
-      prev.filter((s) => filtered.some((r) => r.id === s))
-    );
-
-  } catch (err) {
-    console.error("Error fetching testing data:", err);
-    setTestingData([]);
-    toast.error("Failed to fetch product serials");
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
 
-  // ✅ Checkbox logic
   const handleCheckboxChange = (id) => {
     setSelectedSerials((prev) =>
       prev.includes(id)
@@ -252,22 +248,20 @@ records = records.map((r) => ({
     navigate(-1);
   };
 
-const getProductName = (item) => {
-  if (!item) return "N/A";
+  const getProductName = (item) => {
+    if (!item) return "N/A";
 
-  // If product is already a string (your case)
-  if (typeof item.product === "string") return item.product;
+    if (typeof item.product === "string") return item.product;
 
-  // If product is an object with name
-  if (item.product?.name) return item.product.name;
+    if (item.product?.name) return item.product.name;
 
-  if (item.product_name) return item.product_name;
+    if (item.product_name) return item.product_name;
 
-  const found = products.find(
-    (p) => String(p.id) === String(item.product_id)
-  );
-  return found ? found.name : "N/A";
-};
+    const found = products.find(
+      (p) => String(p.id) === String(item.product_id)
+    );
+    return found ? found.name : "N/A";
+  };
 
 
   useEffect(() => {

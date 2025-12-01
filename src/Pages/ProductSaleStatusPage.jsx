@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api, { setAuthToken } from "../api";
-import { Card, Button, Table, Spinner, Badge, Form } from "react-bootstrap";
+import { Card, Button, Table, Spinner, Badge, Form ,Col} from "react-bootstrap";
 import BreadCrumb from "../components/BreadCrumb";
 import Pagination from "../components/Pagination";
 import Search from "../components/Search";
@@ -102,11 +102,17 @@ export default function ProductSaleStatusPage() {
 
         {/* TOP HEADER */}
         <div className="d-flex justify-content-between align-items-center mb-2">
-          <h4 className="m-0">{productName} – Serial Summary</h4>
+          <h4 className="m-0">{productName} – Status</h4>
 
-          <Button variant="secondary" size="sm" onClick={() => navigate(-1)}>
-            Back
+        <Col className="text-end">
+          <Button
+            variant="outline-secondary"
+            size="sm"
+            onClick={() => navigate("/service-product")}
+          >
+            <i className="bi bi-arrow-left"></i> Back
           </Button>
+        </Col>
         </div>
 
         {/* DataTable Controls */}

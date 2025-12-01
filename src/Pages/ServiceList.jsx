@@ -26,6 +26,7 @@ export default function ServiceList() {
   const [filterChallanDate, setFilterChallanDate] = useState("");
   const [filterSerial, setFilterSerial] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
+  const searchValue = filterSerial.toLowerCase();
 
   const MySwal = withReactContent(Swal);
   const navigate = useNavigate();
@@ -50,38 +51,38 @@ export default function ServiceList() {
     return { from: "TamilZorous", to: "TamilZorous" };
   };
 
-  const formatDate = (dateStr) => {
-    if (!dateStr) return "-";
+  // const formatDate = (dateStr) => {
+  //   if (!dateStr) return "-";
 
-    const date = new Date(dateStr + "Z");
+  //   const date = new Date(dateStr + "Z");
 
-    return date.toLocaleString("en-IN", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-      timeZone: "Asia/Kolkata",
-    });
-  };
+  //   return date.toLocaleString("en-IN", {
+  //     day: "2-digit",
+  //     month: "short",
+  //     year: "numeric",
+  //     hour: "2-digit",
+  //     minute: "2-digit",
+  //     hour12: true,
+  //     timeZone: "Asia/Kolkata",
+  //   });
+  // };
 
-  const formatIST = (dateStr) => {
-    if (!dateStr) return "-";
+  // const formatIST = (dateStr) => {
+  //   if (!dateStr) return "-";
 
-    const date = new Date(dateStr + "Z");
+  //   const date = new Date(dateStr + "Z");
 
-    return date.toLocaleString("en-IN", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: true,
-      timeZone: "Asia/Kolkata",
-    });
-  };
+  //   return date.toLocaleString("en-IN", {
+  //     day: "2-digit",
+  //     month: "short",
+  //     year: "numeric",
+  //     hour: "2-digit",
+  //     minute: "2-digit",
+  //     second: "2-digit",
+  //     hour12: true,
+  //     timeZone: "Asia/Kolkata",
+  //   });
+  // };
 
 
   const fetchVendors = async () => {
@@ -123,6 +124,8 @@ export default function ServiceList() {
               challan_no: service.challan_no,
               vendor_id: service.vendor_id,
               vci_serial_no: item.vci_serial_no,
+              sparepart: item.sparepart ?? "-",       // 🟢 Sparepart Name
+              quantity: item.quantity ?? "-",
               status: item.status,
               created_at: item.created_at,
             }))
@@ -224,23 +227,25 @@ export default function ServiceList() {
       const challanNo = (row.challan_no || "").toLowerCase();
       const challanDate = (row.challan_date || "");
       const serial = (row.item?.vci_serial_no || "").toLowerCase();
+      const sparepart = (row.item?.sparepart || "").toLowerCase();
       const status = (row.item?.status || "").toLowerCase();
 
-      // 🔥 NOW filterVendor filters FROM & TO (correct)
       const matchVendor =
         row.from.toLowerCase().includes(filterVendor.toLowerCase()) ||
         row.to.toLowerCase().includes(filterVendor.toLowerCase());
 
       const matchChallanNo = challanNo.includes(filterChallanNo.toLowerCase());
       const matchChallanDate = !filterChallanDate || challanDate === filterChallanDate;
-      const matchSerial = serial.includes(filterSerial.toLowerCase());
+      const matchSerialOrSparepart =
+        serial.includes(searchValue) ||
+        sparepart.includes(searchValue);
       const matchStatus = filterStatus ? status === filterStatus.toLowerCase() : true;
 
       return (
         matchVendor &&
         matchChallanNo &&
         matchChallanDate &&
-        matchSerial &&
+        matchSerialOrSparepart &&
         matchStatus
       );
     });
@@ -410,12 +415,11 @@ export default function ServiceList() {
             <div className="col-md-2">
               <Form.Control
                 size="sm"
-                placeholder="VCI Serial No"
+                placeholder="Serial / Sparepart"
                 value={filterSerial}
                 onChange={(e) => setFilterSerial(e.target.value)}
               />
             </div>
-
             <div className="col-md-2">
               <Form.Select
                 size="sm"
@@ -473,12 +477,12 @@ export default function ServiceList() {
                 >
                   S.No
                 </th>
-                <th style={headerStyle}>From</th>
-                <th style={headerStyle}>To</th>
+                <th style={{ ...headerStyle, width: "110px" }}>From</th>
+                <th style={{ ...headerStyle, width: "110px" }}>To</th>
                 {/* <th style={headerStyle}>Vendor Name</th> */}
                 <th style={headerStyle}>Challan No</th>
                 <th style={headerStyle}>Challan Date</th>
-                <th style={headerStyle}>VCI Serial No</th>
+                <th style={headerStyle}>VCI Serial No / Sparepart</th>
                 <th style={headerStyle}>Status</th>
                 <th style={headerStyle}>Created Time</th>
                 <th
@@ -523,10 +527,8 @@ export default function ServiceList() {
                           </td>
 
                           {/* FROM */}
-                          <td style={{ fontSize: "0.90rem" }}>{from}</td>
-
-                          {/* TO */}
-                          <td style={{ fontSize: "0.90rem" }}>{to}</td>
+                          <td style={{ fontSize: "0.90rem", width: "110px" }}>{from}</td>
+                          <td style={{ fontSize: "0.90rem", width: "110px" }}>{to}</td>
 
                           {/* Vendor Name */}
                           {/* <td style={{ fontSize: "0.90rem" }}>
@@ -536,8 +538,12 @@ export default function ServiceList() {
                           <td style={{ fontSize: "0.90rem" }}>{service.challan_no}</td>
                           <td style={{ fontSize: "0.90rem" }}>{service.challan_date}</td>
 
-                          <td style={{ fontSize: "0.90rem" }}>{item.vci_serial_no}</td>
-
+                          <td style={{ fontSize: "0.90rem" }}>
+                            <div style={{ fontWeight: 600 }}>{item.vci_serial_no}</div>
+                            <div style={{ fontSize: "0.80rem", color: "#555" }}>
+                              {item.sparepart ?? "-"}
+                            </div>
+                          </td>
                           <td style={{ fontSize: "0.90rem" }}>
                             {item.status
                               ? item.status.charAt(0).toUpperCase() +
@@ -546,7 +552,7 @@ export default function ServiceList() {
                           </td>
 
                           <td style={{ fontSize: "0.90rem" }}>
-                            {item.created_at ? formatDate(item.created_at) : "-"}
+                            {item.created_at ? (item.created_at) : "-"}
                           </td>
 
                           <td className="text-center">
@@ -658,7 +664,6 @@ export default function ServiceList() {
             </tbody>
           </Table>
         </div>
-
         <Pagination
           page={page}
           setPage={setPage}
@@ -690,7 +695,8 @@ export default function ServiceList() {
                 <tr>
                   {/* <th>Vendor Name</th> */}
                   <th>Challan No</th>
-                  <th>Serial No</th>
+                  <th>Serial / Sparepart</th>
+                  <th>Qty</th>
                   <th>Status</th>
                   <th>Created Time</th>
                 </tr>
@@ -700,9 +706,13 @@ export default function ServiceList() {
                   <tr key={idx}>
                     {/* <td>{getVendorName(log.vendor_id)}</td> */}
                     <td>{log.challan_no}</td>
-                    <td>{log.vci_serial_no}</td>
+                    <td>
+                      <div><strong>{log.vci_serial_no}</strong></div>
+                      <div style={{ fontSize: "0.8rem", color: "#555" }}>{log.sparepart}</div>
+                    </td>
+                    <td>{log.quantity === null || log.quantity === "-" ? "N/A" : log.quantity}</td>
                     <td>{log.status}</td>
-                    <td>{formatIST(log.created_at)}
+                    <td>{(log.created_at)}
                     </td>
                   </tr>
                 ))}

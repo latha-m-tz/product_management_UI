@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 
@@ -19,8 +18,7 @@ export default function Sidebar({ collapsed }) {
         title: "Spare Parts Purchase",
         icon: ["/Purchase Order.png", "/Purchase Order 1.png"],
       },
-            { link: "product", title: "Product", icon: ["/Product.png", "/Product.png"] },
-
+      { link: "product", title: "Product", icon: ["/Product.png", "/Product.png"] },
       {
         link: "spare-parts-by-series",
         title: "Spare Parts Requirements Calculation",
@@ -29,7 +27,6 @@ export default function Sidebar({ collapsed }) {
     ],
 
     inventory: [
-      // { link: "technician", title: "Technician", icon: ["/techinician.png", "/techinician.png"] },
       { link: "assemble", title: "Assemble", icon: ["/assemble.png", "/assemble.png"] },
     ],
 
@@ -39,10 +36,11 @@ export default function Sidebar({ collapsed }) {
     ],
 
     service: [
-      { link: "service-product", title: "Service Product", icon: ["/Service VCI.png", "/Service VCI.png"] },
-      // { link: "service-items", title: "Service Items", icon: ["/service_list.png", "/service_list.png"] },
-      // { link: "service-delivery", title: "Service Delivery", icon: ["/service_delivery.png", "/service_delivery.png"] },
-
+      {
+        link: "service-product",
+        title: "Service Product",
+        icon: ["/Service VCI.png", "/Service VCI.png"],
+      },
     ],
 
     tracking: [{ link: "tracking", title: "Tracking", icon: ["/track.png", "/track.png"] }],
@@ -53,39 +51,11 @@ export default function Sidebar({ collapsed }) {
   const isActive = (link) =>
     location.pathname === `/${link}` || location.pathname.startsWith(`/${link}/`);
 
-  const linkStyle = {
-    backgroundColor: "transparent",
-    borderRadius: "8px",
-    padding: "12px",
-    textDecoration: "none",
-    marginBottom: "8px",
-    display: "flex",
-    alignItems: "center",
-  };
-
-  const linkSpanStyle = {
-    color: "#fff",
-    marginLeft: "10px",
-    fontSize: "15px",
-    fontWeight: 500,
-    whiteSpace: "nowrap",
-  };
-
   const iconStyle = {
-    width: "24px",
-    height: "24px",
-    filter:
-      "invert(94%) sepia(0%) saturate(0%) hue-rotate(200deg) brightness(100%) contrast(100%)",
+    width: "22px",
+    height: "22px",
     objectFit: "contain",
-  };
-
-  const subLinkStyle = {
-    color: "#fff",
-    display: "block",
-    paddingLeft: "24px",
-    paddingTop: "4px",
-    paddingBottom: "4px",
-    textDecoration: "none",
+    filter: "brightness(0) invert(1)",
   };
 
   return (
@@ -110,7 +80,7 @@ export default function Sidebar({ collapsed }) {
         />
       </div>
 
-      {/* Scrollable nav */}
+      {/* Scrollable menu */}
       <nav
         className="small px-2 flex-grow-1"
         style={{
@@ -125,18 +95,19 @@ export default function Sidebar({ collapsed }) {
           {`
             nav::-webkit-scrollbar { width: 2px; }
             nav::-webkit-scrollbar-track { background: transparent; }
-            .menu .submenu {
+             .menu .submenu {
               padding-left: 30px;
               font-size: 14px;
               opacity: 0.85;
-            }
             nav::-webkit-scrollbar-thumb {
               background-color: #888;
               border-radius: 2px;
-              border: 1px solid transparent;
+                            border: 1px solid transparent;
               background-clip: content-box;
+
             }
             nav::-webkit-scrollbar-thumb:hover { background-color: #555; }
+
             .active-link {
               background-color: #1abc9c;
               border-radius: 8px;
@@ -144,8 +115,70 @@ export default function Sidebar({ collapsed }) {
           `}
         </style>
 
-        {/* Purchase */}
-        <div className="sidebar-link-titles">{!collapsed && "Purchase"}</div>
+        {/* HOME / OVERVIEW */}
+        {!collapsed && (
+          <div
+            style={{
+              marginTop: "6px",
+              marginBottom: "10px",
+              color: "#AEB7C4",
+              fontSize: "13px",
+              fontWeight: 600,
+            }}
+          >
+            Home
+          </div>
+        )}
+        <a
+          href="#"
+          onClick={(e) => {
+            e.preventDefault();
+            handleLinkClick("overview");
+          }}
+          className={`sidebar-link ${isActive("overview") ? "active-link" : ""}`}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            padding: "12px",
+            marginBottom: "6px",
+            borderRadius: "8px",
+            textDecoration: "none",
+            backgroundColor: isActive("overview") ? "#278C582E" : "transparent",
+          }}
+        >
+          <img
+            src="/squares.png"     // Always use same icon
+            alt="Overview"
+            style={{
+              width: "22px",
+              height: "22px",
+              filter: "brightness(0) invert(1)",  // Always WHITE
+            }}
+          />
+
+          {!collapsed && (
+            <span style={{ marginLeft: "12px", color: "white", fontWeight: 500 }}>
+              Overview
+            </span>
+          )}
+        </a>
+
+
+        {/* PURCHASE */}
+        {!collapsed && (
+          <div
+            style={{
+              marginTop: "20px",
+              marginBottom: "10px",
+              color: "#AEB7C4",
+              fontSize: "13px",
+              fontWeight: 600,
+            }}
+          >
+            Purchase
+          </div>
+        )}
+
         {menu.purchase.map((item) => (
           <a
             key={item.link}
@@ -154,19 +187,42 @@ export default function Sidebar({ collapsed }) {
               e.preventDefault();
               handleLinkClick(item.link);
             }}
-            className={`sidebar-link ${location.pathname === `/${item.link}` ||
-              location.pathname.startsWith(`/${item.link}/`)
-              ? "active-link"
-              : ""
-              }`}
+            className={`sidebar-link ${isActive(item.link) ? "active-link" : ""}`}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              padding: "12px",
+              marginBottom: "6px",
+              borderRadius: "8px",
+              backgroundColor: isActive(item.link) ? "#278C582E" : "transparent",
+              textDecoration: "none",
+            }}
           >
             <img src={item.icon[1]} alt={item.title} style={iconStyle} />
-            {!collapsed && <span>{item.title}</span>}
+
+            {!collapsed && (
+              <span style={{ marginLeft: "12px", color: "white", fontWeight: 500 }}>
+                {item.title}
+              </span>
+            )}
           </a>
         ))}
 
-        {/* Inventory */}
-        <div className="sidebar-link-titles">{!collapsed && "Inventory"}</div>
+        {/* INVENTORY */}
+        {!collapsed && (
+          <div
+            style={{
+              marginTop: "20px",
+              marginBottom: "10px",
+              color: "#AEB7C4",
+              fontSize: "13px",
+              fontWeight: 600,
+            }}
+          >
+            Inventory
+          </div>
+        )}
+
         {menu.inventory.map((item) => (
           <a
             key={item.link}
@@ -175,19 +231,42 @@ export default function Sidebar({ collapsed }) {
               e.preventDefault();
               handleLinkClick(item.link);
             }}
-            className={`sidebar-link ${location.pathname === `/${item.link}` ||
-              location.pathname.startsWith(`/${item.link}/`)
-              ? "active-link"
-              : ""
-              }`}
+            className={`sidebar-link ${isActive(item.link) ? "active-link" : ""}`}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              padding: "12px",
+              marginBottom: "6px",
+              borderRadius: "8px",
+              backgroundColor: isActive(item.link) ? "#278C582E" : "transparent",
+              textDecoration: "none",
+            }}
           >
             <img src={item.icon[1]} alt={item.title} style={iconStyle} />
-            {!collapsed && <span>{item.title}</span>}
+
+            {!collapsed && (
+              <span style={{ marginLeft: "12px", color: "white", fontWeight: 500 }}>
+                {item.title}
+              </span>
+            )}
           </a>
         ))}
 
-        {/* Sales */}
-        <div className="sidebar-link-titles">{!collapsed && "Sales"}</div>
+        {/* SALES */}
+        {!collapsed && (
+          <div
+            style={{
+              marginTop: "20px",
+              marginBottom: "10px",
+              color: "#AEB7C4",
+              fontSize: "13px",
+              fontWeight: 600,
+            }}
+          >
+            Sales
+          </div>
+        )}
+
         {menu.sales.map((item) => (
           <a
             key={item.link}
@@ -196,19 +275,42 @@ export default function Sidebar({ collapsed }) {
               e.preventDefault();
               handleLinkClick(item.link);
             }}
-            className={`sidebar-link ${location.pathname === `/${item.link}` ||
-              location.pathname.startsWith(`/${item.link}/`)
-              ? "active-link"
-              : ""
-              }`}
+            className={`sidebar-link ${isActive(item.link) ? "active-link" : ""}`}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              padding: "12px",
+              marginBottom: "6px",
+              borderRadius: "8px",
+              backgroundColor: isActive(item.link) ? "#278C582E" : "transparent",
+              textDecoration: "none",
+            }}
           >
             <img src={item.icon[1]} alt={item.title} style={iconStyle} />
-            {!collapsed && <span>{item.title}</span>}
+
+            {!collapsed && (
+              <span style={{ marginLeft: "12px", color: "white", fontWeight: 500 }}>
+                {item.title}
+              </span>
+            )}
           </a>
         ))}
 
-        {/* Service */}
-        <div className="sidebar-link-titles">{!collapsed && "Service"}</div>
+        {/* SERVICE */}
+        {!collapsed && (
+          <div
+            style={{
+              marginTop: "20px",
+              marginBottom: "10px",
+              color: "#AEB7C4",
+              fontSize: "13px",
+              fontWeight: 600,
+            }}
+          >
+            Service
+          </div>
+        )}
+
         {menu.service.map((item) => (
           <a
             key={item.link}
@@ -217,18 +319,42 @@ export default function Sidebar({ collapsed }) {
               e.preventDefault();
               handleLinkClick(item.link);
             }}
-            className={`sidebar-link ${location.pathname === `/${item.link}` ||
-              location.pathname.startsWith(`/${item.link}/`)
-              ? "active-link"
-              : ""
-              }`}
+            className={`sidebar-link ${isActive(item.link) ? "active-link" : ""}`}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              padding: "12px",
+              marginBottom: "6px",
+              borderRadius: "8px",
+              backgroundColor: isActive(item.link) ? "#278C582E" : "transparent",
+              textDecoration: "none",
+            }}
           >
             <img src={item.icon[1]} alt={item.title} style={iconStyle} />
-            {!collapsed && <span>{item.title}</span>}
+
+            {!collapsed && (
+              <span style={{ marginLeft: "12px", color: "white", fontWeight: 500 }}>
+                {item.title}
+              </span>
+            )}
           </a>
         ))}
 
-        {/* Tracking */}
+        {/* TRACKING */}
+        {!collapsed && (
+          <div
+            style={{
+              marginTop: "20px",
+              marginBottom: "10px",
+              color: "#AEB7C4",
+              fontSize: "13px",
+              fontWeight: 600,
+            }}
+          >
+            Tracking
+          </div>
+        )}
+
         {menu.tracking.map((item) => (
           <a
             key={item.link}
@@ -237,14 +363,24 @@ export default function Sidebar({ collapsed }) {
               e.preventDefault();
               handleLinkClick(item.link);
             }}
-            className={`sidebar-link ${location.pathname === `/${item.link}` ||
-              location.pathname.startsWith(`/${item.link}/`)
-              ? "active-link"
-              : ""
-              }`}
+            className={`sidebar-link ${isActive(item.link) ? "active-link" : ""}`}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              padding: "12px",
+              marginBottom: "6px",
+              borderRadius: "8px",
+              backgroundColor: isActive(item.link) ? "#278C582E" : "transparent",
+              textDecoration: "none",
+            }}
           >
             <img src={item.icon[1]} alt={item.title} style={iconStyle} />
-            {!collapsed && <span>{item.title}</span>}
+
+            {!collapsed && (
+              <span style={{ marginLeft: "12px", color: "white", fontWeight: 500 }}>
+                {item.title}
+              </span>
+            )}
           </a>
         ))}
       </nav>
