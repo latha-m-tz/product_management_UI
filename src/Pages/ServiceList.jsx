@@ -21,15 +21,69 @@ export default function ServiceList() {
   const [showLogModal, setShowLogModal] = useState(false);
   const [logData, setLogData] = useState([]);
   const [selectedSerial, setSelectedSerial] = useState("");
+  const [filterVendor, setFilterVendor] = useState("");
+  const [filterChallanNo, setFilterChallanNo] = useState("");
+  const [filterChallanDate, setFilterChallanDate] = useState("");
+  const [filterSerial, setFilterSerial] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
+  const searchValue = filterSerial.toLowerCase();
 
   const MySwal = withReactContent(Swal);
   const navigate = useNavigate();
 
   useEffect(() => {
-    setAuthToken(localStorage.getItem("authToken"));
+    const token = localStorage.getItem("authToken");
+    if (token) setAuthToken(token);
     fetchServices();
     fetchVendors();
   }, []);
+  const getFromTo = (status, vendorId) => {
+    const vendorName = getVendorName(vendorId);
+
+    if (status?.toLowerCase() === "inward") {
+      return { from: vendorName, to: "TamilZorous" };
+    }
+
+    if (status?.toLowerCase() === "delivered") {
+      return { from: "TamilZorous", to: vendorName };
+    }
+
+    return { from: "TamilZorous", to: "TamilZorous" };
+  };
+
+  // const formatDate = (dateStr) => {
+  //   if (!dateStr) return "-";
+
+  //   const date = new Date(dateStr + "Z");
+
+  //   return date.toLocaleString("en-IN", {
+  //     day: "2-digit",
+  //     month: "short",
+  //     year: "numeric",
+  //     hour: "2-digit",
+  //     minute: "2-digit",
+  //     hour12: true,
+  //     timeZone: "Asia/Kolkata",
+  //   });
+  // };
+
+  // const formatIST = (dateStr) => {
+  //   if (!dateStr) return "-";
+
+  //   const date = new Date(dateStr + "Z");
+
+  //   return date.toLocaleString("en-IN", {
+  //     day: "2-digit",
+  //     month: "short",
+  //     year: "numeric",
+  //     hour: "2-digit",
+  //     minute: "2-digit",
+  //     second: "2-digit",
+  //     hour12: true,
+  //     timeZone: "Asia/Kolkata",
+  //   });
+  // };
+
 
   const fetchVendors = async () => {
     try {
@@ -62,7 +116,6 @@ export default function ServiceList() {
   const fetchLogsBySerial = async (serial) => {
     try {
       const res = await api.get(`/service-vci`);
-      // Filter only records that have the same serial
       const matchedLogs = res.data
         .flatMap((service) =>
           (service.items || [])
@@ -71,6 +124,8 @@ export default function ServiceList() {
               challan_no: service.challan_no,
               vendor_id: service.vendor_id,
               vci_serial_no: item.vci_serial_no,
+              sparepart: item.sparepart ?? "-",       // 🟢 Sparepart Name
+              quantity: item.quantity ?? "-",
               status: item.status,
               created_at: item.created_at,
             }))
@@ -85,27 +140,53 @@ export default function ServiceList() {
     }
   };
   const getVendorStatusCounts = () => {
-    const vendorMap = {};
+    const latestSerialStatus = {};
 
     services.forEach(service => {
-      const vendorName = getVendorName(service.vendor_id);
-
-      if (!vendorMap[vendorName]) {
-        vendorMap[vendorName] = {};
-      }
-
       (service.items || []).forEach(item => {
-        const status = item.status || "Unknown";
+        const serial = item.vci_serial_no;
 
-        if (!vendorMap[vendorName][status]) {
-          vendorMap[vendorName][status] = 0;
+        if (!latestSerialStatus[serial]) {
+          latestSerialStatus[serial] = {
+            vendor_id: service.vendor_id,
+            status: item.status,
+            created_at: item.created_at
+          };
+        } else {
+          if (new Date(item.created_at) > new Date(latestSerialStatus[serial].created_at)) {
+            latestSerialStatus[serial] = {
+              vendor_id: service.vendor_id,
+              status: item.status,
+              created_at: item.created_at
+            };
+          }
         }
-
-        vendorMap[vendorName][status] += 1;
       });
     });
 
-    return vendorMap;
+    const summary = {
+      TamilZorousTotal: 0,
+      vendors: {}
+    };
+
+    Object.values(latestSerialStatus).forEach(record => {
+      const vendorName = getVendorName(record.vendor_id);
+      const status = record.status?.toLowerCase();
+
+      if (!summary.vendors[vendorName]) {
+        summary.vendors[vendorName] = { delivered: 0 };
+      }
+
+      if (status === "inward") {
+        summary.TamilZorousTotal += 1;   // TOTAL ONLY
+      }
+
+      if (status === "delivered") {
+        summary.vendors[vendorName].delivered += 1;
+      }
+    });
+
+    return summary;
   };
 
   const handleDelete = async (id) => {
@@ -129,17 +210,48 @@ export default function ServiceList() {
       toast.error("Failed to delete service!");
     }
   };
+  const filteredServices = services
+    .flatMap((service) =>
+      (service.items || []).map((item) => {
+        const { from, to } = getFromTo(item.status, service.vendor_id);
 
-  const filteredServices = services.filter((service) =>
-    (service.vendor_id || "").toString().toLowerCase().includes(search.toLowerCase()) ||
-    (service.challan_date || "").toLowerCase().includes(search.toLowerCase()) ||
-    (service.items || []).some(item =>
-      (item.vci_serial_no || "").toLowerCase().includes(search.toLowerCase()) ||
+        return {
+          ...service,
+          item,
+          from,
+          to
+        };
+      })
+    )
+    .filter((row) => {
+      const challanNo = (row.challan_no || "").toLowerCase();
+      const challanDate = (row.challan_date || "");
+      const serial = (row.item?.vci_serial_no || "").toLowerCase();
+      const sparepart = (row.item?.sparepart || "").toLowerCase();
+      const status = (row.item?.status || "").toLowerCase();
 
-      (item.status || "").toLowerCase().includes(search.toLowerCase())
-    ) ||
-    (service.challan_no || "").toLowerCase().includes(search.toLowerCase())
-  );
+      const matchVendor =
+        row.from.toLowerCase().includes(filterVendor.toLowerCase()) ||
+        row.to.toLowerCase().includes(filterVendor.toLowerCase());
+
+      const matchChallanNo = challanNo.includes(filterChallanNo.toLowerCase());
+      const matchChallanDate = !filterChallanDate || challanDate === filterChallanDate;
+      const matchSerialOrSparepart =
+        serial.includes(searchValue) ||
+        sparepart.includes(searchValue);
+      const matchStatus = filterStatus ? status === filterStatus.toLowerCase() : true;
+
+      return (
+        matchVendor &&
+        matchChallanNo &&
+        matchChallanDate &&
+        matchSerialOrSparepart &&
+        matchStatus
+      );
+    });
+
+
+
 
   const paginatedServices = filteredServices.slice(
     (page - 1) * perPage,
@@ -160,38 +272,50 @@ export default function ServiceList() {
         <h6 className="fw-bold mb-3" style={{ fontSize: "1rem" }}>
           Service Status Summary
         </h6>
+        {(() => {
+          const summary = getVendorStatusCounts();
+          return (
+            <div>
 
-        {Object.entries(getVendorStatusCounts()).map(([vendor, statuses]) => (
-          <div key={vendor} className="mb-2">
-            <strong>{vendor}</strong> →
-            {Object.entries(statuses).map(([status, count]) => {
+              {/* TamilZorous Total Only */}
+              <div className="mb-3">
+                <strong>TamilZorous:</strong>
 
-              // Clean Capitalization: Make only first letter uppercase
-              const formattedStatus =
-                status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
-
-              // Colors
-              let bgColor = "#6c757d";
-              if (status.toLowerCase() === "inward") bgColor = "#2FA64F";
-              if (status.toLowerCase() === "delivered") bgColor = "#0d6efd";
-              if (status.toLowerCase() === "testing") bgColor = "#fd7e14";
-
-              return (
                 <span
-                  key={status}
                   className="ms-2 badge"
                   style={{
-                    backgroundColor: bgColor,
+                    backgroundColor: "#2FA64F",
                     fontSize: "0.85rem",
                     fontFamily: "'Product Sans', sans-serif",
                   }}
                 >
-                  {formattedStatus}: {count}
+                  {summary.TamilZorousTotal}
                 </span>
-              );
-            })}
-          </div>
-        ))}
+              </div>
+
+              {/* Vendor Delivered Counts */}
+              {Object.entries(summary.vendors).map(([vendor, stats]) => (
+                <div key={vendor} className="mb-2">
+                  <strong>{vendor}:</strong>
+
+                  <span
+                    className="ms-2 badge"
+                    style={{
+                      backgroundColor: "#0d6efd",
+                      fontSize: "0.85rem",
+                      fontFamily: "'Product Sans', sans-serif",
+                    }}
+                  >
+                    {stats.delivered}
+                  </span>
+                </div>
+              ))}
+
+            </div>
+          );
+        })()}
+
+
       </Card>
 
       <Card className="border-0 shadow-sm rounded-3 p-2 px-4 mt-2 bg-white">
@@ -259,6 +383,74 @@ export default function ServiceList() {
             </div>
           </div>
         </div>
+        <Card className="p-3 mb-3 shadow-sm">
+          <div className="row g-2">
+
+            <div className="col-md-2">
+              <Form.Control
+                size="sm"
+                placeholder="From & To place"
+                value={filterVendor}
+                onChange={(e) => setFilterVendor(e.target.value)}
+              />
+            </div>
+
+            <div className="col-md-2">
+              <Form.Control
+                size="sm"
+                placeholder="Challan No"
+                value={filterChallanNo}
+                onChange={(e) => setFilterChallanNo(e.target.value)}
+              />
+            </div>
+
+            <div className="col-md-2">
+              <Form.Control
+                type="date"
+                size="sm"
+                value={filterChallanDate}
+                onChange={(e) => setFilterChallanDate(e.target.value)}
+              />
+            </div>
+            <div className="col-md-2">
+              <Form.Control
+                size="sm"
+                placeholder="Serial / Sparepart"
+                value={filterSerial}
+                onChange={(e) => setFilterSerial(e.target.value)}
+              />
+            </div>
+            <div className="col-md-2">
+              <Form.Select
+                size="sm"
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+              >
+                <option value="">All Status</option>
+                <option value="inward">Inward</option>
+                <option value="testing">Testing</option>
+                <option value="delivered">Delivered</option>
+              </Form.Select>
+            </div>
+
+            <div className="col-md-2">
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  setFilterVendor("");
+                  setFilterChallanNo("");
+                  setFilterChallanDate("");
+                  setFilterSerial("");
+                  setFilterStatus("");
+                }}
+              >
+                Clear Filters
+              </Button>
+            </div>
+
+          </div>
+        </Card>
 
         {/* Service Table */}
         <div className="table-responsive">
@@ -285,10 +477,12 @@ export default function ServiceList() {
                 >
                   S.No
                 </th>
-                <th style={headerStyle}>Vendor Name</th>
+                <th style={{ ...headerStyle, width: "110px" }}>From</th>
+                <th style={{ ...headerStyle, width: "110px" }}>To</th>
+                {/* <th style={headerStyle}>Vendor Name</th> */}
                 <th style={headerStyle}>Challan No</th>
                 <th style={headerStyle}>Challan Date</th>
-                <th style={headerStyle}>VCI Serial No</th>
+                <th style={headerStyle}>VCI Serial No / Sparepart</th>
                 <th style={headerStyle}>Status</th>
                 <th style={headerStyle}>Created Time</th>
                 <th
@@ -305,13 +499,13 @@ export default function ServiceList() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="8" className="text-center py-4">
+                  <td colSpan="10" className="text-center py-4">
                     <Spinner animation="border" />
                   </td>
                 </tr>
               ) : paginatedServices.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="text-center py-4 text-muted">
+                  <td colSpan="10" className="text-center py-4 text-muted">
                     <img
                       src="/empty-box.png"
                       alt="No services found"
@@ -322,103 +516,126 @@ export default function ServiceList() {
               ) : (
                 paginatedServices.flatMap((service, index) =>
                   service.items.length > 0
-                    ? service.items.map((item) => (
-                      <tr key={item.id}>
-                        <td className="text-center">
-                          {(page - 1) * perPage + index + 1}
-                        </td>
-                        <td style={{ fontSize: "0.90rem" }}>
-                          {getVendorName(service.vendor_id)}
-                        </td>
-                        <td style={{ fontSize: "0.90rem" }}>{service.challan_no}</td>
-                        <td style={{ fontSize: "0.90rem" }}>{service.challan_date}</td>
-                        <td style={{ fontSize: "0.90rem" }}>{item.vci_serial_no}</td>
-                        <td style={{ fontSize: "0.90rem" }}>
-                          {item.status
-                            ? item.status.charAt(0).toUpperCase() +
-                            item.status.slice(1)
-                            : "-"}
-                        </td>
-                        <td style={{ fontSize: "0.90rem" }}>
-                          {item.created_at
-                            ? new Date(item.created_at).toLocaleString()
-                            : "-"}
-                        </td>
-                        <td className="text-center">
-                          <Button
-                            variant=""
-                            size="sm"
-                            className="me-1"
-                            onClick={() =>
-                              navigate(`/service/${service.id}/edit`)
-                            }
-                            style={{
-                              borderColor: "#2E3A59",
-                              color: "#2E3A59",
-                            }}
-                          >
-                            <i className="bi bi-pencil-square"></i>
-                          </Button>
-                          <Button
-                            variant="outline-primary"
-                            size="sm"
-                            onClick={() => handleDelete(service.id)}
-                            style={{
-                              borderColor: "#2E3A59",
-                              color: "#2E3A59",
-                              backgroundColor: "transparent",
-                            }}
-                          >
-                            <i className="bi bi-trash"></i>
-                          </Button>
-                          <Button
-                            variant=""
-                            size="sm"
-                            onClick={() =>
-                              fetchLogsBySerial(item.vci_serial_no)
-                            }
-                            style={{
-                              borderColor: "#2E3A59",
-                              color: "#2E3A59",
-                              backgroundColor: "transparent",
-                              marginLeft: "4px",
-                            }}
-                          >
-                            <i className="bi bi-clock-history"></i>
-                          </Button>
-                        </td>
-                      </tr>
-                    ))
+                    ? service.items.map((item) => {
+                      // ✅ GET FROM & TO HERE
+                      const { from, to } = getFromTo(item.status, service.vendor_id);
+
+                      return (
+                        <tr key={item.id}>
+                          <td className="text-center">
+                            {(page - 1) * perPage + index + 1}
+                          </td>
+
+                          {/* FROM */}
+                          <td style={{ fontSize: "0.90rem", width: "110px" }}>{from}</td>
+                          <td style={{ fontSize: "0.90rem", width: "110px" }}>{to}</td>
+
+                          {/* Vendor Name */}
+                          {/* <td style={{ fontSize: "0.90rem" }}>
+                            {getVendorName(service.vendor_id)}
+                          </td> */}
+
+                          <td style={{ fontSize: "0.90rem" }}>{service.challan_no}</td>
+                          <td style={{ fontSize: "0.90rem" }}>{service.challan_date}</td>
+
+                          <td style={{ fontSize: "0.90rem" }}>
+                            <div style={{ fontWeight: 600 }}>{item.vci_serial_no}</div>
+                            <div style={{ fontSize: "0.80rem", color: "#555" }}>
+                              {item.sparepart ?? "-"}
+                            </div>
+                          </td>
+                          <td style={{ fontSize: "0.90rem" }}>
+                            {item.status
+                              ? item.status.charAt(0).toUpperCase() +
+                              item.status.slice(1)
+                              : "-"}
+                          </td>
+
+                          <td style={{ fontSize: "0.90rem" }}>
+                            {item.created_at ? (item.created_at) : "-"}
+                          </td>
+
+                          <td className="text-center">
+                            <Button
+                              variant=""
+                              size="sm"
+                              className="me-1"
+                              onClick={() => navigate(`/service/${service.id}/edit`)}
+                              style={{
+                                borderColor: "#2E3A59",
+                                color: "#2E3A59",
+                              }}
+                            >
+                              <i className="bi bi-pencil-square"></i>
+                            </Button>
+
+                            <Button
+                              variant="outline-primary"
+                              size="sm"
+                              onClick={() => handleDelete(service.id)}
+                              style={{
+                                borderColor: "#2E3A59",
+                                color: "#2E3A59",
+                                backgroundColor: "transparent",
+                              }}
+                            >
+                              <i className="bi bi-trash"></i>
+                            </Button>
+
+                            <Button
+                              variant=""
+                              size="sm"
+                              onClick={() => fetchLogsBySerial(item.vci_serial_no)}
+                              style={{
+                                borderColor: "#2E3A59",
+                                color: "#2E3A59",
+                                backgroundColor: "transparent",
+                                marginLeft: "4px",
+                              }}
+                            >
+                              <i className="bi bi-clock-history"></i>
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })
                     : [
                       <tr key={service.id}>
                         <td className="text-center">
                           {(page - 1) * perPage + index + 1}
                         </td>
-                        <td style={{ fontSize: "0.90rem" }}>
+
+                        {/* No item case */}
+                        <td style={{ fontSize: "0.90rem" }}>-</td>
+                        <td style={{ fontSize: "0.90rem" }}>-</td>
+
+                        {/* <td style={{ fontSize: "0.90rem" }}>
                           {getVendorName(service.vendor_id)}
-                        </td>
+                        </td> */}
+
                         <td>{service.challan_no}</td>
                         <td>{service.challan_date}</td>
                         <td>-</td>
+
                         <td>
                           {service.status
                             ? service.status.charAt(0).toUpperCase() +
                             service.status.slice(1)
                             : "-"}
                         </td>
+
                         <td>
                           {service.created_at
                             ? new Date(service.created_at).toLocaleString()
                             : "-"}
                         </td>
+
                         <td className="text-center">
                           <Button
                             variant=""
                             size="sm"
                             className="me-1"
-                            onClick={() =>
-                              navigate(`/service/${service.id}/edit`)
-                            }
+                            onClick={() => navigate(`/service/${service.id}/edit`)}
                             style={{
                               borderColor: "#2E3A59",
                               color: "#2E3A59",
@@ -426,6 +643,7 @@ export default function ServiceList() {
                           >
                             <i className="bi bi-pencil-square"></i>
                           </Button>
+
                           <Button
                             variant="outline-primary"
                             size="sm"
@@ -446,7 +664,6 @@ export default function ServiceList() {
             </tbody>
           </Table>
         </div>
-
         <Pagination
           page={page}
           setPage={setPage}
@@ -476,9 +693,10 @@ export default function ServiceList() {
             <Table bordered hover size="sm" className="mb-0">
               <thead className="table-secondary">
                 <tr>
-                  <th>Vendor Name</th>
+                  {/* <th>Vendor Name</th> */}
                   <th>Challan No</th>
-                  <th>Serial No</th>
+                  <th>Serial / Sparepart</th>
+                  <th>Qty</th>
                   <th>Status</th>
                   <th>Created Time</th>
                 </tr>
@@ -486,11 +704,16 @@ export default function ServiceList() {
               <tbody>
                 {logData.map((log, idx) => (
                   <tr key={idx}>
-                    <td>{getVendorName(log.vendor_id)}</td>
+                    {/* <td>{getVendorName(log.vendor_id)}</td> */}
                     <td>{log.challan_no}</td>
-                    <td>{log.vci_serial_no}</td>
+                    <td>
+                      <div><strong>{log.vci_serial_no}</strong></div>
+                      <div style={{ fontSize: "0.8rem", color: "#555" }}>{log.sparepart}</div>
+                    </td>
+                    <td>{log.quantity === null || log.quantity === "-" ? "N/A" : log.quantity}</td>
                     <td>{log.status}</td>
-                    <td>{new Date(log.created_at).toLocaleString()}</td>
+                    <td>{(log.created_at)}
+                    </td>
                   </tr>
                 ))}
               </tbody>

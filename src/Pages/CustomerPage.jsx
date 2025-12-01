@@ -70,13 +70,22 @@ export default function CustomerListPage() {
     if (!result.isConfirmed) return;
 
     try {
-      await api.delete(`/customers/del/${id}`);
-      toast.success("Customer deleted successfully!");
+      const res = await api.delete(`/customers/del/${id}`);
+
+      toast.success(res.data?.message || "Customer deleted successfully!");
+
       setCustomers(customers.filter((c) => c.id !== id));
-    } catch {
-      toast.error("Failed to delete customer.");
+
+    } catch (err) {
+      const msg =
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        "Failed to delete customer.";
+
+      toast.error(msg);
     }
   };
+
 
   const handleSort = (field) => {
     const direction =
@@ -237,12 +246,12 @@ export default function CustomerListPage() {
                     <td style={{ fontSize: "0.90rem", fontFamily: "product-sans,sans-serif" }}>{c.city || "N/A"}</td>
                     <td>
                       <span
-                        className={`badge ${c.status === "active" ? "bg-success" : "bg-danger"
-                          }`}
+                        className={`badge ${c.status === "active" ? "bg-success" : "bg-danger"}`}
                       >
-                        {c.status}
+                        {c.status.charAt(0).toUpperCase() + c.status.slice(1)}
                       </span>
                     </td>
+
                     {/* <td className="text-center" style={{ width: "130px" }}>
                       <Button
                         size="sm"
@@ -275,7 +284,7 @@ export default function CustomerListPage() {
 
                     <td className="text-center" style={{ width: "130px" }}>
                       <ActionButton
-onEdit={() => navigate(`/customer/${c.id}/edit`)}
+                        onEdit={() => navigate(`/customer/${c.id}/edit`)}
                         onDelete={() => handleDelete(c.id)}
                         onView={() => navigate(`/customer/${c.id}`)}
                       />

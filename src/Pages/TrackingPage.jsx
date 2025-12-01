@@ -47,6 +47,20 @@ const styles = {
   },
 
 };
+const getStatusColor = (status) => {
+  if (!status) return "#6c757d"; // grey
+
+  switch (status.toLowerCase()) {
+    case "inward":
+      return "#2FA64F"; // green
+    case "delivered":
+      return "#0d6efd"; // blue
+    case "testing":
+      return "#fd7e14"; // orange
+    default:
+      return "#6c757d"; // grey
+  }
+};
 
 const TrackingPage = () => {
   const [serialNumber, setSerialNumber] = useState("");
@@ -237,9 +251,10 @@ const TrackingPage = () => {
           <>
             <p style={styles.cardHeading}>
               {idx === 0 ? "Service Request" : "Service Delivery"}
-            </p>            <p><b>Challan No:</b> {item.challan_no}</p>
+            </p><p><b>Challan No:</b> {item.challan_no}</p>
             <p><b>Challan Date:</b> {item.challan_date || "N/A"}</p>
             <p><b>Tracking NO:</b> {item.tracking_number || "N/A"}</p>
+            <p><b>Status:</b>{item.status || "N/A"} </p>
             <p><b>Vendor:</b> {item.vendor || "N/A"}</p>
           </>
         )}

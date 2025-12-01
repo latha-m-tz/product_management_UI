@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import api, { setAuthToken ,API_BASE_URL } from "../api";
+import api, { setAuthToken, API_BASE_URL } from "../api";
 import {
   Card,
   Row,
@@ -14,7 +14,6 @@ import { toast } from "react-toastify";
 import "bootstrap/dist/css/bootstrap.min.css";
 import BreadCrumb from "../components/BreadCrumb";
 import Pagination from "../components/Pagination";
-
 export default function PurchaseViewPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -110,6 +109,7 @@ export default function PurchaseViewPage() {
 
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h5 className="mb-0">Purchase Overview</h5>
+      
         <Button
           size="sm"
           onClick={() => navigate(-1)}
@@ -139,18 +139,18 @@ export default function PurchaseViewPage() {
                   purchase.document_recipient.map((file, idx) => {
                     const fileUrl = file.startsWith("http")
                       ? file
-                      : `${STORAGE_BASE_URL}/${file.replace(/^\/+/, "")}`;
+                      : `${API_BASE_URL}/${file.replace(/^\/+/, "")}`;
 
                     return (
                       <div key={idx}>
-                     <a
-            href={fileUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: "grey", textDecoration: "underline" }}
-          >
-            {getFileName(fileUrl)}
-          </a>
+                        <a
+                          href={fileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ color: "grey", textDecoration: "underline" }}
+                        >
+                          {getFileName(fileUrl)}
+                        </a>
                       </div>
                     );
                   })
@@ -211,7 +211,6 @@ export default function PurchaseViewPage() {
               <tr>
                 <th style={{ backgroundColor: "#2E3A59", width: "60px", textAlign: "center", color: "white" }}>S.No</th>
                 <th style={{ backgroundColor: "#2E3A59", color: "white" }}>Sparepart</th>
-                <th style={{ backgroundColor: "#2E3A59", color: "white" }}>Product</th>
                 <th style={{ backgroundColor: "#2E3A59", color: "white" }}>Serial Numbers</th>
                 <th style={{ backgroundColor: "#2E3A59", color: "white" }}>Quantity</th>
               </tr>
@@ -241,7 +240,6 @@ export default function PurchaseViewPage() {
                       {(page - 1) * perPage + index + 1}
                     </td>
                     <td style={{ fontSize: "0.9rem" }}>{item.sparepart || "-"}</td>
-                    <td>{item.product || "-"}</td>
                     <td>
                       {item.serial_numbers?.length
                         ? item.serial_numbers.join(", ")

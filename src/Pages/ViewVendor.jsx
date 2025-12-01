@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import api, { setAuthToken ,API_BASE_URL } from "../api";
+import api, { setAuthToken, API_BASE_URL } from "../api";
 import { Card, Row, Col, Button, Spinner } from "react-bootstrap";
 import { getCountryCallingCode } from "react-phone-number-input";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
@@ -27,15 +27,16 @@ export default function ViewVendor() {
   };
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    const token = localStorage.getItem("authToken"); 
     setAuthToken(token);
+
     setLoading(true);
-    fetch(`${API_BASE_URL}/vendors/get/${id}`)
-      .then((res) => res.json())
-      .then((data) => {
+
+    api.get(`/vendors/get/${id}`)   
+      .then((res) => {
         setVendor({
-          ...data,
-          contact_persons: data.contact_persons ?? [],
+          ...res.data,
+          contact_persons: res.data.contact_persons ?? [],
         });
       })
       .catch((err) => {
@@ -44,6 +45,7 @@ export default function ViewVendor() {
       })
       .finally(() => setLoading(false));
   }, [id]);
+
 
   if (loading) {
     return (
@@ -173,9 +175,8 @@ export default function ViewVendor() {
             <Col md={6}>
               <InfoRow
                 label="Name"
-                value={`${firstContact.name}${
-                  firstContact.is_main ? " (Main person)" : ""
-                }`}
+                value={`${firstContact.name}${firstContact.is_main ? " (Main person)" : ""
+                  }`}
               />
               <InfoRow label="Designation" value={firstContact.designation} />
               <InfoRow
@@ -215,9 +216,8 @@ export default function ViewVendor() {
               <Col md={6}>
                 <InfoRow
                   label="Name"
-                  value={`${person.name}${
-                    person.is_main || person.isMain ? " (Main person)" : ""
-                  }`}
+                  value={`${person.name}${person.is_main || person.isMain ? " (Main person)" : ""
+                    }`}
                 />
                 <InfoRow label="Designation" value={person.designation} />
                 <InfoRow

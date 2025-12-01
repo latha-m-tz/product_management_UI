@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Button, Form, Row, Col, Card, Spinner } from "react-bootstrap";
-import api, { setAuthToken,API_BASE_URL } from "../api";
+import api, { setAuthToken, API_BASE_URL } from "../api";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -63,11 +63,11 @@ export default function EditSparepartPurchase({ purchaseId }) {
       orig: serial,
     };
   };
-// 👇 add this near the top, after hooks like useParams/useNavigate
-useEffect(() => {
-  const token = localStorage.getItem("authToken");
-  if (token) setAuthToken(token);
-}, []);
+  // 👇 add this near the top, after hooks like useParams/useNavigate
+  useEffect(() => {
+    const token = localStorage.getItem("authToken");
+    if (token) setAuthToken(token);
+  }, []);
 
 
 
@@ -105,31 +105,35 @@ useEffect(() => {
 
 
   const handleDelete = async (id, sp) => {
-    if (!id) {
-      // Item not saved in DB yet, just remove from frontend
-      removeSparepart(spareparts.indexOf(sp));
-      return;
-    }
-
     MySwal.fire({
       title: "Are you sure?",
-      text: "You won't be able to revert this!",
+      text: "This will delete the item!",
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#d33",
       cancelButtonColor: "#2FA64F",
       confirmButtonText: "Yes, delete it!",
     }).then(async (result) => {
-      if (result.isConfirmed) {
-        try {
-          await api.delete(`/purchase-items/${purchaseKey}/${sp.id}`);
-          toast.success("Product deleted successfully!");
-          // Remove from frontend state
+      if (!result.isConfirmed) return;
+
+      try {
+        // If item is not saved in backend → delete locally
+        if (!id) {
           removeSparepart(spareparts.indexOf(sp));
-        } catch (error) {
-          console.error(error);
-          toast.error(error.response?.data?.error || "Failed to delete product!");
+          toast.success("Item removed!");
+          return;
         }
+
+        // If saved → delete from backend
+        await api.delete(`/purchase-items/${purchaseKey}/${id}`);
+
+        // Remove from UI
+        removeSparepart(spareparts.indexOf(sp));
+
+        toast.success("Item deleted!");
+      } catch (error) {
+        toast.error("Failed to delete item!");
+        console.error(error);
       }
     });
   };
@@ -304,79 +308,79 @@ useEffect(() => {
 
         setInitialItems(p.items || []);
 
-const groups = [];
+        const groups = [];
 
-(p.items || []).forEach((item) => {
-  const spareId = item.sparepart_id;
-  const productId = item.product_id || "";
-  const warranty = item.warranty_status || "Active";
+        (p.items || []).forEach((item) => {
+          const spareId = item.sparepart_id;
+          const productId = item.product_id || "";
+          const warranty = item.warranty_status || "Active";
 
-  // Find if an existing group can continue (only if contiguous serials)
-  let targetGroup = null;
+          // Find if an existing group can continue (only if contiguous serials)
+          let targetGroup = null;
 
-  if (item.serial_no) {
-    const serial = item.serial_no;
+          if (item.serial_no) {
+            const serial = item.serial_no;
 
-    for (const g of groups) {
-      if (
-        g.sparepart_id === spareId &&
-        g.product_id === productId &&
-        g.warranty_status === warranty
-      ) {
-        const lastSerial = g.serials[g.serials.length - 1];
-        const parsedLast = parseSerial(lastSerial);
-        const parsedCurr = parseSerial(serial);
+            for (const g of groups) {
+              if (
+                g.sparepart_id === spareId &&
+                g.product_id === productId &&
+                g.warranty_status === warranty
+              ) {
+                const lastSerial = g.serials[g.serials.length - 1];
+                const parsedLast = parseSerial(lastSerial);
+                const parsedCurr = parseSerial(serial);
 
-        if (
-          parsedLast.prefix === parsedCurr.prefix &&
-          parsedCurr.num === parsedLast.num + 1
-        ) {
-          targetGroup = g;
-          break;
-        }
-      }
-    }
-  }
+                if (
+                  parsedLast.prefix === parsedCurr.prefix &&
+                  parsedCurr.num === parsedLast.num + 1
+                ) {
+                  targetGroup = g;
+                  break;
+                }
+              }
+            }
+          }
 
-  if (!targetGroup) {
-    targetGroup = {
-      sparepart_id: spareId,
-      product_id: productId,
-      warranty_status: warranty,
-      serials: [],
-      qty: 0,
-      ids: [],
-    };
-    groups.push(targetGroup);
-  }
+          if (!targetGroup) {
+            targetGroup = {
+              sparepart_id: spareId,
+              product_id: productId,
+              warranty_status: warranty,
+              serials: [],
+              qty: 0,
+              ids: [],
+            };
+            groups.push(targetGroup);
+          }
 
-  if (item.serial_no) {
-    if (!targetGroup.serials.includes(item.serial_no)) {
-      targetGroup.serials.push(item.serial_no);
-    }
-    targetGroup.qty = targetGroup.serials.length;
-  } else {
-    targetGroup.qty += Number(item.quantity) || 0;
-  }
+          if (item.serial_no) {
+            if (!targetGroup.serials.includes(item.serial_no)) {
+              targetGroup.serials.push(item.serial_no);
+            }
+            targetGroup.qty = targetGroup.serials.length;
+          } else {
+            targetGroup.qty += Number(item.quantity) || 0;
+          }
 
-  if (item.id) targetGroup.ids.push(item.id);
-});
+          if (item.id) targetGroup.ids.push(item.id);
+        });
 
 
-     const mappedBackend = groups.map((g) => {
-  const from_serial = g.serials[0] || "";
-  const to_serial = g.serials[g.serials.length - 1] || "";
-  return {
-    id: g.id,
-    sparepart_id: g.sparepart_id,
-    product_id: g.product_id,
-    qty: g.qty,
-    warranty_status: g.warranty_status,
-    from_serial,
-    to_serial,
-    serials: g.serials || [],
-  };
-});
+        const mappedBackend = groups.map((g) => {
+          const from_serial = g.serials[0] || "";
+          const to_serial = g.serials[g.serials.length - 1] || "";
+          return {
+            id: g.id,
+            sparepart_id: g.sparepart_id,
+            product_id: g.product_id,
+            qty: g.qty,
+            warranty_status: g.warranty_status,
+            from_serial,
+            to_serial,
+            serials: g.serials || [],
+          };
+        });
 
         const newFrontendRows = spareparts.filter(
           (sp) =>
@@ -422,13 +426,15 @@ const groups = [];
   };
 
   const removeFileField = (type, index) => {
-    // Pick the right file array
-    // const key = type === "recipient" ? "recipientFiles" : "challanFiles";
+    let updated;
 
-    // const updated = [...(type === "recipient" ? recipientFiles : challanFiles)];
+    if (type === "recipient") {
+      updated = [...recipientFiles];
+    }
+
     const removedFile = updated[index];
 
-    // 🟢 Track files that are already in DB (strings)
+    // Store removed backend file names
     if (typeof removedFile === "string") {
       setRemovedFiles((prev) => ({
         ...prev,
@@ -436,11 +442,17 @@ const groups = [];
       }));
     }
 
+    // Remove from array
     updated.splice(index, 1);
 
+    // If user removes all → keep 1 empty input
+    if (updated.length === 0) {
+      updated = [null];
+    }
+
     if (type === "recipient") setRecipientFiles(updated);
-    // else setChallanFiles(updated);
   };
+
 
 
 
@@ -450,7 +462,6 @@ const groups = [];
   // };
 
 
-  // Handle file change
   const handleFileChange = (type, index, file) => {
     if (type === "recipient") {
       const updated = [...recipientFiles];
@@ -495,107 +506,76 @@ const groups = [];
   };
 
 
-const handleInputChange = (index, field, value) => {
-  const type = sparepartTypeOf(spareparts[index].sparepart_id);
-  const updated = [...spareparts];
+  const handleInputChange = (index, field, value) => {
+    const type = sparepartTypeOf(spareparts[index].sparepart_id);
+    const updated = [...spareparts];
 
-  // 🔹 Handle serial-based spareparts
-  if (type.includes("serial") && (field === "from_serial" || field === "to_serial")) {
-    // Accept only digits, limit to 6 chars
-    value = value.replace(/\D/g, "").slice(0, 6);
-    updated[index][field] = value;
+    const isSerial = field === "from_serial" || field === "to_serial";
 
-    const fromSerial = updated[index].from_serial;
-    const toSerial = updated[index].to_serial;
+    if (isSerial) {
+      // Allow digits only
+      value = value.replace(/\D/g, "").slice(0, 6);
 
-    if (fromSerial && toSerial) {
-      const fromNum = parseInt(fromSerial, 10);
-      const toNum = parseInt(toSerial, 10);
+      updated[index][field] = value;
 
-      if (!isNaN(fromNum) && !isNaN(toNum)) {
-        if (fromNum > toNum) {
-          // Invalid serial range
-          setSerialErrorShown((prev) => ({
-            ...prev,
-            [index]: { ...prev[index], rangeError: true },
-          }));
-          updated[index].qty = ""; // keep blank when invalid
-        } else {
-          // Valid range — auto calculate qty
-          updated[index].qty = toNum - fromNum + 1;
-          setSerialErrorShown((prev) => ({
-            ...prev,
-            [index]: { ...prev[index], rangeError: false },
-          }));
-        }
+      const from = updated[index].from_serial;
+      const to = updated[index].to_serial;
+
+      // Calculate qty
+      const fromNum = Number(from);
+      const toNum = Number(to);
+
+      if (!isNaN(fromNum) && !isNaN(toNum) && fromNum <= toNum) {
+        updated[index].qty = toNum - fromNum + 1;
       } else {
-        // Invalid or incomplete serial numbers
         updated[index].qty = "";
       }
-    } else {
-      // One or both serials empty — clear qty
-      updated[index].qty = "";
+
+      setSpareparts(updated);
+      return;
     }
 
+    // Non-serial fields
+    updated[index][field] = value;
     setSpareparts(updated);
-    return;
-  }
+  };
 
-  // 🔹 Handle quantity field (manual entry)
-  if (field === "qty") {
-    // Allow blank input freely
-    if (value === "") {
-      updated[index][field] = "";
-    } else {
-      const qty = Number(value);
-      // Only accept valid positive numbers
-      updated[index][field] = !isNaN(qty) && qty > 0 ? qty : "";
-    }
 
-    setSpareparts(updated);
-    clearError(field, index);
-    return;
-  }
 
-  // 🔹 Handle other fields normally
-  updated[index][field] = value;
-  setSpareparts(updated);
-  clearError(field, index);
-};
 
-// 🆕 Automatically rebuild serial range when from_serial / to_serial change
-useEffect(() => {
-  const updated = [...spareparts];
-  let changed = false;
+  // 🆕 Automatically rebuild serial range when from_serial / to_serial change
+  useEffect(() => {
+    const updated = [...spareparts];
+    let changed = false;
 
-  updated.forEach((sp, idx) => {
-    const type = sparepartTypeOf(sp.sparepart_id);
-    if (!type.includes("serial")) return;
+    updated.forEach((sp, idx) => {
+      const type = sparepartTypeOf(sp.sparepart_id);
+      if (!type.includes("serial")) return;
 
-    const { from_serial, to_serial } = sp;
-    if (from_serial && to_serial) {
-      const m1 = parseSerial(from_serial);
-      const m2 = parseSerial(to_serial);
+      const { from_serial, to_serial } = sp;
+      if (from_serial && to_serial) {
+        const m1 = parseSerial(from_serial);
+        const m2 = parseSerial(to_serial);
 
-      // If both valid numeric parts and new range differs from existing serials
-      if (m1.num !== null && m2.num !== null && m2.num >= m1.num) {
-        const newSerials = [];
-        for (let n = m1.num; n <= m2.num; n++) {
-          const paddedNum = String(n).padStart(6, "0");
-          newSerials.push(`${m1.prefix}${paddedNum}`);
-        }
+        // If both valid numeric parts and new range differs from existing serials
+        if (m1.num !== null && m2.num !== null && m2.num >= m1.num) {
+          const newSerials = [];
+          for (let n = m1.num; n <= m2.num; n++) {
+            const paddedNum = String(n).padStart(6, "0");
+            newSerials.push(`${m1.prefix}${paddedNum}`);
+          }
 
-        // Only update if changed
-        if (JSON.stringify(sp.serials) !== JSON.stringify(newSerials)) {
-          updated[idx] = { ...sp, serials: newSerials, qty: newSerials.length };
-          changed = true;
+          // Only update if changed
+          if (JSON.stringify(sp.serials) !== JSON.stringify(newSerials)) {
+            updated[idx] = { ...sp, serials: newSerials, qty: newSerials.length };
+            changed = true;
+          }
         }
       }
-    }
-  });
+    });
 
-  if (changed) setSpareparts(updated);
-}, [spareparts.map(sp => `${sp.from_serial}-${sp.to_serial}`).join("|")]);
+    if (changed) setSpareparts(updated);
+  }, [spareparts.map(sp => `${sp.from_serial}-${sp.to_serial}`).join("|")]);
 
 
 
@@ -710,80 +690,80 @@ useEffect(() => {
 
 
 
-const handleSubmit = async () => {
-  if (!validateForm()) {
-    toast.error("Please fix the errors below");
-    return;
-  }
-
-  try {
-    const payload = new FormData();
-    payload.append("_method", "PUT");
-
-    payload.append("vendor_id", String(vendorId || ""));
-    payload.append("vendor_id", vendorIdOnly || "");
-    payload.append(
-      "contact_person_id",
-      contactPersonId && contactPersonId !== "0" ? contactPersonId : ""
-    );
-    payload.append("challan_no", String(challanNo || ""));
-    const formatDateForBackend = (dateStr) => (dateStr ? dateStr : "");
-    payload.append("challan_date", formatDateForBackend(challanDate));
-    payload.append("received_date", formatDateForBackend(receivedDate));
-    payload.append("tracking_number", String(trackingNumber || ""));
-    payload.append("courier_name", String(courier_name || ""));
-
-    spareparts.forEach((sp, i) => {
-      payload.append(`items[${i}][id]`, sp.id || "");
-      payload.append(`items[${i}][sparepart_id]`, sp.sparepart_id || "");
-      payload.append(`items[${i}][from_serial]`, sp.from_serial || "");
-      payload.append(`items[${i}][to_serial]`, sp.to_serial || "");
-      payload.append(`items[${i}][warranty_status]`, sp.warranty_status || "");
-      payload.append(
-        `items[${i}][quantity]`,
-        sp.serials?.length ? sp.serials.length : Number(sp.qty) || 0
-      );
-
-      // ✅ Send serials as array
-      (sp.serials || []).forEach((serial, j) => {
-        payload.append(`items[${i}][serials][${j}]`, serial);
-      });
-    });
-
-    deletedSparepartIds.forEach((id, i) => payload.append(`deleted_ids[${i}]`, id));
-
-    if (recipientFiles && recipientFiles.length > 0) {
-      recipientFiles.forEach((file, i) => {
-        if (file instanceof File) {
-          payload.append(`document_recipient[${i}]`, file);
-        }
-      });
+  const handleSubmit = async () => {
+    if (!validateForm()) {
+      toast.error("Please fix the errors below");
+      return;
     }
 
-    payload.append(
-      "removed_recipient_files",
-      JSON.stringify(removedFiles.recipient || [])
-    );
+    try {
+      const payload = new FormData();
+      payload.append("_method", "PUT");
 
-    const res = await api.post(
-      `/purchaseUpdate/${purchaseKey}`,
-      payload,
-      { headers: { "Content-Type": "multipart/form-data" } }
-    );
+      payload.append("vendor_id", String(vendorId || ""));
+      payload.append("vendor_id", vendorIdOnly || "");
+      payload.append(
+        "contact_person_id",
+        contactPersonId && contactPersonId !== "0" ? contactPersonId : ""
+      );
+      payload.append("challan_no", String(challanNo || ""));
+      const formatDateForBackend = (dateStr) => (dateStr ? dateStr : "");
+      payload.append("challan_date", formatDateForBackend(challanDate));
+      payload.append("received_date", formatDateForBackend(receivedDate));
+      payload.append("tracking_number", String(trackingNumber || ""));
+      payload.append("courier_name", String(courier_name || ""));
 
-    toast.success("Purchase updated successfully!");
-    navigate("/spare-partsPurchase");
-  } catch (err) {
-    console.error(err);
+      spareparts.forEach((sp, i) => {
+        payload.append(`items[${i}][id]`, sp.id || "");
+        payload.append(`items[${i}][sparepart_id]`, sp.sparepart_id || "");
+        payload.append(`items[${i}][from_serial]`, sp.from_serial || "");
+        payload.append(`items[${i}][to_serial]`, sp.to_serial || "");
+        payload.append(`items[${i}][warranty_status]`, sp.warranty_status || "");
+        payload.append(
+          `items[${i}][quantity]`,
+          sp.serials?.length ? sp.serials.length : Number(sp.qty) || 0
+        );
 
-    const backendError =
-      err.response?.data?.errors?.items?.[0] ||
-      err.response?.data?.message ||
-      "Failed to update purchase";
+        // ✅ Send serials as array
+        (sp.serials || []).forEach((serial, j) => {
+          payload.append(`items[${i}][serials][${j}]`, serial);
+        });
+      });
 
-    toast.error(backendError);
-  }
-};
+      deletedSparepartIds.forEach((id, i) => payload.append(`deleted_ids[${i}]`, id));
+
+      if (recipientFiles && recipientFiles.length > 0) {
+        recipientFiles.forEach((file, i) => {
+          if (file instanceof File) {
+            payload.append(`document_recipient[${i}]`, file);
+          }
+        });
+      }
+
+      payload.append(
+        "removed_recipient_files",
+        JSON.stringify(removedFiles.recipient || [])
+      );
+
+      const res = await api.post(
+        `/purchaseUpdate/${purchaseKey}`,
+        payload,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
+
+      toast.success("Purchase updated successfully!");
+      navigate("/spare-partsPurchase");
+    } catch (err) {
+      console.error(err);
+
+      const backendError =
+        err.response?.data?.errors?.items?.[0] ||
+        err.response?.data?.message ||
+        "Failed to update purchase";
+
+      toast.error(backendError);
+    }
+  };
 
 
 
@@ -1118,11 +1098,19 @@ const handleSubmit = async () => {
                                 <Form.Label>From Serial</Form.Label>
                                 <Form.Control
                                   type="text"
+                                  maxLength={6}
                                   value={sp.from_serial}
-                                  onChange={(e) =>
-                                    handleInputChange(idx, "from_serial", e.target.value)
-                                  }
+                                  onChange={(e) => {
+                                    const value = e.target.value;
+
+                                    // Update FROM SERIAL
+                                    handleInputChange(idx, "from_serial", value);
+
+                                    // 🔥 MATCH ADD PAGE BEHAVIOR: Auto-fill TO SERIAL with same value
+                                    handleInputChange(idx, "to_serial", value);
+                                  }}
                                 />
+
                                 {errors.items?.[idx]?.from_serial && (
                                   <div style={feedbackStyle}>{errors.items[idx].from_serial}</div>
                                 )}
@@ -1161,7 +1149,7 @@ const handleSubmit = async () => {
                               </Form.Group>
                             </Col>
 
-                            <Col md={2}>
+                            {/* <Col md={2}>
                               <Form.Group className="mb-2">
                                 <Form.Label>Warranty</Form.Label>
                                 <Form.Select
@@ -1174,7 +1162,7 @@ const handleSubmit = async () => {
                                   <option value="Inactive">Inactive</option>
                                 </Form.Select>
                               </Form.Group>
-                            </Col>
+                            </Col> */}
                           </>
                         );
                       }
@@ -1195,7 +1183,7 @@ const handleSubmit = async () => {
                                 />
                               </Form.Group>
                             </Col>
-                            <Col md={3}>
+                            {/* <Col md={3}>
                               <Form.Group className="mb-2">
                                 <Form.Label>Warranty</Form.Label>
                                 <Form.Select
@@ -1208,7 +1196,7 @@ const handleSubmit = async () => {
                                   <option value="Inactive">Inactive</option>
                                 </Form.Select>
                               </Form.Group>
-                            </Col>
+                            </Col> */}
                           </>
                         );
                       }

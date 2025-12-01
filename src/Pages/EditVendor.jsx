@@ -3,7 +3,7 @@ import { Button, Form, Row, Col } from "react-bootstrap";
 import DataTable from "react-data-table-component";
 import CreatableSelect from "react-select/creatable";
 import { useParams, useNavigate } from "react-router-dom";
-import api, { setAuthToken ,API_BASE_URL} from "../api";
+import api, { setAuthToken } from "../api";
 import "react-phone-number-input/style.css";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -314,7 +314,7 @@ export default function EditVendor() {
     setVendor(prev => ({ ...prev, mobile_no: value }));
 
     if (!value) {
-      setVendorErrors(prev => ({ ...prev, mobile_no: "Mobile number is required" }));
+      setVendorErrors(prev => ({ ...prev, mobile_no: "" }));
       return;
     }
 
@@ -442,10 +442,7 @@ export default function EditVendor() {
       newErrors.name = "Name is required";
     }
 
-    // 🔸 Mobile number validation
-    if (!contact.mobile_no || contact.mobile_no.trim() === "") {
-      newErrors.mobile_no = "Mobile number is required";
-    } else {
+    if (contact.mobile_no) {
       try {
         const phoneNumber = parsePhoneNumberFromString(contact.mobile_no);
         if (!phoneNumber || !isValidPhoneNumber(contact.mobile_no)) {
@@ -455,6 +452,7 @@ export default function EditVendor() {
         newErrors.mobile_no = "Invalid mobile number";
       }
     }
+
 
     // 🔸 Email validation
     if (contact.email && contact.email.trim() !== "") {
@@ -498,16 +496,22 @@ export default function EditVendor() {
     // 🔹 Duplicate mobile number check
     const duplicateMobileInContacts = updatedContacts.some(
       (c, idx) =>
-        c.mobile_no?.trim() === contactToSave.mobile_no.trim() &&
+        c.mobile_no &&
+        contactToSave.mobile_no &&
+        c.mobile_no.trim() === contactToSave.mobile_no.trim() &&
         idx !== editingIndex
     );
+
     const duplicateMobileWithVendor =
-      contactToSave.mobile_no.trim() === vendor.mobile_no?.trim();
+      vendor.mobile_no &&
+      contactToSave.mobile_no &&
+      contactToSave.mobile_no.trim() === vendor.mobile_no.trim();
 
     if (duplicateMobileInContacts || duplicateMobileWithVendor) {
       toast.error(`Mobile number ${contactToSave.mobile_no} is already used!`);
       return;
     }
+
 
     // 🔹 Duplicate email check
     if (contactToSave.email && contactToSave.email.trim() !== "") {
@@ -623,6 +627,7 @@ export default function EditVendor() {
     const newErrors = {};
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+    // Email
     if (vendor.email) {
       const emailTrimmed = vendor.email.trim();
 
@@ -635,31 +640,43 @@ export default function EditVendor() {
       }
     }
 
-    const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+    const gstRegex =
+      /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
 
+    // Required fields
     if (!vendor.vendor?.trim()) newErrors.vendor = "Vendor name is required";
-    if (!vendor.mobile_no) newErrors.mobile_no = "Mobile number is required";
+
+    // ❌ MOBILE NOT REQUIRED
+    if (vendor.mobile_no) {
+      try {
+        if (!isValidPhoneNumber(vendor.mobile_no)) {
+          newErrors.mobile_no = "Invalid mobile number";
+        }
+      } catch {
+        newErrors.mobile_no = "Invalid mobile number";
+      }
+    }
+
+    // GST
+    if (vendor.gst_no) {
+      const gst = vendor.gst_no.trim().toUpperCase();
+      if (gst.length !== 15) newErrors.gst_no = "GST No must be 15 characters";
+      else if (!gstRegex.test(gst)) newErrors.gst_no = "Invalid GST No format";
+    }
+
+    // Required Location Fields
     if (!vendor.pincode?.trim()) newErrors.pincode = "Pincode is required";
     if (!vendor.city?.trim()) newErrors.city = "City is required";
     if (!vendor.district?.trim()) newErrors.district = "District is required";
     if (!vendor.state?.trim()) newErrors.state = "State is required";
-    if (!vendor.address?.trim()) newErrors.address = "Address is required";
 
-    if (vendor.gst_no) {
-      const gst = vendor.gst_no.trim().toUpperCase();
-      if (gst.length !== 15) {
-        newErrors.gst_no = "GST No must be 15 characters";
-      } else if (!gstRegex.test(gst)) {
-        newErrors.gst_no = "Invalid GST No format";
-      }
-    }
+    // ❌ ADDRESS NOT REQUIRED
+    // removed newErrors.address
 
-    // ✅ Save into one unified error state
     setErrors(newErrors);
-
-    // ✅ Return false if any errors
     return Object.keys(newErrors).length === 0;
   };
+
   const saveVendor = async () => {
     if (!validateVendor()) {
       toast.error("Please correct the errors before saving.");
@@ -679,83 +696,44 @@ export default function EditVendor() {
     };
 
     try {
-        const res = await fetch(`${API_BASE_URL}/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      const res = await api.put(`/${id}`, payload);
+      const data = res.data;
 
-      const rawText = await res.text();
-      let data = null;
-      try {
-        data = rawText ? JSON.parse(rawText) : null;
-      } catch {
-        data = null;
-      }
-
-      console.log("Response status:", res.status);
-      console.log("Raw response:", rawText);
-
-      // ✅ CASE 1: Laravel validation errors (status 422)
-      if (res.status === 422 && data?.errors) {
-        Object.entries(data.errors).forEach(([key, messages]) => {
-          const message = Array.isArray(messages) ? messages.join(", ") : messages;
-
-          if (key === "vendor") {
-            toast.error("Company name already exists");
-          } else if (key === "email") {
-            toast.error("Email already taken");
-          } else if (key === "mobile_no") {
-            toast.error("Mobile number already taken");
-          } else if (key === "gst_no") {
-            toast.error("GST number already exists");
-          } else if (key.startsWith("contact_persons")) {
-            // Example: contact_persons.1.email
-            const parts = key.split(".");
-            const index = parts[1] || "?";
-            const field = parts[2] || "field";
-            const contactName =
-              contactPersons[index]?.name || `#${parseInt(index) + 1}`;
-
-            const cleanMessage = message.replace(/contact_persons\.\d+\./g, "");
-            toast.error(
-              `Contact person ${contactName} ${field.replace("_", " ")} ${cleanMessage}`
-            );
-          } else {
-            toast.error(`${key.replace("_", " ")}: ${message}`);
-          }
-        });
-        return;
-      }
-
-      // ✅ CASE 2: SQL unique violation (if backend sends this)
-      if (data?.error && data.error.includes("duplicate key value violates unique constraint")) {
-        const match = data.error.match(/\(vendor\)=\(([^)]+)\)/);
-        const duplicateVendor = match ? match[1] : "This vendor";
-        const message = `${duplicateVendor} name already exists.`;
-        setErrors((prev) => ({ ...prev, vendor: message }));
-        toast.error(message);
-        return;
-      }
-
-      // ✅ CASE 3: Any other error
-      if (!res.ok) {
-        const msg =
-          data?.message ||
-          (typeof data === "string" ? data : "Something went wrong while updating vendor.");
-        toast.error(msg);
-        return;
-      }
-
-      // ✅ CASE 4: Success
       setErrors({});
       toast.success("Vendor updated successfully!");
       setTimeout(() => navigate("/vendor"), 1000);
+
     } catch (err) {
-      console.error("Network or unexpected error:", err);
+      console.error("Update vendor error:", err);
+
+      // Backend validation errors
+      if (err.response?.status === 422 && err.response?.data?.errors) {
+        const backendErrors = err.response.data.errors;
+
+        Object.entries(backendErrors).forEach(([key, messages]) => {
+          const msg = Array.isArray(messages) ? messages[0] : messages;
+
+          if (key === "mobile_no") toast.error("Mobile number already taken");
+          else if (key === "email") toast.error("Email already taken");
+          else if (key === "vendor") toast.error("Company name already exists");
+          else toast.error(msg);
+        });
+
+        return;
+      }
+
+      // Other backend messages
+      if (err.response?.data?.message) {
+        toast.error(err.response.data.message);
+        return;
+      }
+
+      // TRUE Network error
       toast.error("Network error! Please try again.");
     }
   };
+
+
 
 
 
@@ -862,8 +840,11 @@ export default function EditVendor() {
                 placeholder="Enter Pincode"
                 isInvalid={!!errors.pincode}
               />
-              <Form.Control.Feedback type="invalid">{errors.pincode}</Form.Control.Feedback>
-
+              {errors.pincode && (
+                <div style={{ color: "red", fontSize: "0.85rem", marginTop: "4px" }}>
+                  {errors.pincode}
+                </div>
+              )}
             </Form.Group>
           </Col>
         </Row>
@@ -883,7 +864,7 @@ export default function EditVendor() {
                 options={cityOptionsFormatted}
                 isClearable
                 placeholder="Select or type city"
-                classNamePrefix="my-select"   
+                classNamePrefix="my-select"
               />
 
               {errors.city && <div style={{ color: "red", fontSize: "12px" }}>{errors.city}</div>}
@@ -937,7 +918,7 @@ export default function EditVendor() {
                 name="email"
                 value={vendor.email ?? ""}
                 onChange={handleVendorChange}
-                isInvalid={!!errors.email} 
+                isInvalid={!!errors.email}
               />
               {errors.email && (
                 <div style={{ color: "red", fontSize: "0.85rem", marginTop: "4px" }}>
@@ -949,7 +930,7 @@ export default function EditVendor() {
           <Col md={4}>
             <Form.Group className="mb-3  form-field">
               <Form.Label>
-                Mobile No<span style={{ color: "red" }}> *</span>
+                Mobile No<span style={{ color: "red" }}> </span>
               </Form.Label>
 
               <CountryPhoneInput
@@ -974,7 +955,7 @@ export default function EditVendor() {
           <Col md={4}>
             <Form.Group className="mb-3  form-field">
               <Form.Label>
-                Address<span style={{ color: "red" }}> *</span>
+                Address<span style={{ color: "red" }}> </span>
               </Form.Label>
 
               <Form.Control
@@ -1004,12 +985,12 @@ export default function EditVendor() {
           // ✅ Check if vendor details are filled before adding contact person
           const requiredFields = [
             "vendor",
-            "mobile_no",
+            // "mobile_no",
             "pincode",
             "city",
             "state",
             "district",
-            "address",
+            // "address",
           ];
 
           const emptyField = requiredFields.find((field) => {
@@ -1086,7 +1067,7 @@ export default function EditVendor() {
                     textAlign: "center",
                     backgroundColor: "#f1f3f5",
                     fontWeight: "normal", // normal text weight
-                    color: "inherit", 
+                    color: "inherit",
                   }}
                 >
                   Action
@@ -1218,7 +1199,7 @@ export default function EditVendor() {
             <Col md={12}>
               <Form.Group>
                 <Form.Label>
-                  Mobile No<span style={{ color: "red" }}> *</span>
+                  Mobile No<span style={{ color: "red" }}> </span>
                 </Form.Label>
 
                 <div

@@ -54,6 +54,8 @@ export default function AddAssemblePage() {
     const [checkedForDelete, setCheckedForDelete] = useState({});
     const [users, setUsers] = useState([]);
 
+
+
     const MySwal = withReactContent(Swal);
 
     const RequiredLabel = ({ children }) => (
@@ -62,7 +64,7 @@ export default function AddAssemblePage() {
             <span style={{ color: "red" }}> *</span>
         </Form.Label>
     );
-    const [serialSearchType, setSerialSearchType] = useState('single'); 
+    const [serialSearchType, setSerialSearchType] = useState('single');
     const [fromSerialSearch, setFromSerialSearch] = useState('');
     const [toSerialSearch, setToSerialSearch] = useState('');
     const [isAddDisabled, setIsAddDisabled] = useState(false);
@@ -72,12 +74,12 @@ export default function AddAssemblePage() {
             setForm(prev => ({ ...prev, testedBy: loggedInName }));
         }
     }, []);
-useEffect(() => {
-  const token = localStorage.getItem("authToken");
-  if (token) {
-    setAuthToken(token); // sets default Authorization header for api instance
-  }
-}, []);
+    useEffect(() => {
+        const token = localStorage.getItem("authToken");
+        if (token) {
+            setAuthToken(token);
+        }
+    }, []);
 
     useEffect(() => {
         api.get("/product")
@@ -107,10 +109,10 @@ useEffect(() => {
         fetchUsers();
     }, []);
     useEffect(() => {
-        const today = new Date().toISOString().split("T")[0]; 
+        const today = new Date().toISOString().split("T")[0];
         setForm((prev) => ({
             ...prev,
-            testedDate: prev.testedDate || today, 
+            testedDate: prev.testedDate || today,
         }));
     }, []);
     const handleDeleteRange = () => {
@@ -164,7 +166,6 @@ useEffect(() => {
         if (fromSerialSearch && toSerialSearch) {
             const from = parseInt(fromSerialSearch, 10);
             const to = parseInt(toSerialSearch, 10);
-
             if (!isNaN(from) && !isNaN(to)) {
                 const min = Math.min(from, to);
                 const max = Math.max(from, to);
@@ -229,118 +230,138 @@ useEffect(() => {
         }
         setIsAddDisabled(false);
     };
-// const duplicateSerials = serialsToAdd.filter(s => 
-//     products.some(p => p.serial_no === s)
-// );
+    // const duplicateSerials = serialsToAdd.filter(s => 
+    //     products.some(p => p.serial_no === s)
+    // );
 
-// if (duplicateSerials.length > 0) {
-//     toast.error(`Serial(s) ${duplicateSerials.join(", ")} already exists in the list.`);
-//     return;
-// }
+    // if (duplicateSerials.length > 0) {
+    //     toast.error(`Serial(s) ${duplicateSerials.join(", ")} already exists in the list.`);
+    //     return;
+    // }
 
 
-const handleAddProduct = async () => {
-    const { fromSerial, toSerial, testedBy, product_id } = form;
-    let newErrors = {};
+    const handleAddProduct = async () => {
+        const { fromSerial, toSerial, testedBy, product_id } = form;
+        let newErrors = {};
 
-    if (!product_id) newErrors.product_id = "Product is required.";
-    if (!fromSerial) newErrors.fromSerial = "From Serial is required.";
-    if (!toSerial) newErrors.toSerial = "To Serial is required.";
+        if (!product_id) newErrors.product_id = "Product is required.";
+        if (!fromSerial) newErrors.fromSerial = "From Serial is required.";
+        if (!toSerial) newErrors.toSerial = "To Serial is required.";
 
-    if (Object.keys(newErrors).length > 0) {
-        setErrors(newErrors);
-        return;
-    }
-
-    const selectedProduct = productOptions.find(
-        (p) => p.id === parseInt(product_id)
-    ) || {};
-    const prefix = selectedProduct.serial_prefix || "";
-
-    const serialsToAdd = [];
-    const isRange = toSerial && fromSerial !== toSerial;
-
-    if (isRange) {
-        const fromDigits = fromSerial.replace(prefix, '').replace(/\D/g, '');
-        const toDigits = toSerial.replace(prefix, '').replace(/\D/g, '');
-        const startNum = parseInt(fromDigits, 10);
-        const endNum = parseInt(toDigits, 10);
-
-        if (isNaN(startNum) || isNaN(endNum) || startNum > endNum) {
-            toast.error("Invalid serial range! 'From Serial' must be <= 'To Serial'.");
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
             return;
         }
 
-        for (let i = startNum; i <= endNum; i++) {
-            serialsToAdd.push(`${prefix}${i.toString().padStart(6, "0")}`);
-        }
-    } else {
-        serialsToAdd.push(fromSerial.trim().toUpperCase());
-    }
+        const selectedProduct = productOptions.find(
+            (p) => p.id === parseInt(product_id)
+        ) || {};
 
-    // 🔹 Check for duplicates locally in the table
-    const duplicateSerials = serialsToAdd.filter(s => 
-        products.some(p => p.serial_no === s)
-    );
-    if (duplicateSerials.length > 0) {
-        toast.error(`Serial(s) ${duplicateSerials.join(", ")} already exists in the list.`);
-        // Remove duplicates from serialsToAdd
-        serialsToAdd = serialsToAdd.filter(s => !duplicateSerials.includes(s));
-        if (serialsToAdd.length === 0) return;
-    }
+        const prefix = selectedProduct.serial_prefix || "";
+        let serialsToAdd = [];
+        const isRange = toSerial && fromSerial !== toSerial;
 
-    try {
-        // 🔹 Check serials with API
-        const checkRes = await api.post("/check-serials-purchased", {
-            product_id: parseInt(product_id, 10),
-            serials: serialsToAdd,
-        });
+        // 🔹 Build serial range
+        if (isRange) {
+            const fromDigits = fromSerial.replace(prefix, "").replace(/\D/g, "");
+            const toDigits = toSerial.replace(prefix, "").replace(/\D/g, "");
 
-        const purchasedSerials = checkRes.data.purchased || [];
-        const notPurchasedSerials = checkRes.data.not_purchased || [];
-        const items = checkRes.data.items || [];
+            const startNum = parseInt(fromDigits, 10);
+            const endNum = parseInt(toDigits, 10);
 
-        // 🔹 Toast for serials already in inventory
-        const existsSerials = items
-            .filter(i => i.status === "exists")
-            .map(i => i.serial_no);
-        if (existsSerials.length > 0) {
-            toast.info(`Serial(s) ${existsSerials.join(", ")} already exist in inventory.`);
+            if (isNaN(startNum) || isNaN(endNum) || startNum > endNum) {
+                toast.error("Invalid serial range! 'From Serial' must be <= 'To Serial'.");
+                return;
+            }
+
+            for (let i = startNum; i <= endNum; i++) {
+                serialsToAdd.push(`${prefix}${i.toString().padStart(6, "0")}`);
+            }
+        } else {
+            serialsToAdd.push(fromSerial.trim().toUpperCase());
         }
 
-        // 🔹 Toast for serials not purchased
-        if (notPurchasedSerials.length > 0) {
-            toast.error(
-                `Serial(s) ${notPurchasedSerials.join(", ")} are not purchased. Cannot add to list.`,
-                { autoClose: 8000 }
-            );
-        }
-
-        // 🔹 Filter serials: only purchased and not already in inventory
-        const validSerials = purchasedSerials.filter(
-            s => !existsSerials.includes(s)
+        // 🔹 Local duplicates
+        const duplicateSerials = serialsToAdd.filter(s =>
+            products.some(p => p.serial_no === s)
         );
 
-        if (validSerials.length === 0) return; // nothing new to add
+        if (duplicateSerials.length > 0) {
+            toast.error(`Serial(s) ${duplicateSerials.join(", ")} already exists in the list.`);
+            serialsToAdd = serialsToAdd.filter(s => !duplicateSerials.includes(s));
+            if (serialsToAdd.length === 0) return;
+        }
 
-        const newProducts = validSerials.map(s => ({
-            serial_no: s,
-            tested_by: testedBy,
-            tested_status: ["PASS"],
-            test_remarks: "",
-            from_serial: fromSerial,
-            to_serial: toSerial || s,
-        }));
+        try {
+            const checkRes = await api.post("/check-serials-purchased", {
+                product_id: parseInt(product_id),
+                serials: serialsToAdd,
+            });
 
-        setProducts([...products, ...newProducts]);
-        setForm(prev => ({ ...prev, fromSerial: "", toSerial: "" }));
-        toast.success(`${newProducts.length} purchased serial(s) added to list.`);
+            // ✅ SHOW SHORTAGES FIRST
+            const shortages = checkRes.data.sparepart_shortages || [];
 
-    } catch (error) {
-        console.error("Error checking serials:", error);
-        toast.error(error.response?.data?.message || "Error checking serials. Please try again.");
-    }
-};
+            if (shortages.length > 0) {
+                let msg = "❌ Cannot add products due to sparepart shortages:\n";
+
+                shortages.forEach(s => {
+                    msg += `\n⚠ ${s.sparepart_name}\n   Required: ${s.required}\n   Available: ${s.available}\n   Short by: ${s.shortage}\n`;
+                });
+
+                toast.error(msg, {
+                    autoClose: 9000,
+                    style: { whiteSpace: "pre-line" }
+                });
+
+                return;  // ⛔ STOP processing
+            }
+
+
+            // 🔥 2. SERIAL VALIDATION
+            const validation = checkRes.data.serial_validation || {};
+            const purchasedSerials = validation.purchased || [];
+            const notPurchasedSerials = validation.not_purchased || [];
+            const items = validation.items || [];
+
+            const existsSerials = items
+                .filter(i => i.status === "exists")
+                .map(i => i.serial_no);
+
+            if (existsSerials.length > 0) {
+                toast.info(`Serial(s) ${existsSerials.join(", ")} already exist in inventory.`);
+            }
+
+            if (notPurchasedSerials.length > 0) {
+                toast.error(`Serial(s) ${notPurchasedSerials.join(", ")} are not purchased.`);
+            }
+
+            const validSerials = purchasedSerials.filter(
+                s => !existsSerials.includes(s)
+            );
+
+            if (validSerials.length === 0) return;
+
+            // 🔥 3. ADD TO TABLE
+            const newProducts = validSerials.map(s => ({
+                serial_no: s,
+                tested_by: testedBy,
+                tested_status: ["PASS"],
+                test_remarks: "",
+                from_serial: fromSerial,
+                to_serial: toSerial || s,
+            }));
+
+            setProducts([...products, ...newProducts]);
+            setForm(prev => ({ ...prev, fromSerial: "", toSerial: "" }));
+            toast.success(`${newProducts.length} serial(s) added.`);
+
+        } catch (error) {
+            console.error("Error checking serials:", error);
+            toast.error(error.response?.data?.message || "Error checking serials.");
+        }
+    };
+
+
     const handleRowChange = (index, field, value) => {
         const updated = [...products];
         const globalIndex = products.findIndex(
@@ -375,32 +396,26 @@ const handleAddProduct = async () => {
             confirmButtonText: "Yes, delete it!",
         }).then((result) => {
             if (result.isConfirmed) {
+
+                // 🔹 Remove the serial
                 const updated = products.filter((_, i) => i !== globalIndex);
                 setProducts(updated);
 
-                if (updated.length > 0) {
-                    const newFromSerial = updated[0].serial_no;
-                    const newToSerial = updated[updated.length - 1].serial_no;
-                    const deletedSerial = products[globalIndex].serial_no;
-                    const newStartIndex = updated.findIndex(p => p.serial_no > deletedSerial);
-                    const adjustedFrom = newStartIndex !== -1 ? updated[newStartIndex].serial_no : newFromSerial;
-                    setForm((prev) => ({
-                        ...prev,
-                        fromSerial: adjustedFrom,
-                        toSerial: newToSerial,
-                        quantity: updated.length,
-                    }));
-                } else {
-                    setForm((prev) => ({ ...prev, fromSerial: "", toSerial: "", quantity: "" }));
-                }
+                // 🔹 DO NOT MODIFY fromSerial / toSerial AT ALL
+                setForm(prev => ({
+                    ...prev,
+                    // leave fromSerial & toSerial untouched
+                }));
 
                 toast.success(`Serial ${serialToDelete} deleted!`);
+
                 if (paginatedProducts.length === 1 && currentPage > 1) {
                     setCurrentPage(currentPage - 1);
                 }
             }
         });
     };
+
 
     const handleSubmit = async () => {
         try {
@@ -544,7 +559,7 @@ const handleAddProduct = async () => {
                     <Col md={4}>
                         <Form.Group>
                             <Form.Label>Select Product  <span style={{ color: "red" }}>*</span>
-</Form.Label>
+                            </Form.Label>
                             <Form.Select
                                 name="product_id"
                                 value={form.product_id || ""}
@@ -626,7 +641,7 @@ const handleAddProduct = async () => {
 
                                     setForm(prev => ({ ...prev, toSerial: value }));
                                 }}
-                                // isInvalid={!!errors.toSerial}
+                            // isInvalid={!!errors.toSerial}
                             />
                             <Form.Control.Feedback type="invalid">
                                 {errors.toSerial}
@@ -702,9 +717,10 @@ const handleAddProduct = async () => {
                             <h5 className="mb-0">Product List</h5>
                         </div>
                         <Row className="mb-3">
-                            <Col>
-                                <div className="search-input-wrapper">
+                            <Col className="w-100">
+                                <div className="search-input-wrapper w-100">
                                     <Form.Control
+                                        className="w-100"
                                         size="sm"
                                         type="text"
                                         placeholder="Search serials..."
@@ -725,7 +741,8 @@ const handleAddProduct = async () => {
                                     )}
                                 </div>
                             </Col>
-                            <Col md={3}>
+
+                            {/* <Col md={3}>
                                 <div className="search-input-wrapper">
                                     <Form.Control
                                         placeholder="Delete From Serial"
@@ -739,8 +756,8 @@ const handleAddProduct = async () => {
                                         />
                                     )}
                                 </div>
-                            </Col>
-                            <Col md={3}>
+                            </Col> */}
+                            {/* <Col md={3}>
                                 <div className="search-input-wrapper">
                                     <Form.Control
                                         placeholder="Delete To Serial"
@@ -754,16 +771,16 @@ const handleAddProduct = async () => {
                                         />
                                     )}
                                 </div>
-                            </Col>
+                            </Col> */}
                             <Col md={2}>
-                                <Button
+                                {/* <Button
                                     variant="outline-danger"
                                     size="sm"
                                     onClick={handleDeleteRange}
                                     disabled={!fromSerialSearch || !toSerialSearch}
                                 >
                                     <IoTrashOutline />
-                                </Button>
+                                </Button> */}
                             </Col>
                         </Row>
                         <Col md={9} className="d-flex justify-content-end align-items-center">
@@ -816,20 +833,20 @@ const handleAddProduct = async () => {
                                                 ) : null}
                                             </td>
                                             <td className="text-center">{row.serial_no}</td>
-<td>
-  <Form.Select
-    size="sm"
-    value={row.tested_by}
-    onChange={(e) => handleRowChange(i, "tested_by", e.target.value)}
-  >
-    <option value="">Select tester</option>
-    {users.map((user) => (
-      <option key={user.id} value={user.username}>
-        {user.username}
-      </option>
-    ))}
-  </Form.Select>
-</td>
+                                            <td>
+                                                <Form.Select
+                                                    size="sm"
+                                                    value={row.tested_by}
+                                                    onChange={(e) => handleRowChange(i, "tested_by", e.target.value)}
+                                                >
+                                                    <option value="">Select tester</option>
+                                                    {users.map((user) => (
+                                                        <option key={user.id} value={user.username}>
+                                                            {user.username}
+                                                        </option>
+                                                    ))}
+                                                </Form.Select>
+                                            </td>
 
                                             <td className="text-center">
                                                 <div className="d-flex justify-content-center gap-2">
@@ -938,3 +955,5 @@ const handleAddProduct = async () => {
         </Container>
     );
 }
+
+

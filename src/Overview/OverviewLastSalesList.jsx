@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
 import { Card, Spinner } from "react-bootstrap";
-import { API_BASE_URL } from "../api"; // ✅ corrected path
+import api, { setAuthToken } from "../api";   // ✅ FIXED: use global API instance
 import "./LastSalesList.css";
 
 const LastSalesList = () => {
@@ -9,12 +8,15 @@ const LastSalesList = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const token = localStorage.getItem("authToken");
+    if (token) setAuthToken(token); // ✅ Set token globally
+
     fetchLastSales();
   }, []);
 
   const fetchLastSales = async () => {
     try {
-      const res = await axios.get(`${API_BASE_URL}/sales`);
+      const res = await api.get("/sales"); // ✅ Token included automatically
 
       const sales = Array.isArray(res.data)
         ? res.data
@@ -27,13 +29,12 @@ const LastSalesList = () => {
         return;
       }
 
-      // Sort by latest shipment date
+      // 🟢 Correct sorting applied to result itself
       const sorted = [...sales].sort(
         (a, b) => new Date(b.shipment_date) - new Date(a.shipment_date)
       );
 
-      // Take the latest 10
-      setSalesData(sorted.slice(0, 10));
+      setSalesData(sorted.slice(0, 10)); 
     } catch (error) {
       console.error("Error fetching sales:", error);
       setSalesData([]);
@@ -63,6 +64,7 @@ const LastSalesList = () => {
                   <th>Quantity</th>
                 </tr>
               </thead>
+
               <tbody>
                 {salesData.length > 0 ? (
                   salesData.map((item, index) => (

@@ -294,7 +294,7 @@ const getMaxDigits = (country) => {
 
     return (
         <div>
-            {label && <Form.Label>{label} <span style={{ color: "red" }}> *</span></Form.Label>}
+            {label && <Form.Label>{label} <span style={{ color: "red" }}> </span></Form.Label>}
             <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
                 <Select
                     options={countryOptions}

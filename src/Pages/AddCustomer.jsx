@@ -58,12 +58,12 @@ export default function AddCustomer() {
     if (!customer.city.trim()) errs.city = "City is required";
     if (!customer.district.trim()) errs.district = "District is required";
     if (!customer.state.trim()) errs.state = "State is required";
-    if (!customer.address.trim()) errs.address = "Address is required";
+    // if (!customer.address.trim()) errs.address = "Address is required";
     if (!customer.status) errs.status = "Status is required";
 
     // FIX: Simplified and corrected mobile validation logic
     if (!customer.mobile_no.trim()) {
-      errs.mobile_no = "Mobile number is required";
+      // errs.mobile_no = "Mobile number is required";
     } else {
       const phoneNumber = parsePhoneNumberFromString(customer.mobile_no);
       // Check if it's parsable and valid
@@ -112,7 +112,7 @@ export default function AddCustomer() {
     setCustomer(prev => ({ ...prev, mobile_no: inputNumber || "" }));
 
     if (!inputNumber) {
-      setErrors(prev => ({ ...prev, mobile_no: "Mobile number is required" }));
+      setErrors(prev => ({ ...prev, mobile_no: "" }));
       return;
     }
 
@@ -174,40 +174,45 @@ export default function AddCustomer() {
     toast.error("Could not fetch details. Please enter City, District, and State manually.");
   };
 
-  const saveCustomer = async () => {
-    if (!validateCustomer()) {
-      // Show error toast if validation fails
-      toast.error("Please correct the errors in the form before saving.");
+ const saveCustomer = async () => {
+  if (!validateCustomer()) {
+    toast.error("Please correct the errors in the form before saving.");
+    return;
+  }
+
+  try {
+    const response = await api.post("/customers", customer);
+
+    // axios returns the data directly
+    const data = response.data;
+
+    toast.success("Customer saved successfully!");
+    navigate("/customer");
+  } 
+ catch (error) {
+  if (error.response) {
+    const data = error.response.data;
+
+    // Prefer backend errors[] array
+    if (data.errors) {
+      const firstError = Object.values(data.errors)[0][0]; 
+      toast.error(firstError);
       return;
     }
 
-    try {
-      const response = await api.post("/customers", customer);
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        // Check for duplicate fields
-        if (data.errors) {
-          if (data.errors.email) toast.error(`Email already taken: ${data.errors.email}`);
-          if (data.errors.mobile_no) toast.error(`Mobile number already taken: ${data.errors.mobile_no}`);
-        } else if (data.message) {
-          toast.error(data.message);
-        } else {
-          toast.error("Error saving customer!");
-        }
-        console.error("Server Error:", data);
-        return;
-      }
-
-      toast.success("Customer saved successfully!");
-      navigate("/customer");
-      console.log(data);
-    } catch (err) {
-      console.error("Network or Unexpected Error:", err);
-      toast.error("Error saving customer! Check network connection or server status.");
+    // Otherwise show message only if errors[] does NOT exist
+    if (data.message) {
+      toast.error(data.message);
+      return;
     }
-  };
+  }
+
+  toast.error("Network error! Check your connection.");
+
+
+  }
+};
+
 
   const feedbackStyle = { color: "red", fontSize: "0.85rem", marginTop: "4px" };
   // GST regex is only needed for the inline validation logic
@@ -404,7 +409,7 @@ export default function AddCustomer() {
           <Col md={4}>
             <Form.Group className="mb-3 form-field">
               <Form.Label>
-                Mobile No<span style={{ color: "red" }}> *</span>
+                Mobile No<span style={{ color: "red" }}> </span>
               </Form.Label>
 
               <CountryPhoneInput
@@ -442,7 +447,7 @@ export default function AddCustomer() {
           <Col md={6}>
             <Form.Group className="mb-3 form-field">
               <Form.Label>
-                Address<span style={{ color: "red" }}> *</span>
+                Address<span style={{ color: "red" }}> </span>
               </Form.Label>
 
               <Form.Control

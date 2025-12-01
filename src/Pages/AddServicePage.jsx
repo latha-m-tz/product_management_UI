@@ -13,9 +13,9 @@ const AddServicePage = () => {
   const [errors, setErrors] = useState({});
   const [products, setProducts] = useState([]);
   const [vendors, setVendors] = useState([]);
-  const [serialNumbersByProduct, setSerialNumbersByProduct] = useState({});
   const [recipientFiles, setRecipientFiles] = useState([null]);
   const MySwal = withReactContent(Swal);
+  const [allowedStatus, setAllowedStatus] = useState({});
 
   const [formData, setFormData] = useState({
     vendor_id: "",
@@ -24,8 +24,10 @@ const AddServicePage = () => {
     tracking_no: "",
     items: [
       {
-        product_id: "",
+        sparepart_id: "",
+        isPCB: false,
         vci_serial_no: "",
+        quantity: "",
         status: "",
         remarks: "",
         upload_image: null,
@@ -35,18 +37,90 @@ const AddServicePage = () => {
 
   const validate = () => {
     const newErrors = {};
+
     if (!formData.vendor_id) newErrors.vendor_id = "Vendor is required";
     if (!formData.challan_no) newErrors.challan_no = "Challan No is required";
-    if (!formData.challan_date) newErrors.challan_date = "Challan Date is required";
+
+    if (!formData.challan_date) {
+      newErrors.challan_date = "Challan Date is required";
+    } else {
+      const selected = new Date(formData.challan_date);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (selected > today) {
+        newErrors.challan_date = "Future dates not allowed";
+      }
+    }
 
     formData.items.forEach((item, i) => {
-      if (!item.product_id) newErrors[`product_id_${i}`] = "Product is required";
-      if (!item.vci_serial_no) newErrors[`vci_serial_no_${i}`] = "Serial No is required";
+      if (!item.sparepart_id) {
+        newErrors[`sparepart_id_${i}`] = "Product is required";
+        return;
+      }
+
+      // Use isPCB (boolean)
+      if (item.isPCB) {
+        if (!String(item.vci_serial_no || "").trim()) {
+          newErrors[`vci_serial_no_${i}`] = "Serial Number required for PCB";
+        }
+      } else {
+        if (!item.quantity || Number(item.quantity) <= 0) {
+          newErrors[`quantity_${i}`] = "Quantity required";
+        }
+      }
     });
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
+  const checkSerialStatus = async (index, sparepart_id, serial, vendor_id) => {
+    if (!serial || !sparepart_id || !vendor_id) return;
+
+    try {
+      const res = await api.get("/service/check-status", {
+        params: {
+          vendor_id,
+          sparepart_id,
+          serial_no: serial,
+        },
+      });
+
+      let status = res.data.current_status;
+
+      // Normalize status
+      status = status ? String(status).trim() : "";
+
+      let allowed = [];
+
+      // NEW SERIAL → ALWAYS START WITH INWARD
+      if (!status || !["Inward", "Testing", "Delivered", "Return"].includes(status)) {
+        allowed = ["Inward"];
+      }
+      else if (status === "Inward") {
+        allowed = ["Testing", "Delivered"];
+      }
+      else if (status === "Testing") {
+        allowed = ["Delivered", "Return"];
+      }
+      else if (status === "Delivered") {
+        allowed = ["Return"];
+      }
+      else if (status === "Return") {
+        allowed = [];
+      }
+
+      setAllowedStatus((prev) => ({
+        ...prev,
+        [index]: allowed,
+      }));
+
+    } catch (err) {
+      console.log("Error checking serial:", err);
+    }
+  };
+
+
 
   useEffect(() => {
     const token = localStorage.getItem("authToken");
@@ -55,71 +129,107 @@ const AddServicePage = () => {
     const fetchData = async () => {
       try {
         const [productRes, vendorRes] = await Promise.all([
-          api.get("/product"),
+          api.get("/spareparts/get"),
           api.get("/vendorsget"),
         ]);
 
-        console.log("✅ Vendor Response:", vendorRes.data); 
-
-        setProducts(productRes.data);
+        setProducts(productRes.data.spareparts || []);
         setVendors(vendorRes.data);
       } catch (err) {
-        console.error(err);
-        toast.error("Failed to fetch products or vendors!");
+        toast.error("Failed to fetch products/vendors!");
       }
     };
     fetchData();
   }, []);
 
-
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     setErrors((prev) => ({ ...prev, [name]: "" }));
-
   };
 
-  const handleItemChange = async (index, e) => {
+  const handleItemChange = (index, e) => {
     const { name, value, files } = e.target;
     const items = [...formData.items];
-    items[index][name] = files ? files[0] : value;
 
-    setFormData((prev) => ({ ...prev, items }));
+    // When product changes
+    if (name === "sparepart_id") {
+      const selected = products.find((p) => p.id === Number(value));
 
-    // clear the dynamic field error
-    const errorKey = `${name}_${index}`;
-    setErrors((prev) => ({ ...prev, [errorKey]: "" }));
+      items[index].sparepart_id = Number(value);
 
-    if (name === "product_id" && value) {
-      try {
-        const res = await api.get(`/sales/serials/${value}`);
-        setSerialNumbersByProduct((prev) => ({ ...prev, [value]: res.data || [] }));
-      } catch {
-        toast.error("Failed to fetch serial numbers!");
+      // Detect PCB product
+      const isPCB = !!(
+        selected &&
+        String(selected.name || "").toLowerCase().includes("pcb")
+      );
+      items[index].isPCB = isPCB;
+
+      // Reset serial / quantity
+      items[index].vci_serial_no = "";
+      items[index].quantity = "";
+
+      // Clear field errors
+      setErrors((prev) => {
+        const copy = { ...prev };
+        delete copy[`vci_serial_no_${index}`];
+        delete copy[`quantity_${index}`];
+        delete copy[`sparepart_id_${index}`];
+        return copy;
+      });
+
+      // If PCB and vendor + serial already exist
+      if (isPCB && items[index].vci_serial_no) {
+        checkSerialStatus(
+          index,
+          Number(value),
+          items[index].vci_serial_no,
+          formData.vendor_id
+        );
       }
     }
+
+    // When serial number changes
+    else if (name === "vci_serial_no") {
+      items[index].vci_serial_no = value;
+
+      // Trigger check ONLY if PCB
+      if (items[index].isPCB) {
+        checkSerialStatus(
+          index,
+          items[index].sparepart_id,
+          value,
+          formData.vendor_id
+        );
+      }
+
+      setErrors((prev) => ({ ...prev, [`vci_serial_no_${index}`]: "" }));
+    }
+
+    // Other fields (quantity, remarks, status, upload_image)
+    else {
+      items[index][name] = files ? files[0] : value;
+      setErrors((prev) => ({ ...prev, [`${name}_${index}`]: "" }));
+    }
+
+    setFormData((prev) => ({ ...prev, items }));
   };
 
 
-  // ✅ Add / Remove receipt file inputs
-  const addFileField = () => setRecipientFiles((prev) => [...prev, null]);
-  const removeFileField = (index) =>
-    setRecipientFiles((prev) => prev.filter((_, i) => i !== index));
-  const handleFileChange = (index, file) => {
-    setRecipientFiles((prev) => {
-      const updated = [...prev];
-      updated[index] = file;
-      return updated;
-    });
-  };
-
-  // ✅ Add / Remove item rows
   const addRow = () => {
     setFormData((prev) => ({
       ...prev,
       items: [
         ...prev.items,
-        { product_id: "", vci_serial_no: "", status: "", remarks: "", upload_image: null },
+        {
+          sparepart_id: "",
+          isPCB: false,
+          vci_serial_no: "",
+          quantity: "",
+          status: "",
+          remarks: "",
+          upload_image: null,
+        },
       ],
     }));
   };
@@ -127,23 +237,22 @@ const AddServicePage = () => {
   const removeRow = (index) => {
     MySwal.fire({
       title: "Are you sure?",
-      text: "You won't be able to revert this!",
+      text: "You cannot undo this!",
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#d33",
       cancelButtonColor: "#2FA64F",
-      confirmButtonText: "Yes, delete it!",
+      confirmButtonText: "Yes, delete!",
     }).then((result) => {
       if (result.isConfirmed) {
         const items = [...formData.items];
         items.splice(index, 1);
         setFormData((prev) => ({ ...prev, items }));
-        toast.success("Row deleted successfully!");
+        toast.success("Row deleted");
       }
     });
   };
 
-  // ✅ Submit
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
@@ -155,45 +264,76 @@ const AddServicePage = () => {
     payload.append("tracking_no", formData.tracking_no);
 
     recipientFiles.forEach((file, i) => {
-      if (file) payload.append(`receipt_files[${i}]`, file);
+      if (file instanceof File) {
+        payload.append(`receipt_files[${i}]`, file);
+      }
     });
 
     formData.items.forEach((item, index) => {
-      Object.entries(item).forEach(([key, value]) => {
-        if (key === "upload_image") {
-          if (value instanceof File) {
-            payload.append(`items[${index}][${key}]`, value);
-          }
-        } else {
-          payload.append(`items[${index}][${key}]`, value ?? "");
-        }
-      });
-    });
+      payload.append(`items[${index}][sparepart_id]`, item.sparepart_id);
 
+      if (item.isPCB) {
+        payload.append(`items[${index}][vci_serial_no]`, item.vci_serial_no);
+      } else {
+        payload.append(`items[${index}][quantity]`, item.quantity);
+      }
+
+      payload.append(`items[${index}][status]`, item.status || "");
+      payload.append(`items[${index}][remarks]`, item.remarks || "");
+
+      if (item.upload_image instanceof File) {
+        payload.append(`items[${index}][upload_image]`, item.upload_image);
+      }
+    });
 
     try {
       await api.post("/service-vci", payload, {
         headers: { "Content-Type": "multipart/form-data" },
       });
+
       toast.success("Service added successfully!");
       navigate("/service-product");
     } catch (err) {
-      console.error(err);
-      toast.error("Failed to add service!");
+      console.error("Submit Error →", err);
+      if (err.response?.data?.errors) {
+        const backendErrors = err.response.data.errors;
+        const newErrors = {};
+
+        // Convert items.0 → quantity_0 or vci_serial_no_0
+        Object.keys(backendErrors).forEach((key) => {
+          if (key.startsWith("items.")) {
+            const index = key.split(".")[1]; // 0
+            const msg = backendErrors[key][0];
+
+            // Decide which field error to show
+            if (msg.toLowerCase().includes("quantity")) {
+              newErrors[`quantity_${index}`] = msg;
+            } else if (msg.toLowerCase().includes("serial")) {
+              newErrors[`vci_serial_no_${index}`] = msg;
+            } else {
+              newErrors[`sparepart_id_${index}`] = msg;
+            }
+          } else {
+            // General errors
+            newErrors[key] = backendErrors[key][0];
+          }
+        });
+
+        setErrors(newErrors);
+        toast.error("Validation failed!");
+      }
     }
   };
 
   return (
     <Container fluid>
       <Row className="align-items-center mb-3 fixed-header">
-        <Col>
-          <h4>Add Service</h4>
-        </Col>
+        <Col><h4>Add Service</h4></Col>
+
         <Col className="text-end">
           <Button
             variant="outline-secondary"
             size="sm"
-            className="me-2"
             onClick={() => navigate("/service-product")}
           >
             <i className="bi bi-arrow-left"></i> Back
@@ -202,13 +342,13 @@ const AddServicePage = () => {
       </Row>
 
       <Form onSubmit={handleSubmit} encType="multipart/form-data">
-
-
-        {/* ✅ Challan Fields */}
+        {/* TOP FORM */}
         <Row className="mb-3">
           <Col md={6}>
             <Form.Group>
-              <Form.Label>Challan No <span className="text-danger">*</span></Form.Label>
+              <Form.Label>
+                Challan No <span className="text-danger">*</span>
+              </Form.Label>
               <Form.Control
                 type="text"
                 name="challan_no"
@@ -216,9 +356,12 @@ const AddServicePage = () => {
                 onChange={handleChange}
                 isInvalid={!!errors.challan_no}
               />
-              <Form.Control.Feedback type="invalid">{errors.challan_no}</Form.Control.Feedback>
+              <Form.Control.Feedback type="invalid">
+                {errors.challan_no}
+              </Form.Control.Feedback>
             </Form.Group>
           </Col>
+
           <Col md={6}>
             <Form.Group>
               <Form.Label>Challan Date <span className="text-danger">*</span></Form.Label>
@@ -229,17 +372,17 @@ const AddServicePage = () => {
                 onChange={handleChange}
                 isInvalid={!!errors.challan_date}
               />
-              <Form.Control.Feedback type="invalid">{errors.challan_date}</Form.Control.Feedback>
+              <Form.Control.Feedback type="invalid">
+                {errors.challan_date}
+              </Form.Control.Feedback>
             </Form.Group>
           </Col>
         </Row>
-        <Row className="mb-3">
 
+        <Row className="mb-3">
           <Col md={6}>
             <Form.Group>
-              <Form.Label>
-                Vendor <span className="text-danger">*</span>
-              </Form.Label>
+              <Form.Label>Vendor <span className="text-danger">*</span></Form.Label>
               <Form.Select
                 name="vendor_id"
                 value={formData.vendor_id}
@@ -248,9 +391,7 @@ const AddServicePage = () => {
               >
                 <option value="">Select Vendor</option>
                 {vendors.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.vendor}
-                  </option>
+                  <option key={v.id} value={v.id}>{v.vendor}</option>
                 ))}
               </Form.Select>
               <Form.Control.Feedback type="invalid">
@@ -258,23 +399,22 @@ const AddServicePage = () => {
               </Form.Control.Feedback>
             </Form.Group>
           </Col>
-             <Col md={6}>
+
+          <Col md={6}>
             <Form.Group>
-              <Form.Label>Tracking No <span className="text-danger"></span></Form.Label>
+              <Form.Label>Tracking No</Form.Label>
               <Form.Control
                 type="text"
                 name="tracking_no"
                 value={formData.tracking_no}
                 onChange={handleChange}
-                isInvalid={!!errors.tracking_no}
               />
-              <Form.Control.Feedback type="invalid">{errors.tracking_no}</Form.Control.Feedback>
             </Form.Group>
           </Col>
-          </Row>
+        </Row>
 
+        {/* RECEIPTS */}
         <Row className="mb-3">
-          {/* ✅ eipt Files */}
           <Col md={6}>
             <Form.Group>
               <Form.Label>
@@ -283,56 +423,68 @@ const AddServicePage = () => {
                   variant="link"
                   size="sm"
                   className="text-success ms-1 p-0"
-                  onClick={addFileField}
+                  onClick={() =>
+                    setRecipientFiles((prev) => [...prev, null])
+                  }
                 >
-                  <i className="bi bi-plus-circle"></i> Add
+                  + Add
                 </Button>
               </Form.Label>
-              {recipientFiles.map((file, idx) => (
-                <div key={idx} className="d-flex align-items-center mb-1">
+
+              {recipientFiles.map((file, i) => (
+                <div key={i} className="d-flex align-items-center mb-1">
                   <Form.Control
                     type="file"
                     accept="image/*,application/pdf"
-                    onChange={(e) => handleFileChange(idx, e.target.files[0])}
+                    onChange={(e) => {
+                      const updated = [...recipientFiles];
+                      updated[i] = e.target.files[0];
+                      setRecipientFiles(updated);
+                    }}
                   />
-                  {recipientFiles.length > 1 && (
-                    <Button
-                      variant="link"
-                      size="sm"
-                      className="text-danger ms-2 p-0"
-                      onClick={() => removeFileField(idx)}
-                    >
-                      <i className="bi bi-x-circle"></i>
-                    </Button>
-                  )}
+
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="text-danger ms-2 p-0"
+                    disabled={recipientFiles.length === 1}
+                    onClick={() =>
+                      setRecipientFiles((prev) =>
+                        prev.filter((_, idx) => idx !== i)
+                      )
+                    }
+                  >
+                    ❌
+                  </Button>
                 </div>
               ))}
             </Form.Group>
           </Col>
         </Row>
 
-        {/* ✅ Service Items Table */}
-        <h5 className="mt-4">Service Items</h5>
+        {/* ITEMS TABLE */}
+        <h5>Service Items</h5>
         <Table bordered responsive>
           <thead>
             <tr>
               <th>Product</th>
-              <th>Serial No</th>
+              <th>Serial No / Qty</th>
               <th>Status</th>
               <th>Remarks</th>
-              <th>Upload Image</th>
+              <th>Image</th>
               <th>Action</th>
             </tr>
           </thead>
+
           <tbody>
             {formData.items.map((item, i) => (
               <tr key={i}>
                 <td>
                   <Form.Select
-                    name="product_id"
-                    value={item.product_id}
+                    name="sparepart_id"
+                    value={item.sparepart_id}
                     onChange={(e) => handleItemChange(i, e)}
-                    isInvalid={!!errors[`product_id_${i}`]}
+                    isInvalid={!!errors[`sparepart_id_${i}`]}
                   >
                     <option value="">Select Product</option>
                     {products.map((p) => (
@@ -344,31 +496,79 @@ const AddServicePage = () => {
                 </td>
 
                 <td>
-                  <Form.Select
-                    name="vci_serial_no"
-                    value={item.vci_serial_no}
-                    onChange={(e) => handleItemChange(i, e)}
-                    isInvalid={!!errors[`vci_serial_no_${i}`]}
-                  >
-                    <option value="">Select Serial No</option>
-                    {(serialNumbersByProduct[item.product_id] || []).map((s) => (
-                      <option key={s.id || s.serial_no} value={s.serial_no}>
-                        {s.serial_no}
-                      </option>
-                    ))}
-                  </Form.Select>
+                  {item.isPCB ? (
+                    <Form.Control
+                      type="text"
+                      name="vci_serial_no"
+                      placeholder="Enter Serial Number"
+                      value={item.vci_serial_no}
+                      onChange={(e) => handleItemChange(i, e)}
+                      isInvalid={!!errors[`vci_serial_no_${i}`]}
+                    />
+                  ) : (
+                    <Form.Control
+                      type="number"
+                      name="quantity"
+                      placeholder="Enter Quantity"
+                      value={item.quantity}
+                      onChange={(e) => handleItemChange(i, e)}
+                      isInvalid={!!errors[`quantity_${i}`]}
+                    />
+                  )}
+
+                  <Form.Control.Feedback type="invalid">
+                    {errors[`vci_serial_no_${i}`] || errors[`quantity_${i}`]}
+                  </Form.Control.Feedback>
                 </td>
 
                 <td>
                   <Form.Select
                     name="status"
                     value={item.status}
-                    onChange={(e) => handleItemChange(i, e)}
+                    onChange={(e) => {
+                      const selected = e.target.value;
+                      const allowed = allowedStatus[i];
+
+                      // Allow all statuses when allowed list does NOT exist yet
+                      if (allowed && allowed.length > 0 && !allowed.includes(selected)) {
+                        toast.error(
+                          `Status "${selected}" is NOT allowed. Allowed: ${allowed.join(", ")}`
+                        );
+                        return;
+                      }
+
+                      handleItemChange(i, e);
+                    }}
                   >
                     <option value="">Select</option>
-                    <option value="Inward">Inward</option>
-                    <option value="Delivered">Delivered</option>
-                    <option value="Testing">Testing</option>
+
+                    <option
+                      value="Inward"
+                      disabled={allowedStatus[i] ? !allowedStatus[i].includes("Inward") : false}
+                    >
+                      Inward
+                    </option>
+
+                    <option
+                      value="Testing"
+                      disabled={allowedStatus[i] ? !allowedStatus[i].includes("Testing") : false}
+                    >
+                      Testing
+                    </option>
+
+                    <option
+                      value="Delivered"
+                      disabled={allowedStatus[i] ? !allowedStatus[i].includes("Delivered") : false}
+                    >
+                      Delivered
+                    </option>
+
+                    <option
+                      value="Return"
+                      disabled={allowedStatus[i] ? !allowedStatus[i].includes("Return") : false}
+                    >
+                      Return
+                    </option>
                   </Form.Select>
                 </td>
 
@@ -403,14 +603,19 @@ const AddServicePage = () => {
           </tbody>
         </Table>
 
-        <Button type="button" variant="success" onClick={addRow}>
+        <Button variant="success" onClick={addRow}>
           + Add Row
         </Button>
 
         <div className="mt-4 d-flex justify-content-end">
-          <Button variant="secondary" className="me-2" onClick={() => navigate("/service-product")}>
+          <Button
+            variant="secondary"
+            className="me-2"
+            onClick={() => navigate("/service-product")}
+          >
             Cancel
           </Button>
+
           <Button type="submit" variant="success">
             Save
           </Button>
