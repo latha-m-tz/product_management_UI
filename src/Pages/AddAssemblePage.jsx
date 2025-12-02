@@ -435,8 +435,11 @@ export default function AddAssemblePage() {
             // ✅ Call API to check if serials are purchased
             const checkRes = await api.post("/check-serials-purchased", checkPayload);
 
-            const purchasedSerials = checkRes.data.purchased || [];
-            const notPurchasedSerials = checkRes.data.not_purchased || [];
+const purchasedSerials =
+    checkRes.data.serial_validation?.purchased || [];
+
+const notPurchasedSerials =
+    checkRes.data.serial_validation?.not_purchased || [];
 
             if (notPurchasedSerials.length > 0) {
                 toast.error(
