@@ -28,8 +28,8 @@ const ComponentStock = () => {
   const [isAvailable, setIsAvailable] = useState(true);
 
   useEffect(() => {
-      const token = localStorage.getItem("authToken");
-  if (token) setAuthToken(token);
+    const token = localStorage.getItem("authToken");
+    if (token) setAuthToken(token);
 
     api
       .get(`/vci-capacity`)
@@ -40,7 +40,7 @@ const ComponentStock = () => {
 
           const unavailablePart = parts.find((p) => p.status === "Unavailable" || p.boards_possible <= 0);
           if (unavailablePart) {
-            setIsAvailable(false); 
+            setIsAvailable(false);
             // setMessage(`Using available parts, we can make ${res.data.data.available_vci_boards_possible} VCI's`);
           } else {
             setIsAvailable(true);
@@ -65,20 +65,20 @@ const ComponentStock = () => {
           <h5 className="fw-semibold mb-1">Components Stock</h5>
           <small className="text-muted d-block">Spare parts</small>
         </div>
-          {message && (
-            <div
-              className="d-flex align-items-center"
-              style={{ maxWidth: "350px", textAlign: "right" }}
-            >
-          <FaBell className="me-2" style={{ color: "#28a745" }}/>
-          <small
-            className="fw-semibold"
-            style={{ lineHeight: "1.2", color: "#28a745" }}
+        {message && (
+          <div
+            className="d-flex align-items-center"
+            style={{ maxWidth: "350px", textAlign: "right" }}
           >
-            {message}
-          </small>
-            </div>
-          )}
+            <FaBell className="me-2" style={{ color: "#28a745" }} />
+            <small
+              className="fw-semibold"
+              style={{ lineHeight: "1.2", color: "#28a745" }}
+            >
+              {message}
+            </small>
+          </div>
+        )}
       </div>
 
       <div className="stock-scroll-wrapper mt-3">
@@ -93,28 +93,17 @@ const ComponentStock = () => {
             stockData.map((item, index) => (
               <div key={index} className="five-col mb-3">
                 <div className="d-flex">
-                  <div
-                    className="bg-light rounded me-2 mt-1"
-                    style={{ width: 50, height: 50 }}
-                  ></div>
-
+                  {/* NO IMAGE — ONLY TEXT */}
                   <div className="d-flex flex-column justify-content-center">
                     <small className="custom-small-text">{item.name}</small>
-                    <div className="fw-bold fs-5">{item.total_quantity} Qty</div>
-                    {/* <small
-                      className={`d-block ${
-                        item.boards_possible > 0 ? "text-muted" : "text-danger fw-semibold"
-                      }`}
-                    >
-                      {item.boards_possible > 0
-                        ? `Stock supports ${item.boards_possible} VCI's`
-                        : "Unavailable"}
+<div className="fw-bold fs-5">
+  {(item.total_quantity ?? item.qty ?? item.quantity ?? 0) + " Qty"}
+</div>
+                    {/* <small className="text-muted d-block">
+                      Using {item.usedVCI} VCI's
                     </small> */}
-                    {/* <small
-                      className={item.boards_possible > 0 ? "#28a745" : "text-danger"}
-                      style={item.boards_possible > 0 ? { color: "#28a745" } : {}}
-                    >
-                      {item.boards_possible > 0 ? (
+                    {/* <small className={item.up ? "text-success" : "text-danger"}>
+                      {item.up ? (
                         <FaArrowUp style={{ fontSize: "10px" }} />
                       ) : (
                         <FaArrowDown style={{ fontSize: "10px" }} />
@@ -123,6 +112,7 @@ const ComponentStock = () => {
                   </div>
                 </div>
               </div>
+
             ))
           ) : (
             <div className="text-center w-100 py-4">

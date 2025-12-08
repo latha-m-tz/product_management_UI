@@ -41,13 +41,13 @@ export default function AddSalesPage() {
   const MySwal = withReactContent(Swal);
 
   useEffect(() => {
-  const token = localStorage.getItem("authToken");
-  if (token) setAuthToken(token);
-  api
-    .get("/customers/get")
-    .then((res) => setCustomers(res.data))
-    .catch(() => toast.error("Failed to load customers"))
-    .finally(() => setLoading(false));
+    const token = localStorage.getItem("authToken");
+    if (token) setAuthToken(token);
+    api
+      .get("/customers/get")
+      .then((res) => setCustomers(res.data))
+      .catch(() => toast.error("Failed to load customers"))
+      .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
@@ -114,14 +114,14 @@ export default function AddSalesPage() {
 
       setItems((prev) => {
         const merged = [...prev];
+
         groupedArray.forEach((newItem) => {
-          const existing = merged.find((m) => m.product_id === newItem.product_id);
-          if (existing) {
-            existing.serials = [...new Set([...existing.serials, ...newItem.serials])];
-            existing.quantity = existing.serials.length;
-          } else {
-            merged.push(newItem);
-          }
+          merged.push({
+            product_id: newItem.product_id,
+            product_name: newItem.product_name,
+            serials: [...newItem.serials],
+            quantity: newItem.serials.length
+          });
         });
 
         const activeProductIds = merged.map((item) => String(item.product_id));
@@ -131,6 +131,7 @@ export default function AddSalesPage() {
 
         return merged;
       });
+
 
       localStorage.removeItem("selectedProducts");
     }
@@ -142,19 +143,19 @@ export default function AddSalesPage() {
     if (!customerId || parseInt(customerId) <= 0)
       errors.customerId = "Customer is required";
     if (!challanNo.trim()) errors.challanNo = "Challan No is required";
- if (!challanDate) {
-    errors.challanDate = "Challan Date is required";
-  } else if (new Date(challanDate) > new Date()) {
-    errors.challanDate = "Challan Date cannot be in the future";
-  }
+    // if (!challanDate) {
+    //   errors.challanDate = "Challan Date is required";
+    // } else if (new Date(challanDate) > new Date()) {
+    //   errors.challanDate = "Challan Date cannot be in the future";
+    // }
 
-  if (!shipmentDate) {
-    errors.shipmentDate = "Shipment Date is required";
-  } else if (new Date(shipmentDate) > new Date()) {
-    errors.shipmentDate = "Shipment Date cannot be in the future";
-  } else if (new Date(shipmentDate) < new Date(challanDate)) {
-    errors.shipmentDate = "Shipment Date cannot be before Challan Date";
-  }
+    if (!shipmentDate) {
+      errors.shipmentDate = "Shipment Date is required";}
+    // } else if (new Date(shipmentDate) > new Date()) {
+    //   errors.shipmentDate = "Shipment Date cannot be in the future";
+    // } else if (new Date(shipmentDate) < new Date(challanDate)) {
+    //   errors.shipmentDate = "Shipment Date cannot be before Challan Date";
+    // }
 
     if (items.length === 0) {
       errors.items = "Please add at least one product";
@@ -263,7 +264,6 @@ export default function AddSalesPage() {
           localStorage.setItem("inSaleProducts", JSON.stringify(filtered));
         }
 
-        // 🟢 Trigger event so AddProductPage updates immediately
         window.dispatchEvent(new Event("inSaleProductsUpdated"));
 
         toast.success(`"${removedItem.product_name}" removed successfully!`);
@@ -443,20 +443,30 @@ export default function AddSalesPage() {
               )}
 
               {items.length > 0 && (
-                <Table bordered hover size="sm">
-                  <thead className="table-light">
+                <Table striped bordered hover size="sm">
+                  <thead>
                     <tr>
                       <th>Product</th>
                       <th>Quantity</th>
                       <th>Action</th>
                     </tr>
                   </thead>
+
                   <tbody>
                     {items.map((item, index) => (
                       <tr key={index}>
                         <td>{item.product_name}</td>
-                        <td>{item.quantity}</td>
-                        <td className="text-center">
+
+                        <td>
+                          <Form.Control
+                            type="number"
+                            min="1"
+                            value={item.quantity}
+                            readOnly
+                          />
+                        </td>
+
+                        <td>
                           <Button
                             variant="outline-danger"
                             size="sm"
@@ -469,6 +479,7 @@ export default function AddSalesPage() {
                     ))}
                   </tbody>
                 </Table>
+
               )}
 
             </div>

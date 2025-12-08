@@ -44,12 +44,15 @@ const SkeletonChart = () => (
   ></div>
 );
 
+// Auto-scale Y-Axis
 function getYAxisConfig(maxVal) {
   const paddedMax = maxVal * 1.1;
 
-  if (paddedMax <= 10) return { min: 1, max: 10, stepSize: 1 };
-  if (paddedMax <= 100) return { min: 0, max: Math.ceil(paddedMax / 10) * 10, stepSize: 10 };
-  if (paddedMax <= 1000) return { min: 0, max: Math.ceil(paddedMax / 100) * 100, stepSize: 100 };
+  if (paddedMax <= 10) return { min: 0, max: 10, stepSize: 1 };
+  if (paddedMax <= 100)
+    return { min: 0, max: Math.ceil(paddedMax / 10) * 10, stepSize: 10 };
+  if (paddedMax <= 1000)
+    return { min: 0, max: Math.ceil(paddedMax / 100) * 100, stepSize: 100 };
 
   return { min: 0, max: Math.ceil(paddedMax / 1000) * 1000, stepSize: 1000 };
 }
@@ -63,7 +66,7 @@ export default function OverviewPage() {
   });
 
   const [graphData, setGraphData] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); 
   const [countLoading, setCountLoading] = useState(true);
   const [duration, setDuration] = useState("Month");
   const [availableYears, setAvailableYears] = useState([]);
@@ -81,19 +84,15 @@ export default function OverviewPage() {
     setLoading(true);
 
     try {
-      const [vendorsRes, customersRes, salesSummaryRes, productsold] =
+      const [vendorsRes, customersRes, salesSummaryRes, productSoldCount] =
         await Promise.all([
           api.get("/vendors/count"),
           api.get("/customers/count"),
-          api.get("/sales-summary"),
+          api.get("/products/available/count"),
           api.get("/products/sold/count"),
         ]);
 
-      console.log("VENDORS:", vendorsRes.data);
-      console.log("CUSTOMERS:", customersRes.data);
-      console.log("SALES SUMMARY:", salesSummaryRes.data);
-      console.log("SOLD COUNT:", productsold.data);
-
+      // Helper to extract count
       const extract = (obj) => {
         if (!obj) return 0;
         return (
@@ -109,52 +108,96 @@ export default function OverviewPage() {
       setStats({
         customers: extract(customersRes.data),
         vendors: extract(vendorsRes.data),
-        productSales: extract(
-          salesSummaryRes.data.totalProductsSold ??
-          salesSummaryRes.data.total_products_sold
-        ),
-        soldCount: extract(productsold.data),
+       productSales: salesSummaryRes.data.count ?? 0,
+
+        soldCount: extract(productSoldCount.data),
       });
 
-      // 📌 FIX GRAPH DATA KEYS
+      // Fix graph data
       const summary = salesSummaryRes.data;
-      const yearly = summary.yearlySales ?? summary.yearly_sales ?? [];
-      const monthly = summary.monthlySales ?? summary.monthly_sales ?? [];
+
+      const yearly =
+        summary.yearly_sales ??
+        summary.yearlySales ??
+        summary.yearly ??
+        summary.yearly_data ??
+        [];
+
+      const monthly =
+        summary.monthly_sales ??
+        summary.monthlySales ??
+        summary.monthly ??
+        summary.monthly_data ??
+        [];
 
       const years = yearly.map((y) => y.year);
       setAvailableYears(years);
 
-      if (!selectedYear && years.length) {
+      if (!selectedYear && years.length > 0) {
         const currentYear = new Date().getFullYear();
-        setSelectedYear(years.includes(currentYear) ? currentYear : Math.max(...years));
+        setSelectedYear(
+          years.includes(currentYear) ? currentYear : Math.max(...years)
+        );
       }
 
+      // YEARLY GRAPH
       if (duration === "Year") {
         setGraphData(
-          yearly.map((item) => ({
-            label: item.year.toString(),
-            value: item.total_quantity ?? item.totalQuantity ?? 0,
+          yearly.map((y) => ({
+            label: y.year.toString(),
+            value:
+              y.total_quantity ??
+              y.totalQuantity ??
+              y.total ??
+              Number(y.total) ??
+              0,
           }))
         );
-      } else {
-        const filteredMonthly = selectedYear
-          ? monthly.filter((m) => m.year === selectedYear)
-          : monthly;
-
+      }
+      // MONTHLY GRAPH
+      else {
         const allMonths = [
-          "January", "February", "March", "April", "May", "June",
-          "July", "August", "September", "October", "November", "December",
+          "January",
+          "February",
+          "March",
+          "April",
+          "May",
+          "June",
+          "July",
+          "August",
+          "September",
+          "October",
+          "November",
+          "December",
         ];
 
         const short = {
-          January: "Jan", February: "Feb", March: "Mar", April: "Apr",
-          May: "May", June: "Jun", July: "Jul", August: "Aug",
-          September: "Sep", October: "Oct", November: "Nov", December: "Dec",
+          January: "Jan",
+          February: "Feb",
+          March: "Mar",
+          April: "Apr",
+          May: "May",
+          June: "Jun",
+          July: "Jul",
+          August: "Aug",
+          September: "Sep",
+          October: "Oct",
+          November: "Nov",
+          December: "Dec",
         };
 
+        const filteredMonthly = selectedYear
+          ? monthly.filter((m) => Number(m.year) === Number(selectedYear))
+          : monthly;
+
         const lookup = {};
-        filteredMonthly.forEach((item) => {
-          lookup[item.month_name] = item.total_quantity ?? 0;
+        filteredMonthly.forEach((m) => {
+          lookup[m.month_name.trim()] =
+            m.total_quantity ??
+            m.totalQuantity ??
+            m.total ??
+            Number(m.total) ??
+            0;
         });
 
         const fullYear = allMonths.map((month) => ({
@@ -166,7 +209,6 @@ export default function OverviewPage() {
       }
     } catch (error) {
       console.error("Dashboard API Error:", error);
-
       setStats({ vendors: 0, customers: 0, productSales: 0, soldCount: 0 });
       setGraphData([]);
     } finally {
@@ -174,8 +216,6 @@ export default function OverviewPage() {
       setLoading(false);
     }
   };
-
-
 
   const formatCount = (num) => {
     if (!num) return 0;
@@ -193,7 +233,7 @@ export default function OverviewPage() {
         label: "Product Sales",
         data: graphData.map((item) => item.value),
         borderColor: "#28a745",
-        backgroundColor: "#28a745",
+        backgroundColor: "rgba(40, 167, 69, 0.3)",
         fill: true,
         tension: 0.4,
         pointRadius: 4,
@@ -216,11 +256,9 @@ export default function OverviewPage() {
         min: yMin,
         max: yMax,
         ticks: {
-          stepSize: stepSize,
-          callback: (val) => {
-            if (yMax >= 1000 && val % 1000 === 0) return `${val / 1000}k`;
-            return val;
-          },
+          stepSize,
+          callback: (val) =>
+            yMax >= 1000 && val % 1000 === 0 ? `${val / 1000}k` : val,
         },
       },
     },
@@ -230,7 +268,7 @@ export default function OverviewPage() {
     <>
       <div className="container-fluid px-0">
         <Row className="mb-4 g-3 w-100 mx-0">
-
+          {/* CARDS */}
           <Col xs={12} sm={6} md={3} className="px-2">
             <Card className="border-0 shadow-sm h-100" style={{ backgroundColor: "#E3F5FF" }}>
               <Card.Body>
@@ -252,7 +290,7 @@ export default function OverviewPage() {
           <Col xs={12} sm={6} md={3} className="px-2">
             <Card className="border-0 shadow-sm h-100" style={{ backgroundColor: "#E5ECF6" }}>
               <Card.Body>
-                <h6 className="fw-semibold">Product Sale</h6>
+                <h6 className="fw-semibold">Products</h6>
                 {countLoading ? <SkeletonCard /> : <h2>{formatCount(stats.productSales)}</h2>}
               </Card.Body>
             </Card>
@@ -266,10 +304,10 @@ export default function OverviewPage() {
               </Card.Body>
             </Card>
           </Col>
-
         </Row>
       </div>
 
+      {/* GRAPH */}
       <Card className="shadow-sm border-0 mb-4">
         <Card.Body>
           <div className="d-flex justify-content-between align-items-center mb-3">

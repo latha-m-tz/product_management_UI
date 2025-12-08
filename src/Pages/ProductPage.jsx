@@ -58,13 +58,19 @@ export default function ProductPage() {
     setLoading(true);
     try {
       const res = await api.get("/product");
-      setProducts(Array.isArray(res.data) ? res.data : []);
+
+      const list = Array.isArray(res.data) ? res.data : [];
+
+      const sorted = list.sort((a, b) => b.id - a.id);
+
+      setProducts(sorted);
     } catch {
       toast.error("Failed to fetch products!");
     } finally {
       setLoading(false);
     }
   };
+
 
   const fetchSpareparts = async () => {
     try {
@@ -291,7 +297,8 @@ export default function ProductPage() {
             <thead style={headerStyle}>
               <tr>
                 <th style={{ width: "60px", textAlign: "center", backgroundColor: "#2E3A59", color: "white" }}>S.No</th>
-                <th style={{ backgroundColor: "#2E3A59", color: "white" }}>Product Name</th>
+                <th style={{ backgroundColor: "#2E3A59", color: "white" }}>Product Name
+                </th>
                 <th style={{ backgroundColor: "#2E3A59", color: "white" }}>Product Type</th>
                 <th style={{ width: "130px", textAlign: "center", backgroundColor: "#2E3A59", color: "white" }}>Action</th>
               </tr>
@@ -367,7 +374,7 @@ export default function ProductPage() {
 
         <Offcanvas.Body style={{ fontSize: "0.85rem" }}>
           <Form.Group className="mb-3">
-            <Form.Label>Product Name</Form.Label>
+            <Form.Label>Product Name <span style={{ color: "red" }}>*</span></Form.Label>
             <Form.Control
               type="text"
               placeholder="Enter Product Name"
@@ -399,7 +406,6 @@ export default function ProductPage() {
                 setProductTypeName(selected ? selected.value : "");
               }}
               onCreateOption={(inputValue) => {
-                // User typed a custom value
                 setProductTypeName(inputValue);
               }}
               options={[
@@ -422,73 +428,73 @@ export default function ProductPage() {
 
           <Form.Group className="mb-3">
             <Form.Label>Spareparts with Required Quantity</Form.Label>
-            <Select
-              isMulti
-              placeholder="Select Spareparts..."
-              value={selectedSpareparts.map((sp) => ({
-                value: sp.id,
-                label: `${sp.name} (${sp.required_quantity || 0})`,
-              }))}
-              onChange={async (options) => {
 
-                const updated = options?.map((opt) => {
-                  const existing = selectedSpareparts.find(sp => sp.id === opt.value);
-                  return existing || { id: opt.value, name: opt.label, required_quantity: 0 };
-                }) || [];
-
-                // Detect removed sparepart
-                const removedList = selectedSpareparts.filter(
-                  sp => !updated.some(u => u.id === sp.id)
-                );
-
-                if (removedList.length > 0) {
-                  const removedItem = removedList[0];
-
-                  const result = await MySwal.fire({
-                    title: "Remove Sparepart?",
-                    text: `${removedItem.name} will be removed from this product.`,
-                    icon: "warning",
-                    showCancelButton: true,
-                    confirmButtonColor: "#d33",
-                    cancelButtonColor: "#2FA64F",
-                    confirmButtonText: "Yes, remove",
-                    cancelButtonText: "Cancel"
-                  });
-
-                  if (result.isConfirmed) {
-                    toast.error(`${removedItem.name} removed from product`);
-                    setSelectedSpareparts(updated);
-                  } else {
-                    // Restore original selection  ❗
-                    setSelectedSpareparts([...selectedSpareparts]);
-                  }
-
-                  return;
-                }
-
-                // No deletion, regular change
-                setSelectedSpareparts(updated);
+            <div
+              style={{
+                maxHeight: "250px",
+                overflowY: "auto",
+                border: "1px solid #ddd",
+                padding: "10px",
+                borderRadius: "6px",
               }}
-              options={spareparts.map((sp) => ({ value: sp.id, label: sp.name }))}
-            />
-            {selectedSpareparts.map((sp, idx) => (
-              <Row key={sp.id} className="align-items-center mt-2">
-                <Col xs={7}>{sp.name}</Col>
-                <Col xs={5}>
-                  <Form.Control
-                    type="number"
-                    value={sp.required_quantity}
-                    onChange={(e) => {
-                      const newList = [...selectedSpareparts];
-                      newList[idx].required_quantity = e.target.value;
-                      setSelectedSpareparts(newList);
-                    }}
-                    placeholder="Qty"
-                  />
-                </Col>
-              </Row>
-            ))}
+            >
+              {spareparts.map((sp) => {
+                const isChecked = selectedSpareparts.some((item) => item.id === sp.id);
+                const selectedItem = selectedSpareparts.find((item) => item.id === sp.id);
+
+                return (
+                  <Row key={sp.id} className="align-items-center mb-2">
+                    <Col xs={1}>
+                      <Form.Check
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            // Add sparepart
+                            setSelectedSpareparts([
+                              ...selectedSpareparts,
+                              { id: sp.id, name: sp.name, required_quantity: 1 },
+                            ]);
+                          } else {
+                            // Remove sparepart
+                            setSelectedSpareparts(
+                              selectedSpareparts.filter((item) => item.id !== sp.id)
+                            );
+                          }
+                        }}
+                      />
+                    </Col>
+
+                    <Col xs={7}>{sp.name}</Col>
+
+                    <Col xs={4}>
+                      {isChecked && (
+                        <Form.Control
+                          type="number"
+                          min="1"
+                          value={selectedItem.required_quantity}
+                          onChange={(e) => {
+                            let qty = Number(e.target.value);
+
+                            if (qty < 1 || isNaN(qty)) qty = 1; // prevent negative & zero
+
+                            const updated = selectedSpareparts.map((item) =>
+                              item.id === sp.id
+                                ? { ...item, required_quantity: qty }
+                                : item
+                            );
+
+                            setSelectedSpareparts(updated);
+                          }}
+                        />
+                      )}
+                    </Col>
+                  </Row>
+                );
+              })}
+            </div>
           </Form.Group>
+
 
           <div className="border-top pt-3 mt-2 d-flex justify-content-end">
             <Button variant="success" onClick={handleSave}>

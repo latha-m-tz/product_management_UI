@@ -369,15 +369,15 @@ export default function AddAssemblePage() {
         );
         if (globalIndex === -1) return;
         if (field === "tested_status") {
-            const currentStatus = updated[globalIndex].tested_status;
-            let newStatus;
-            if (currentStatus.includes(value)) {
-                newStatus = [];
-            } else {
-                newStatus = [value];
+            let newStatus = [];
+
+            if (value) {
+                newStatus = [value];  // PASS or FAIL
             }
-            updated[globalIndex][field] = newStatus.length > 0 ? newStatus : ["PASS"];
-        } else {
+
+            updated[globalIndex].tested_status = newStatus.length > 0 ? newStatus : null;
+        }
+        else {
             updated[globalIndex][field] = value;
         }
         setProducts(updated);
@@ -435,11 +435,11 @@ export default function AddAssemblePage() {
             // ✅ Call API to check if serials are purchased
             const checkRes = await api.post("/check-serials-purchased", checkPayload);
 
-const purchasedSerials =
-    checkRes.data.serial_validation?.purchased || [];
+            const purchasedSerials =
+                checkRes.data.serial_validation?.purchased || [];
 
-const notPurchasedSerials =
-    checkRes.data.serial_validation?.not_purchased || [];
+            const notPurchasedSerials =
+                checkRes.data.serial_validation?.not_purchased || [];
 
             if (notPurchasedSerials.length > 0) {
                 toast.error(
@@ -465,7 +465,7 @@ const notPurchasedSerials =
                     tested_by: p.tested_by || null,
                     tested_status: Array.isArray(p.tested_status)
                         ? p.tested_status.join(",")
-                        : p.tested_status || "PASS",
+                        : p.tested_status ?? null,
                     test_remarks: p.test_remarks || "",
                     from_serial: p.from_serial,
                     to_serial: p.to_serial,
@@ -490,7 +490,9 @@ const notPurchasedSerials =
         const lowerCaseSearchTerm = searchTerm.toLowerCase();
         const serialNo = p.serial_no.toLowerCase();
         const testedBy = p.tested_by.toLowerCase();
-        const testedStatus = p.tested_status.join(",").toLowerCase();
+        const testedStatus = Array.isArray(p.tested_status)
+            ? p.tested_status.join(",").toLowerCase()
+            : "";
         const textMatch =
             serialNo.includes(lowerCaseSearchTerm) ||
             testedBy.includes(lowerCaseSearchTerm) ||
@@ -859,7 +861,7 @@ const notPurchasedSerials =
                                                         type="checkbox"
                                                         id={`pass-${i}`}
                                                         className="custom-checkbox-color"
-                                                        checked={row.tested_status.includes("PASS")}
+                                                        checked={row.tested_status?.includes("PASS") || false}
                                                         onChange={(e) =>
                                                             handleRowChange(i, "tested_status", e.target.checked ? "PASS" : "")
                                                         }
@@ -870,7 +872,7 @@ const notPurchasedSerials =
                                                         type="checkbox"
                                                         id={`fail-${i}`}
                                                         className="custom-checkbox-color"
-                                                        checked={row.tested_status.includes("FAIL")}
+                                                        checked={row.tested_status?.includes("FAIL") || false}
                                                         onChange={(e) =>
                                                             handleRowChange(i, "tested_status", e.target.checked ? "FAIL" : "")
                                                         }

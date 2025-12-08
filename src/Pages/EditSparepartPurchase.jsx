@@ -53,7 +53,6 @@ export default function EditSparepartPurchase({ purchaseId }) {
   const { id } = useParams();
   const purchaseKey = purchaseId || id;
 
-  // Helper: Parse serial into prefix and number
   const parseSerial = (serial) => {
     if (!serial) return { prefix: "", num: null, orig: "" };
     const match = serial.match(/^(.*?)(\d+)$/);
@@ -63,12 +62,27 @@ export default function EditSparepartPurchase({ purchaseId }) {
       orig: serial,
     };
   };
-  // 👇 add this near the top, after hooks like useParams/useNavigate
   useEffect(() => {
     const token = localStorage.getItem("authToken");
     if (token) setAuthToken(token);
   }, []);
 
+  const isPreviousRowComplete = (prevRow) => {
+    if (!prevRow || !prevRow.sparepart_id) return false;
+
+    const type = sparepartTypeOf(prevRow.sparepart_id);
+
+    if (type.includes("serial")) {
+      return (
+        prevRow.from_serial &&
+        prevRow.to_serial &&
+        prevRow.qty > 0
+      );
+    }
+
+    // quantity or warranty based
+    return prevRow.qty > 0;
+  };
 
 
   const isSerialMatchingProduct = (serial, productSeries) => {
@@ -487,33 +501,36 @@ export default function EditSparepartPurchase({ purchaseId }) {
 
   const handleSparepartChange = (index, value) => {
     const updated = [...spareparts];
-    const sp = updated[index];
+    updated[index].sparepart_id = value;
 
-    if (sp.sparepart_id !== value) {
-      // Changing to a completely new sparepart
-      sp.sparepart_id = value;
-      sp.qty = "";
+    // reset dependent fields
+    updated[index].from_serial = "";
+    updated[index].to_serial = "";
+    updated[index].qty = "";
 
-      // Only reset product and serials if needed
-      sp.product_id = "";
-      sp.from_serial = "";
-      sp.to_serial = "";
-      sp.serials = [];
-    }
-
-    updated[index] = sp;
     setSpareparts(updated);
+
+    // 🔥 clear error
+    clearItemError(index, "sparepart_id");
   };
 
 
+
   const handleInputChange = (index, field, value) => {
-    const type = sparepartTypeOf(spareparts[index].sparepart_id);
+
+    clearItemError(index, field);
+
+    if (field === "from_serial" || field === "to_serial") {
+      clearItemError(index, "from_serial");
+      clearItemError(index, "to_serial");
+    }
+
     const updated = [...spareparts];
 
     const isSerial = field === "from_serial" || field === "to_serial";
 
     if (isSerial) {
-      // Allow digits only
+      // allow digits only
       value = value.replace(/\D/g, "").slice(0, 6);
 
       updated[index][field] = value;
@@ -521,12 +538,13 @@ export default function EditSparepartPurchase({ purchaseId }) {
       const from = updated[index].from_serial;
       const to = updated[index].to_serial;
 
-      // Calculate qty
       const fromNum = Number(from);
       const toNum = Number(to);
 
+      // auto calculate qty
       if (!isNaN(fromNum) && !isNaN(toNum) && fromNum <= toNum) {
         updated[index].qty = toNum - fromNum + 1;
+        clearItemError(index, "qty");   // 🔥 remove qty error
       } else {
         updated[index].qty = "";
       }
@@ -535,8 +553,14 @@ export default function EditSparepartPurchase({ purchaseId }) {
       return;
     }
 
-    // Non-serial fields
+    // non-serial fields
     updated[index][field] = value;
+
+    // if qty changes → clear qty error
+    if (field === "qty") {
+      clearItemError(index, "qty");
+    }
+
     setSpareparts(updated);
   };
 
@@ -557,7 +581,6 @@ export default function EditSparepartPurchase({ purchaseId }) {
         const m1 = parseSerial(from_serial);
         const m2 = parseSerial(to_serial);
 
-        // If both valid numeric parts and new range differs from existing serials
         if (m1.num !== null && m2.num !== null && m2.num >= m1.num) {
           const newSerials = [];
           for (let n = m1.num; n <= m2.num; n++) {
@@ -565,7 +588,6 @@ export default function EditSparepartPurchase({ purchaseId }) {
             newSerials.push(`${m1.prefix}${paddedNum}`);
           }
 
-          // Only update if changed
           if (JSON.stringify(sp.serials) !== JSON.stringify(newSerials)) {
             updated[idx] = { ...sp, serials: newSerials, qty: newSerials.length };
             changed = true;
@@ -614,7 +636,6 @@ export default function EditSparepartPurchase({ purchaseId }) {
     updated.splice(index, 1);
     setSpareparts(updated);
 
-    // Cleanup validation errors for that index
     setErrors((prev) => {
       const items = { ...(prev.items || {}) };
       if (items[index]) delete items[index];
@@ -631,60 +652,87 @@ export default function EditSparepartPurchase({ purchaseId }) {
     });
   };
 
+  const clearItemError = (index, field) => {
+    setErrors(prev => {
+      const items = { ...(prev.items || {}) };
+
+      if (items[index]?.[field]) {
+        delete items[index][field];
+      }
+
+      if (items[index] && Object.keys(items[index]).length === 0) {
+        delete items[index];
+      }
+
+      return { ...prev, items };
+    });
+  };
 
   const validateForm = () => {
     const errs = {};
 
+    // Vendor Required
     if (!vendorId) errs.vendor_id = "Vendor is required";
+
+    // Challan No Required
     if (!challanNo) errs.challan_no = "Challan No is required";
+
+    // Challan Date Required
     if (!challanDate) errs.challan_date = "Challan Date is required";
 
+    // Received Date Required
+    if (!receivedDate) errs.received_date = "Received Date is required";
+
+    // 🚨 DATE VALIDATION FIXED — always shows your error properly
+    if (challanDate && receivedDate) {
+      const cd = new Date(challanDate);
+      const rd = new Date(receivedDate);
+
+      if (rd < cd) {
+        errs.received_date = "Received Date cannot be before Challan Date";
+      }
+    }
+
+    // Spareparts Validation
     const itemErrors = {};
 
     spareparts.forEach((sp, idx) => {
       const type = sparepartTypeOf(sp.sparepart_id);
       const itemErr = {};
 
-      if (!sp.sparepart_id) itemErr.sparepart_id = "Select sparepart";
+      if (!sp.sparepart_id) itemErr.sparepart_id = "Sparepart is required";
 
       if (type.includes("serial")) {
-        // if (!sp.product_id) itemErr.product_id = "Select product";
-        if (!sp.from_serial) itemErr.from_serial = "From Serial required";
-        if (!sp.to_serial) itemErr.to_serial = "To Serial required";
+        if (!sp.from_serial) itemErr.from_serial = "From Serial is required";
+        if (!sp.to_serial) itemErr.to_serial = "To Serial is required";
 
         if (sp.from_serial && sp.to_serial) {
-          const m1 = parseSerial(sp.from_serial);
-          const m2 = parseSerial(sp.to_serial);
+          const fromNum = Number(sp.from_serial);
+          const toNum = Number(sp.to_serial);
 
-          if (m2.num < m1.num) {
-            itemErr.from_serial = "From Serial must be less than or equal to To Serial";
-            itemErr.to_serial = "From Serial must be less than or equal to To Serial";
+          if (fromNum > toNum) {
+            itemErr.from_serial = "From Serial must be <= To Serial";
+            itemErr.to_serial = "From Serial must be <= To Serial";
           }
-
-          if (!/^\d{6}$/.test(String(m1.num)) || !/^\d{6}$/.test(String(m2.num))) {
-            itemErr.from_serial = "From Serial must have exactly 6 digits after prefix";
-            itemErr.to_serial = "To Serial must have exactly 6 digits after prefix";
-          }
-
-          // const productData = availableCategories.find(c => c.id === sp.product_id);
-          // const prefix = (productData?.seriesPrefix || productData?.series || "").replace(/[-\s]/g, "");
-          // if (!sp.from_serial.startsWith(prefix) || !sp.to_serial.startsWith(prefix)) {
-          //   itemErr.from_serial = `Serial must start with product prefix (${prefix})`;
-          //   itemErr.to_serial = `Serial must start with product prefix (${prefix})`;
-          // }
         }
       }
 
-      if (!sp.qty || Number(sp.qty) < 1) itemErr.qty = "Quantity must be at least 1";
+      if (!sp.qty || Number(sp.qty) < 1) {
+        itemErr.qty = "Quantity is required";
+      }
 
-      if (type.includes("warranty") && !sp.warranty_status) itemErr.warranty_status = "Select warranty status";
-
-      if (Object.keys(itemErr).length) itemErrors[idx] = itemErr;
+      if (Object.keys(itemErr).length > 0) {
+        itemErrors[idx] = itemErr;
+      }
     });
 
-    if (Object.keys(itemErrors).length) errs.items = itemErrors;
+    if (Object.keys(itemErrors).length > 0) {
+      errs.items = itemErrors;
+    }
 
+    // SET ALL ERRORS
     setErrors(errs);
+
     return Object.keys(errs).length === 0;
   };
 
@@ -765,10 +813,6 @@ export default function EditSparepartPurchase({ purchaseId }) {
     }
   };
 
-
-
-
-
   const feedbackStyle = { color: "red", fontSize: "0.85rem", marginTop: "4px" };
   const serialInputStyle = { background: "#e9ecef" }; // light gray box
 
@@ -812,8 +856,6 @@ export default function EditSparepartPurchase({ purchaseId }) {
                     </option>
                   ))}
                 </Form.Select>
-
-
                 {errors.vendor_id && <div style={feedbackStyle}>{errors.vendor_id}</div>}
               </Form.Group>
             </Col>
@@ -841,11 +883,35 @@ export default function EditSparepartPurchase({ purchaseId }) {
             </Col>
             <Col md={4}>
               <Form.Group className="mb-2">
-                <Form.Label>Received Date</Form.Label>
+                <Form.Label>
+                  Received Date<span style={{ color: "red" }}> *</span>
+                </Form.Label>
+
                 <Form.Control
                   type="date"
                   value={receivedDate}
-                  onChange={(e) => setReceivedDate(e.target.value)}
+                  onChange={(e) => {
+                    setReceivedDate(e.target.value);
+                    setErrors((prev) => ({ ...prev, received_date: null })); // clear error
+                  }}
+                />
+
+                {errors.received_date && (
+                  <div style={{ color: "red", fontSize: "0.85rem", marginTop: "4px" }}>
+                    {errors.received_date}
+                  </div>
+                )}
+              </Form.Group>
+            </Col>
+
+            <Col md={4}>
+              <Form.Group className="mb-2">
+                <Form.Label>Courier Name</Form.Label>
+                <Form.Control
+                  type="text"
+                  placeholder="Enter Courier Name"
+                  value={courier_name}
+                  onChange={(e) => setCourierName(e.target.value)}
                 />
               </Form.Group>
             </Col>
@@ -861,17 +927,7 @@ export default function EditSparepartPurchase({ purchaseId }) {
                 />
               </Form.Group>
             </Col>
-            <Col md={4}>
-              <Form.Group className="mb-2">
-                <Form.Label>Courier Name</Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="Enter Courier Name"
-                  value={courier_name}
-                  onChange={(e) => setCourierName(e.target.value)}
-                />
-              </Form.Group>
-            </Col>
+
             <Col md={6}>
               <Form.Group className="mb-2">
                 <Form.Label>
@@ -881,41 +937,42 @@ export default function EditSparepartPurchase({ purchaseId }) {
                     size="sm"
                     className="text-success ms-1 p-0"
                     onClick={() => addFileField("recipient")}
+                    disabled={!recipientFiles[recipientFiles.length - 1]}
                   >
                     <i className="bi bi-plus-circle"></i> Add
                   </Button>
+
+                  {!recipientFiles[recipientFiles.length - 1] && (
+                    <small className="text-danger d-block"></small>
+                  )}
                 </Form.Label>
 
                 {recipientFiles.map((file, idx) => (
                   <div key={idx} className="d-flex align-items-center gap-2 mb-2">
                     <div className="file-input-wrapper flex-grow-1 d-flex align-items-center border rounded overflow-hidden">
                       <label className="custom-file-label mb-0">
-                        <span className="btn btn-outline-secondary btn-sm">Choose File</span>
+                        <span className="btn btn-outline-secondary btn-sm">
+                          {idx > 0 && !recipientFiles[idx - 1] ? "Locked" : "Choose File"}
+                        </span>
+
                         <input
                           type="file"
                           accept="image/*,application/pdf"
+                          disabled={idx > 0 && !recipientFiles[idx - 1]}  // ⛔ disable if previous is empty
                           onChange={(e) => handleFileChange("recipient", idx, e.target.files[0])}
                           style={{ display: "none" }}
                         />
+
                       </label>
 
                       <div className="file-display px-2 text-truncate">
-                        {typeof file === "string" ? (
-                          <a
-                            href={`${API_BASE_URL.replace("/api", "")}/${file}`}
-
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-primary text-truncate"
-                            style={{ maxWidth: "100%" }}
-                          >
+                        {typeof file === "string"
+                          ? <a href={`${API_BASE_URL.replace("/api", "")}/${file}`} target="_blank">
                             {file.split("/").pop()}
                           </a>
-                        ) : file ? (
-                          file.name
-                        ) : (
-                          "No file chosen"
-                        )}
+                          : file
+                            ? file.name
+                            : "No file chosen"}
                       </div>
                     </div>
 
@@ -1038,15 +1095,27 @@ export default function EditSparepartPurchase({ purchaseId }) {
                         </Form.Label>
                         <Form.Select
                           value={sp.sparepart_id}
-                          onChange={(e) => handleSparepartChange(idx, e.target.value)}
+                          disabled={idx > 0 && !isPreviousRowComplete(spareparts[idx - 1])}
+                          onClick={() => {
+                            if (idx > 0 && !isPreviousRowComplete(spareparts[idx - 1])) {
+                              toast.error("Please fill the previous spareparts required fields first");
+                            }
+                          }}
+                          onChange={(e) => {
+                            if (idx > 0 && !isPreviousRowComplete(spareparts[idx - 1])) {
+                              toast.error("Please fill the previous spareparts required fields first");
+                              return;
+                            }
+                            handleSparepartChange(idx, e.target.value);
+                          }}
                         >
                           <option value="">Select Spare Part</option>
                           {availableSpareparts.map((s) => (
-                            <option key={s.id} value={s.id}>
-                              {s.name}
-                            </option>
+                            <option key={s.id} value={s.id}>{s.name}</option>
                           ))}
                         </Form.Select>
+
+
                         {errors.items?.[idx]?.sparepart_id && (
                           <div style={feedbackStyle}>{errors.items[idx].sparepart_id}</div>
                         )}
@@ -1095,7 +1164,7 @@ export default function EditSparepartPurchase({ purchaseId }) {
 
                             <Col md={2}>
                               <Form.Group className="mb-2">
-                                <Form.Label>From Serial</Form.Label>
+                                <Form.Label>From Serial<span style={{ color: "red" }}> *</span></Form.Label>
                                 <Form.Control
                                   type="text"
                                   maxLength={6}
@@ -1119,7 +1188,7 @@ export default function EditSparepartPurchase({ purchaseId }) {
 
                             <Col md={2}>
                               <Form.Group className="mb-2">
-                                <Form.Label>To Serial</Form.Label>
+                                <Form.Label>To Serial<span style={{ color: "red" }}> *</span></Form.Label>
                                 <Form.Control
                                   type="text"
                                   value={sp.to_serial}
@@ -1135,7 +1204,7 @@ export default function EditSparepartPurchase({ purchaseId }) {
 
                             <Col md={2}>
                               <Form.Group className="mb-2">
-                                <Form.Label>Qty</Form.Label>
+                                <Form.Label>Quantity<span style={{ color: "red" }}> *</span></Form.Label>
                                 <Form.Control
                                   type="number"
                                   value={sp.qty}
@@ -1173,7 +1242,7 @@ export default function EditSparepartPurchase({ purchaseId }) {
                           <>
                             <Col md={3}>
                               <Form.Group className="mb-2">
-                                <Form.Label>Quantity</Form.Label>
+                                <Form.Label>Quantity<span style={{ color: "red" }}> *</span></Form.Label>
                                 <Form.Control
                                   type="number"
                                   value={sp.qty}
@@ -1206,7 +1275,7 @@ export default function EditSparepartPurchase({ purchaseId }) {
                         return (
                           <Col md={3}>
                             <Form.Group className="mb-2">
-                              <Form.Label>Quantity</Form.Label>
+                              <Form.Label>Quantity<span style={{ color: "red" }}> *</span></Form.Label>
                               <Form.Control
                                 type="number"
                                 min={1}

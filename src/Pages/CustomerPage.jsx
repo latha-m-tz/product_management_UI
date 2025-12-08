@@ -47,7 +47,8 @@ export default function CustomerListPage() {
     setLoading(true);
     try {
       const res = await api.get("/customers/get");
-      setCustomers(res.data);
+      const sorted = res.data.sort((a, b) => b.id - a.id);
+      setCustomers(sorted);
     } catch {
       toast.error("Failed to fetch customers.");
     } finally {
@@ -190,7 +191,7 @@ export default function CustomerListPage() {
                   { label: "Mobile", field: "mobile_no" },
                   { label: "GST No", field: "gst_no" },
                   { label: "City", field: "city" },
-                  { label: "Status", field: "status" },
+                  // { label: "Status", field: "status" },
                 ].map(({ label, field }) => (
                   <th
                     key={field}
@@ -244,13 +245,13 @@ export default function CustomerListPage() {
                     <td style={{ fontSize: "0.90rem", fontFamily: "product-sans,sans-serif" }}>{formatMobileNumber(c.mobile_no || "N/A")}</td>
                     <td style={{ fontSize: "0.90rem", fontFamily: "product-sans,sans-serif" }}>{c.gst_no || "N/A"}</td>
                     <td style={{ fontSize: "0.90rem", fontFamily: "product-sans,sans-serif" }}>{c.city || "N/A"}</td>
-                    <td>
+                    {/* <td>
                       <span
                         className={`badge ${c.status === "active" ? "bg-success" : "bg-danger"}`}
                       >
                         {c.status.charAt(0).toUpperCase() + c.status.slice(1)}
                       </span>
-                    </td>
+                    </td> */}
 
                     {/* <td className="text-center" style={{ width: "130px" }}>
                       <Button

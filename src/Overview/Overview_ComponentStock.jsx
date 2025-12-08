@@ -21,31 +21,30 @@ const ComponentStock = () => {
       <small className="text-muted d-block mb-4">Spare parts</small>
       <div className="stock-scroll-wrapper">
         <div className="d-flex flex-wrap scroll-container">
-            {dummyData.map((item, index) => (
+          {dummyData.map((item, index) => (
             <div key={index} className="five-col mb-3">
-                <div className="d-flex">
-                <div
-                    className="bg-light rounded me-2 mt-1"
-                    style={{ width: 50, height: 50 }}
-                ></div>
-
+              <div className="d-flex">
+                {/* NO IMAGE — ONLY TEXT */}
                 <div className="d-flex flex-column justify-content-center">
-                    <small className="custom-small-text">{item.name}</small>
-                    <div className="fw-bold fs-5">{item.qty} Qty</div>
-                    <small className="text-muted d-block">
+                  <small className="custom-small-text">{item.name}</small>
+                  <div className="fw-bold fs-5">{item.qty} Qty</div>
+                  <small className="text-muted d-block">
                     Using {item.usedVCI} VCI's
-                    </small>
-                    <small className={item.up ? "text-success" : "text-danger"}>
+                  </small>
+                  <small className={item.up ? "text-success" : "text-danger"}>
                     {item.up ? (
-                        <FaArrowUp style={{ fontSize: "10px" }} />
+                      <FaArrowUp style={{ fontSize: "10px" }} />
                     ) : (
-                        <FaArrowDown style={{ fontSize: "10px" }} />
+                      <FaArrowDown style={{ fontSize: "10px" }} />
                     )}
-                    </small>
+                  </small>
                 </div>
-                </div>
+              </div>
             </div>
-            ))}
+
+
+
+          ))}
         </div>
       </div>
     </div>
