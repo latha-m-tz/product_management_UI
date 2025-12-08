@@ -215,32 +215,44 @@ export default function SalesListPage() {
             </Form.Select>
           </div>
 
-          <div className="col-md-6 text-md-end">
-            <Button
-              variant="outline-secondary"
-              size="sm"
-              className="me-2"
-              onClick={fetchSales}
-            >
-              <i className="bi bi-arrow-clockwise"></i>
-            </Button>
+          <div className="col-md-6">
 
-            <Button
-              size="sm"
-              onClick={() => navigate("/sales-order/add")}
-              style={{
-                backgroundColor: "#2FA64F",
-                borderColor: "#2FA64F",
-                color: "#fff",
-                minWidth: "90px",
-                fontFamily: `"Google Sans", sans-serif`,
-              }}
-            >
-              + Add Sale
-            </Button>
+            {/* TOP ROW — Add Sale + Refresh */}
+            <div className="d-flex justify-content-end align-items-center mb-2">
 
-            <Search search={search} setSearch={setSearch} />
+              <Button
+                size="sm"
+                onClick={() => navigate("/sales-order/add")}
+                className="me-2"
+                style={{
+                  backgroundColor: "#2FA64F",
+                  borderColor: "#2FA64F",
+                  color: "#fff",
+                  minWidth: "90px",
+                  fontFamily: `"Google Sans", sans-serif`,
+                }}
+              >
+                + Add Sale
+              </Button>
+
+              <Button
+                variant="outline-secondary"
+                size="sm"
+                onClick={fetchSales}
+              >
+                <i className="bi bi-arrow-clockwise"></i>
+              </Button>
+
+            </div>
+
+            {/* SEARCH BELOW */}
+            <div className="d-flex justify-content-end">
+              <Search search={search} setSearch={setSearch} />
+            </div>
+
           </div>
+
+
         </div>
 
         <DataTable

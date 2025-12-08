@@ -38,8 +38,8 @@ const AddServicePage = () => {
   const validate = () => {
     const newErrors = {};
 
-    if (!formData.vendor_id) newErrors.vendor_id = "Vendor is required";
-    if (!formData.challan_no) newErrors.challan_no = "Challan No is required";
+    if (!String(formData.vendor_id || "").trim()) newErrors.vendor_id = "Vendor is required";
+    if (!String(formData.challan_no || "").trim()) newErrors.challan_no = "Challan No is required";
 
     if (!formData.challan_date) {
       newErrors.challan_date = "Challan Date is required";
@@ -53,23 +53,38 @@ const AddServicePage = () => {
       }
     }
 
-    formData.items.forEach((item, i) => {
-      if (!item.sparepart_id) {
-        newErrors[`sparepart_id_${i}`] = "Product is required";
-        return;
-      }
+    // Items: require at least one non-empty item
+    if (!Array.isArray(formData.items) || formData.items.length === 0) {
+      newErrors.items = "At least one service item is required";
+    } else {
+      let anyValidItem = false;
+      formData.items.forEach((item, i) => {
+        // consider a row "empty" if sparepart_id is falsy
+        if (!item || !item.sparepart_id) {
+          newErrors[`sparepart_id_${i}`] = "Product is required";
+          return;
+        }
 
-      // Use isPCB (boolean)
-      if (item.isPCB) {
-        if (!String(item.vci_serial_no || "").trim()) {
-          newErrors[`vci_serial_no_${i}`] = "Serial Number required for PCB";
+        anyValidItem = true;
+
+        // PCB rows require serial (non-empty after trim)
+        if (item.isPCB) {
+          if (!String(item.vci_serial_no || "").trim()) {
+            newErrors[`vci_serial_no_${i}`] = "Serial Number required for PCB";
+          }
+        } else {
+          // non-PCB requires quantity > 0
+          const qty = Number(item.quantity);
+          if (!item.quantity || Number.isNaN(qty) || qty <= 0) {
+            newErrors[`quantity_${i}`] = "Quantity required and must be > 0";
+          }
         }
-      } else {
-        if (!item.quantity || Number(item.quantity) <= 0) {
-          newErrors[`quantity_${i}`] = "Quantity required";
-        }
+      });
+
+      if (!anyValidItem) {
+        newErrors.items = "At least one properly filled item is required";
       }
-    });
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -255,13 +270,17 @@ const AddServicePage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validate()) return;
+
+    if (!validate()) {
+      toast.error("Please fix validation errors before saving.");
+      return;
+    }
 
     const payload = new FormData();
-    payload.append("vendor_id", formData.vendor_id);
-    payload.append("challan_no", formData.challan_no);
-    payload.append("challan_date", formData.challan_date);
-    payload.append("tracking_no", formData.tracking_no);
+    payload.append("vendor_id", String(formData.vendor_id).trim());
+    payload.append("challan_no", String(formData.challan_no).trim());
+    payload.append("challan_date", String(formData.challan_date).trim());
+    payload.append("tracking_no", String(formData.tracking_no || "").trim());
 
     recipientFiles.forEach((file, i) => {
       if (file instanceof File) {
@@ -270,16 +289,18 @@ const AddServicePage = () => {
     });
 
     formData.items.forEach((item, index) => {
-      payload.append(`items[${index}][sparepart_id]`, item.sparepart_id);
+      if (!item || !item.sparepart_id) return;
+
+      payload.append(`items[${index}][sparepart_id]`, String(item.sparepart_id));
 
       if (item.isPCB) {
-        payload.append(`items[${index}][vci_serial_no]`, item.vci_serial_no);
+        payload.append(`items[${index}][vci_serial_no]`, String((item.vci_serial_no || "").trim()));
       } else {
-        payload.append(`items[${index}][quantity]`, item.quantity);
+        payload.append(`items[${index}][quantity]`, String(item.quantity));
       }
 
-      payload.append(`items[${index}][status]`, item.status || "");
-      payload.append(`items[${index}][remarks]`, item.remarks || "");
+      payload.append(`items[${index}][status]`, String(item.status || "").trim());
+      payload.append(`items[${index}][remarks]`, String(item.remarks || "").trim());
 
       if (item.upload_image instanceof File) {
         payload.append(`items[${index}][upload_image]`, item.upload_image);
@@ -295,17 +316,18 @@ const AddServicePage = () => {
       navigate("/service-product");
     } catch (err) {
       console.error("Submit Error →", err);
+
       if (err.response?.data?.errors) {
         const backendErrors = err.response.data.errors;
         const newErrors = {};
 
-        // Convert items.0 → quantity_0 or vci_serial_no_0
+        // Convert server keys like items.0.quantity to your UI keys
         Object.keys(backendErrors).forEach((key) => {
           if (key.startsWith("items.")) {
-            const index = key.split(".")[1]; // 0
+            const parts = key.split(".");
+            const index = parts[1]; // e.g., "0"
             const msg = backendErrors[key][0];
 
-            // Decide which field error to show
             if (msg.toLowerCase().includes("quantity")) {
               newErrors[`quantity_${index}`] = msg;
             } else if (msg.toLowerCase().includes("serial")) {
@@ -314,16 +336,18 @@ const AddServicePage = () => {
               newErrors[`sparepart_id_${index}`] = msg;
             }
           } else {
-            // General errors
             newErrors[key] = backendErrors[key][0];
           }
         });
 
         setErrors(newErrors);
         toast.error("Validation failed!");
+      } else {
+        toast.error("Failed to submit. Check console for details.");
       }
     }
   };
+
 
   return (
     <Container fluid>

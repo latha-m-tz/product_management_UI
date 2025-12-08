@@ -30,10 +30,10 @@ export default function AssemblePage() {
         height: "40px",
         verticalAlign: "middle",
     };
-  useEffect(() => {
-    const token = localStorage.getItem("authToken");
-    if (token) setAuthToken(token);
-  }, []);
+    useEffect(() => {
+        const token = localStorage.getItem("authToken");
+        if (token) setAuthToken(token);
+    }, []);
     // Fetch all serials and product list on page load
     useEffect(() => {
         fetchAllActiveSerials();
@@ -205,9 +205,15 @@ export default function AssemblePage() {
                                         <td className="text-center">{(page - 1) * perPage + index + 1}</td>
                                         <td style={{ fontSize: "0.90rem" }}>{item.product_name}</td>
                                         <td style={{ fontSize: "0.90rem" }}>{item.serial_no}</td>
-                                        <td style={{ color: item.tested_status.toLowerCase() === "fail" ? "red" : "inherit", fontSize: "0.90rem" }}>
-                                            {item.tested_status}
+                                        <td
+                                            style={{
+                                                color: item.tested_status?.toLowerCase() === "fail" ? "red" : "inherit",
+                                                fontSize: "0.90rem"
+                                            }}
+                                        >
+                                            {item.tested_status ?? "null"}
                                         </td>
+
                                         <td style={{ fontSize: "0.90rem" }}>{item.tested_by}</td>
                                         <td style={{ fontSize: "0.90rem" }}>{item.created_at}</td>
                                         <td className="text-center">

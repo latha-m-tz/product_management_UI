@@ -16,7 +16,7 @@ const LastSalesList = () => {
 
   const fetchLastSales = async () => {
     try {
-      const res = await api.get("/sales"); // ✅ Token included automatically
+      const res = await api.get("/products/sold/count"); // ✅ Token included automatically
 
       const sales = Array.isArray(res.data)
         ? res.data

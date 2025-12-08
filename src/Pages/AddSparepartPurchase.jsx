@@ -47,27 +47,72 @@ export default function AddSparepartPurchase() {
   const [availableSpareparts, setAvailableSpareparts] = useState([]);
   const [availableVendors, setAvailableVendors] = useState([]);
   const [availableCategories, setAvailableCategories] = useState([]);
-  // Remove field
   const removeFileField = (type, id) => {
-    if (type === "recipient") setRecipientFiles((prev) => prev.filter(f => f.id !== id));
-    // else if (type === "challan") setChallanFiles((prev) => prev.filter(f => f.id !== id));
-  };
-
-  // Handle file change
-  const handleFileChange = (type, id, file) => {
     if (type === "recipient") {
-      setRecipientFiles((prev) => prev.map(f => f.id === id ? { ...f, file } : f));
-    } else if (type === "challan") {
-      // setChallanFiles((prev) => prev.map(f => f.id === id ? { ...f, file } : f));
+      setRecipientFiles(prev => {
+        // At least 1 row must remain
+        if (prev.length === 1) return prev;
+
+        return prev.filter(f => f.id !== id);
+      });
     }
   };
 
-  const addFileField = (type) => {
-    const newField = { id: Date.now(), file: null };
-    if (type === "recipient") setRecipientFiles((prev) => [...prev, newField]);
-    // else if (type === "challan") setChallanFiles((prev) => [...prev, newField]);
+  const handleFileChange = (type, id, file) => {
+    if (type === "recipient") {
+      setRecipientFiles(prev => {
+        const updated = prev.map(f =>
+          f.id === id ? { ...f, file } : f
+        );
+
+        const last = updated[updated.length - 1];
+
+        if (last.id === id && file) {
+          updated.push({ id: Date.now(), file: null });
+        }
+
+        return updated;
+      });
+    }
   };
 
+
+
+
+
+  const addFileField = (type) => {
+    if (type === "recipient") {
+      setRecipientFiles(prev => {
+        const last = prev[prev.length - 1];
+
+        // Prevent double toast firing
+        if (!last.file) {
+          if (!toast.isActive("upload-warning")) {
+            toast.error("Please upload a file before adding another document", {
+              toastId: "upload-warning"
+            });
+          }
+          return prev;
+        }
+
+        return [...prev, { id: Date.now(), file: null }];
+      });
+    }
+  };
+
+
+
+  // Helper (place in your component)
+  const calcQtyFromSerials = (fromSerial, toSerial) => {
+    const from = parseInt(fromSerial, 10);
+    const to = parseInt(toSerial, 10);
+
+    if (Number.isInteger(from) && Number.isInteger(to) && to >= from) {
+      return to - from + 1; // valid range
+    }
+    // when either serial is empty/invalid, return empty string so input shows blank
+    return "";
+  };
 
   useEffect(() => {
     const token = localStorage.getItem("authToken");
@@ -100,10 +145,29 @@ export default function AddSparepartPurchase() {
     }
 
     const updated = [...spareparts];
+
+    // Validation: Prevent selecting next row unless previous row is complete
+    if (index > 0) {
+      const prev = updated[index - 1];
+      const prevType = sparepartTypeOf(prev.sparepart_id);
+
+      const prevValid =
+        prev.sparepart_id &&
+        ((!prevType.includes("serial") && Number(prev.qty) > 0) ||
+          (prevType.includes("serial") &&
+            prev.from_serial &&
+            prev.to_serial &&
+            Number(prev.qty) > 0));
+
+      if (!prevValid) {
+        toast.error("Please complete the previous spare part before adding another.");
+        return;
+      }
+    }
+
+    // Update current row
     updated[index].sparepart_id = value;
     updated[index].qty = "";
-    updated[index].warranty_status = "Active";
-    // updated[index].product_id = "";
     updated[index].from_serial = "";
     updated[index].to_serial = "";
     setSpareparts(updated);
@@ -111,62 +175,80 @@ export default function AddSparepartPurchase() {
     clearError("sparepart_id", index);
   };
 
-
-
   const handleInputChange = (index, field, value) => {
     const updated = [...spareparts];
+    const type = sparepartTypeOf(updated[index].sparepart_id);
 
+    const isSerialItem = type.includes("serial");
     const isSerialField = field === "from_serial" || field === "to_serial";
 
-    if (isSerialField) {
-      // allow only digits, max 6 digits
-      let cleaned = value.replace(/\D/g, "").slice(0, 6);
+    clearError("from_serial", index);
+    clearError("to_serial", index);
+    clearError("qty", index);
 
+    // SERIAL ITEMS
+    if (isSerialItem && isSerialField) {
+      let cleaned = value.replace(/\D/g, "").slice(0, 6);
       updated[index][field] = cleaned;
 
-      const from = updated[index].from_serial;
-      const to = updated[index].to_serial;
+      const from = Number(updated[index].from_serial);
+      const to = Number(updated[index].to_serial);
 
-      // ------------------------------
-      // AUTO COPY LOGIC (perfect working)
-      // ------------------------------
-      if (field === "from_serial") {
-
-        // condition 1: user never edited to_serial → it should match previous from_serial
-        const previousFrom = spareparts[index].from_serial;
-        const previousTo = spareparts[index].to_serial;
-
-        const userNeverEditedTo =
-          previousTo === "" || previousTo === previousFrom;
-
-        if (userNeverEditedTo) {
-          updated[index].to_serial = cleaned; // auto copy
-        }
-      }
-
-      // ------------------------------
-      // QUANTITY CALCULATION
-      // ------------------------------
-      const fromNum = Number(updated[index].from_serial);
-      const toNum = Number(updated[index].to_serial);
-
-      if (!isNaN(fromNum) && !isNaN(toNum) && fromNum <= toNum) {
-        updated[index].qty = toNum - fromNum + 1;
+      if (updated[index].from_serial && updated[index].to_serial && to >= from) {
+        updated[index].qty = to - from + 1;
       } else {
         updated[index].qty = "";
       }
-
-      setSpareparts(updated);
-      return;
     }
 
-    // default (non-serial fields)
+    // NON-SERIAL ITEMS (manual qty)
+    if (!isSerialItem && field === "qty") {
+      updated[index].qty = value.replace(/\D/g, "");
+    }
+
+    // Always update
     updated[index][field] = value;
+
+    // Row becomes valid?
+    const isValid = () => {
+      const sp = updated[index];
+      if (!sp.sparepart_id) return false;
+
+      if (type.includes("serial")) {
+        return sp.from_serial && sp.to_serial && Number(sp.qty) > 0;
+      }
+      return Number(sp.qty) > 0;
+    };
+
+    // Auto-create next row once valid
+    if (index === spareparts.length - 1 && isValid()) {
+      updated.push({
+        sparepart_id: "",
+        qty: "",
+        warranty_status: "Active",
+        from_serial: "",
+        to_serial: "",
+      });
+    }
+
     setSpareparts(updated);
   };
+const isLastRowValid = () => {
+  const last = spareparts[spareparts.length - 1];
+  const type = sparepartTypeOf(last.sparepart_id);
 
+  if (!last.sparepart_id) return false;
 
+  if (type.includes("serial")) {
+    return (
+      last.from_serial &&
+      last.to_serial &&
+      Number(last.qty) > 0
+    );
+  }
 
+  return Number(last.qty) > 0;
+};
 
   const handleDeleteSparepart = (index) => {
     MySwal.fire({
@@ -252,100 +334,107 @@ export default function AddSparepartPurchase() {
     });
   };
 
-  const validateForm = () => {
-    const errs = {};
+const validateForm = () => {
+  const errs = {};
 
-    if (!vendorId) {
-      errs.vendor_id = "Vendor is required";
-      // toast.error("Vendor is required");
+  if (!vendorId) errs.vendor_id = "Vendor is required";
+  if (!challanNo) errs.challan_no = "Challan No is required";
+  if (!challanDate) errs.challan_date = "Challan Date is required";
+  if (!receivedDate) errs.received_date = "Received Date is required";
+
+  if (challanDate && receivedDate) {
+    const challan = new Date(challanDate);
+    const received = new Date(receivedDate);
+
+    if (received < challan) {
+      errs.received_date = "Received Date cannot be before Challan Date";
+    }
+  }
+
+  const itemErrors = {};
+
+  spareparts.forEach((sp, idx) => {
+    const type = sparepartTypeOf(sp.sparepart_id);
+    const itemErr = {};
+
+    // Sparepart required
+    if (!sp.sparepart_id) {
+      itemErr.sparepart_id = "Sparepart is required";
     }
 
-    if (!challanNo) {
-      errs.challan_no = "Challan No is required";
-      // toast.error("Challan No is required");
-    }
-
-    if (!challanDate) {
-      errs.challan_date = "Challan Date is required";
-      // toast.error("Challan Date is required");
-    }
-    // if (!receivedDate) {
-    //   errs.received_date = "Received Date is required";
-    //   // toast.error("Received Date is required");
-    // }
-
-    const itemErrors = {};
-    spareparts.forEach((sp, idx) => {
-      const type = sparepartTypeOf(sp.sparepart_id);
-      const itemErr = {};
-
-      if (!sp.sparepart_id) {
-        itemErr.sparepart_id = "Select sparepart";
-        // toast.error(`Sparepart is required for item ${idx + 1}`);
+    // Serial-based validation
+    if (type.includes("serial")) {
+      if (!sp.from_serial || !sp.from_serial.trim()) {
+        itemErr.from_serial = "From Serial is required";
       }
 
-      // Prefix mismatch
+      if (!sp.to_serial || !sp.to_serial.trim()) {
+        itemErr.to_serial = "To Serial is required";
+      }
+
       if (sp.from_serial && sp.to_serial) {
-        const prefixFrom = sp.from_serial.replace(/[0-9]+$/, "");
-        const prefixTo = sp.to_serial.replace(/[0-9]+$/, "");
-        if (prefixFrom !== prefixTo) {
-          itemErr.from_serial = "Prefix mismatch";
-          itemErr.to_serial = "Prefix mismatch";
-          toast.error(`Prefix mismatch for item ${idx + 1}`);
+        const fromNum = Number(sp.from_serial);
+        const toNum = Number(sp.to_serial);
+
+        if (fromNum > toNum) {
+          itemErr.from_serial = "From Serial must be <= To Serial";
+          itemErr.to_serial = "From Serial must be <= To Serial";
+        }
+
+        // Exactly 6 digits
+        if (!/^\d{6}$/.test(sp.from_serial)) {
+          itemErr.from_serial = "From Serial must be exactly 6 digits";
+        }
+        if (!/^\d{6}$/.test(sp.to_serial)) {
+          itemErr.to_serial = "To Serial must be exactly 6 digits";
         }
       }
+    }
 
-      if (type.includes("serial") && sp.from_serial && sp.to_serial) {
-        const fromNum = parseInt(sp.from_serial, 10);
-        const toNum = parseInt(sp.to_serial, 10);
+    // Quantity required
+    if (!sp.qty || Number(sp.qty) < 1) {
+      itemErr.qty = "Quantity is required";
+    }
 
-        if (!isNaN(fromNum) && !isNaN(toNum) && fromNum > toNum) {
-          itemErr.from_serial = "From Serial must be less than or equal to To Serial";
-          itemErr.to_serial = "From Serial must be less than or equal to To Serial";
-        }
-      }
-      if (!sp.qty || sp.qty < 1) {
-        itemErr.qty = "Quantity must be at least 1";
-        // toast.error(`Quantity must be at least 1 for item ${idx + 1}`);
-      }
+    // Collect row errors
+    if (Object.keys(itemErr).length > 0) {
+      itemErrors[idx] = itemErr;
+    }
+  });
 
-      if (type.includes("warranty") && !sp.warranty_status) {
-        itemErr.warranty_status = "Select warranty status";
-        toast.error(`Select warranty status for item ${idx + 1}`);
-      }
+  // Attach item-level errors to main error object
+  if (Object.keys(itemErrors).length > 0) {
+    errs.items = itemErrors;
+  }
 
-      if (Object.keys(itemErr).length) itemErrors[idx] = itemErr;
-    });
+  // SET STATE
+  setErrors(errs);
 
-    if (Object.keys(itemErrors).length) errs.items = itemErrors;
+  // VALID IF NO MAIN ERRORS
+  return Object.keys(errs).length === 0;
+};
 
-    setErrors(errs);
-    return Object.keys(errs).length === 0;
-  };
+
 
   const handleSubmit = async () => {
     if (!validateForm()) return;
 
     const formData = new FormData();
-    // ---- Add this block here ----
     let vendor_id = "";
     let contact_person_id = "";
 
     if (vendorId) {
       const parts = vendorId.split("-");
-      vendor_id = parts[0]; // vendor ID is always the first part
+      vendor_id = parts[0]; 
       contact_person_id = parts[1] && parts[1] !== "0" ? parts[1] : null; // null if main vendor
     } else {
-      // Vendor not selected → validation will catch it
       vendor_id = "";
       contact_person_id = null;
     }
     formData.append("vendor_id", vendor_id);
     if (contact_person_id) formData.append("contact_person_id", contact_person_id);
 
-    // Basic fields
-    //   formData.append("vendor_id", vendorId || "");
-    //   formData.append("vendor_id", vendorIdOnly || "");
+   
 
     // formData.append("contact_person_id", contactPersonId || "")
     formData.append("challan_no", challanNo || "");
@@ -377,7 +466,7 @@ export default function AddSparepartPurchase() {
       if (sp.from_serial) formData.append(`items[${index}][from_serial]`, sp.from_serial);
       if (sp.to_serial) formData.append(`items[${index}][to_serial]`, sp.to_serial);
       if (sp.warranty_status) formData.append(`items[${index}][warranty_status]`, sp.warranty_status);
-      formData.append(`items[${index}][quantity]`, sp.qty || 1);
+      formData.append(`items[${index}][quantity]`, sp.qty ? sp.qty : "");
     });
 
     try {
@@ -477,6 +566,7 @@ export default function AddSparepartPurchase() {
                 {errors.challan_no && (
                   <div style={feedbackStyle}>{errors.challan_no}</div>
                 )}
+
               </Form.Group>
             </Col>
 
@@ -502,7 +592,7 @@ export default function AddSparepartPurchase() {
             <Col md={4}>
               <Form.Group className="mb-2 form-field">
                 <Form.Label>
-                  Received Date<span style={{ color: "red" }}> </span>
+                  Received Date<span style={{ color: "red" }}> *</span>
                 </Form.Label>
                 <Form.Control
                   type="date"
@@ -519,7 +609,17 @@ export default function AddSparepartPurchase() {
                 )}
               </Form.Group>
             </Col>
-
+     <Col md={4}>
+              <Form.Group className="mb-2 form-field">
+                <Form.Label>Courier Name</Form.Label>
+                <Form.Control
+                  type="text"
+                  placeholder="Enter Courier Name"
+                  value={courierName}
+                  onChange={(e) => setCourierName(e.target.value)}
+                />
+              </Form.Group>
+            </Col>
             <Col md={4}>
               <Form.Group className="mb-2 form-field">
                 <Form.Label>Tracking Number</Form.Label>
@@ -531,17 +631,7 @@ export default function AddSparepartPurchase() {
                 />
               </Form.Group>
             </Col>
-            <Col md={4}>
-              <Form.Group className="mb-2 form-field">
-                <Form.Label>Courier Name</Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="Enter Courier Name"
-                  value={courierName}
-                  onChange={(e) => setCourierName(e.target.value)}
-                />
-              </Form.Group>
-            </Col>
+       
 
             {/* Receipt Files */}
             <Col md={6}>
@@ -552,33 +642,49 @@ export default function AddSparepartPurchase() {
                     variant="link"
                     size="sm"
                     className="text-success ms-1 p-0"
-                    onClick={() => addFileField("recipient")}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      addFileField("recipient");
+                    }}
                   >
                     <i className="bi bi-plus-circle"></i> Add
                   </Button>
                 </Form.Label>
-                {recipientFiles.map((f) => (
-                  <div key={f.id} className="d-flex align-items-center mb-1">
-                    <Form.Control
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) =>
-                        handleFileChange("recipient", f.id, e.target.files[0])
-                      }
-                    />
-                    <Button
-                      variant="link"
-                      size="sm"
-                      className="text-danger ms-2 p-0"
-                      onClick={() => removeFileField("recipient", f.id)}
-                    >
-                      <i className="bi bi-x-circle"></i>
-                    </Button>
+
+                {recipientFiles.map((f, idx) => (
+                  <div
+                    key={f.id}
+                    className="d-flex align-items-center mb-1"
+                    style={{ gap: "8px" }}
+                  >
+                    {/* File Input */
+                    }
+                    <div style={{ flexGrow: 1 }}>
+                      <Form.Control
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) =>
+                          handleFileChange("recipient", f.id, e.target.files[0])
+                        }
+                      />
+                    </div>
+
+                    {/* SHOW DELETE BUTTON FOR ALL ROWS BUT NOT WHEN THERE IS ONLY 1 ROW */}
+                    {recipientFiles.length > 1 && f.file && (
+                      <Button
+                        variant="link"
+                        size="sm"
+                        className="text-danger p-0"
+                        style={{ width: "26px" }}
+                        onClick={() => removeFileField("recipient", f.id)}
+                      >
+                        <i className="bi bi-x-circle"></i>
+                      </Button>
+                    )}
                   </div>
                 ))}
               </Form.Group>
             </Col>
-
             {/* Challan Files */}
             {/* <Col md={6}>
             <Form.Group className="mb-2">
@@ -667,6 +773,11 @@ export default function AddSparepartPurchase() {
                             </option>
                           ))}
                         </Form.Select>
+
+                        {errors.items?.[index]?.sparepart_id && (
+                          <div style={feedbackStyle}>{errors.items[index].sparepart_id}</div>
+                        )}
+
                       </Form.Group>
                     </Col>
 
@@ -711,6 +822,9 @@ export default function AddSparepartPurchase() {
                                     handleInputChange(index, "to_serial", value);
                                   }}
                                 />
+                                {errors.items?.[index]?.from_serial && (
+                                  <div style={feedbackStyle}>{errors.items[index].from_serial}</div>
+                                )}
                               </Form.Group>
                             </Col>
 
@@ -725,19 +839,28 @@ export default function AddSparepartPurchase() {
                                     handleInputChange(index, "to_serial", e.target.value)
                                   }
                                 />
+                                {errors.items?.[index]?.to_serial && (
+                                  <div style={feedbackStyle}>{errors.items[index].to_serial}</div>
+                                )}
                               </Form.Group>
                             </Col>
 
                             <Col md={2}>
                               <Form.Group className="mb-2">
-                                <Form.Label>Qty</Form.Label>
+                                <Form.Label>Quantity</Form.Label>
                                 <Form.Control
                                   type="number"
                                   value={sp.qty}
-                                  onChange={(e) =>
-                                    handleInputChange(index, "qty", e.target.value)
-                                  }
+                                  readOnly
+                                  style={{
+                                    backgroundColor: "white",
+                                    pointerEvents: "none",
+                                  }}
+                                  disabled
                                 />
+                                {errors.items?.[index]?.qty && (
+                                  <div style={feedbackStyle}>{errors.items[index].qty}</div>
+                                )}
                               </Form.Group>
                             </Col>
                           </>
@@ -746,15 +869,16 @@ export default function AddSparepartPurchase() {
                         return (
                           <Col md={3}>
                             <Form.Group className="mb-2">
-                              <Form.Label>Quantity</Form.Label>
+                              <Form.Label>Quantity <span style={{ color: "red" }}>*</span></Form.Label>
                               <Form.Control
                                 type="number"
-                                min={1}
+                                min="1"
                                 value={sp.qty}
-                                onChange={(e) =>
-                                  handleInputChange(index, "qty", e.target.value)
-                                }
+                                onChange={(e) => handleInputChange(index, "qty", e.target.value)}
                               />
+                              {errors.items?.[index]?.qty && (
+                                <div style={feedbackStyle}>{errors.items[index].qty}</div>
+                              )}
                             </Form.Group>
                           </Col>
                         );
@@ -773,9 +897,14 @@ export default function AddSparepartPurchase() {
 
 
       <div className="d-flex justify-content-between mt-3">
-        <Button variant="success" onClick={addSparepart}>
+        <Button
+          variant="success"
+          onClick={addSparepart}
+          disabled={!isLastRowValid()}
+        >
           <i className="bi bi-plus-lg me-1" /> Add Spare Parts
         </Button>
+
 
         <div>
           <Button

@@ -298,7 +298,9 @@ export default function AddVendor() {
       return;
     }
 
-    // 🔹 Check for duplicate mobile numbers
+
+
+    // 🔹 Check duplicate within same vendor contact persons
     const duplicateInContacts =
       contactToSave.mobile_no &&
       updatedContacts.some(
@@ -308,21 +310,29 @@ export default function AddVendor() {
           idx !== editingIndex
       );
 
+    // 🔹 Check duplicate with vendor company mobile number
     const duplicateWithVendor =
       contactToSave.mobile_no &&
       vendor.mobile_no &&
       contactToSave.mobile_no === vendor.mobile_no;
 
-    if (duplicateInContacts || duplicateWithVendor) {
-      toast.error(
-        `Mobile number ${contactToSave.mobile_no} is already used!`
-      );
+    // 🔹 Show exact message
+    if (duplicateInContacts) {
+      toast.error(`This mobile number is already used by another contact person.`);
       return;
     }
+
+    if (duplicateWithVendor) {
+      toast.error(`Contact mobile number cannot be the same as the vendor's company mobile number.`);
+      return;
+    }
+
+    // 🔹 If selected as main, make all others NOT main
     if (contactToSave.isMain) {
       updatedContacts = updatedContacts.map((c) => ({ ...c, isMain: false }));
     }
 
+    // 🔹 Update or Add Contact
     if (editingIndex !== null) {
       updatedContacts[editingIndex] = contactToSave;
       setContactPersons(updatedContacts);
@@ -485,35 +495,24 @@ export default function AddVendor() {
       if (err.response && err.response.data && err.response.data.errors) {
         const errors = err.response.data.errors;
 
-        Object.entries(errors).forEach(([key, messages]) => {
-          const message = Array.isArray(messages) ? messages.join(", ") : messages;
+   Object.entries(errors).forEach(([key, messages]) => {
+    const message = Array.isArray(messages) ? messages.join(", ") : messages;
 
-          if (key === "vendor") {
-            toast.error("Company name already exists");
-          } else if (key === "email") {
-            toast.error("Email already taken");
-          } else if (key === "mobile_no") {
-            toast.error("Mobile number already taken");
-          } else if (key === "gst_no") {
-            toast.error("GST number already exists");
-          } else if (key.startsWith("contact_persons")) {
-            // Example key: contact_persons.0.email
-            const parts = key.split(".");
-            const index = parts[1] || "?";
-            const field = parts[2] || "field";
-            const contactName =
-              contactPersons[index]?.name || `#${parseInt(index) + 1}`;
-            toast.error(
-              `Contact person ${contactName} ${field.replace(
-                "_",
-                " "
-              )} error: ${message}`
-            );
-          } else {
-            // fallback for unknown field
-            toast.error(`${key.replace("_", " ")}: ${message}`);
-          }
-        });
+    if (key === "vendor") {
+        toast.error("Company name already exists");
+    } else if (key === "email") {
+        toast.error("Email already taken");
+    } else if (key === "mobile_no") {
+        toast.error("Mobile number already taken");
+    } else if (key === "gst_no") {
+        toast.error("GST number already exists");
+    } else if (key.startsWith("contact_persons")) {
+        toast.error(message);  // ⭐ FIXED — show real backend validation message
+    } else {
+        toast.error(`${key.replace("_", " ")}: ${message}`);
+    }
+});
+
       } else if (err.response && err.response.data && err.response.data.message) {
         toast.error(err.response.data.message);
       } else {

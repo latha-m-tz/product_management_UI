@@ -108,7 +108,7 @@ export default function ProductSaleStatusPage() {
           <Button
             variant="outline-secondary"
             size="sm"
-            onClick={() => navigate("/service-product")}
+            onClick={() => navigate("/sales-order")}
           >
             <i className="bi bi-arrow-left"></i> Back
           </Button>

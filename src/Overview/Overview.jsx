@@ -6,11 +6,10 @@ import ComponentStock from "./OverviewComponentStock";
 import LastSalesList from "./OverviewLastSalesList";
 import LastPurchaseList from "./OverviewLastPurchaseList";
 // import DashboardStats from "./PcbServiceOverview";
-import { setAuthToken } from "../api";  // ✅ IMPORT TOKEN SETTER
+import { setAuthToken } from "../api";  
 
 const Overview = () => {
 
-  // 🟢 Set token once when the dashboard loads
   useEffect(() => {
     const token = localStorage.getItem("authToken");
     if (token) setAuthToken(token);
