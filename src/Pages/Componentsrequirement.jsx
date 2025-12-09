@@ -59,7 +59,7 @@ export default function ComponentsRequirement() {
       const labelMap = {};
       const seriesNames = res.data.map((item) => {
         const label = `${item.name}`;
-        labelMap[label] = item.name; // Map displayed label to actual series name
+        labelMap[label] = item.name;
         return label;
       });
       setSeriesList(seriesNames);

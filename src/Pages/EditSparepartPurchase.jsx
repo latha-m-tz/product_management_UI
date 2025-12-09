@@ -603,9 +603,10 @@ export default function EditSparepartPurchase({ purchaseId }) {
 
 
 
-  const addSparepart = () => {
-    setSpareparts((prev) => [
-      ...prev,
+const addSparepart = () => {
+  // If no spareparts yet → allow first row
+  if (spareparts.length === 0) {
+    setSpareparts([
       {
         id: null,
         rowKey: Date.now(),
@@ -613,13 +614,39 @@ export default function EditSparepartPurchase({ purchaseId }) {
         sparepart_id: "",
         qty: "",
         warranty_status: "Active",
-        // product_id: "",
         from_serial: "",
         to_serial: "",
-        // serials: [],   // <-- add this
-      },
+        serials: [],
+      }
     ]);
-  };
+    return;
+  }
+
+  // Validate previous row
+  const lastRow = spareparts[spareparts.length - 1];
+
+  if (!isPreviousRowComplete(lastRow)) {
+    toast.error("Please complete the previous spare part before adding another.");
+    return; // ❌ STOP – do not add row
+  }
+
+  // If last row is complete → add new row
+  setSpareparts(prev => [
+    ...prev,
+    {
+      id: null,
+      rowKey: Date.now(),
+      isNew: true,
+      sparepart_id: "",
+      qty: "",
+      warranty_status: "Active",
+      from_serial: "",
+      to_serial: "",
+      serials: [],
+    }
+  ]);
+};
+
 
   const removeSparepart = (index) => {
     const updated = [...spareparts];
@@ -683,7 +710,6 @@ export default function EditSparepartPurchase({ purchaseId }) {
     // Received Date Required
     if (!receivedDate) errs.received_date = "Received Date is required";
 
-    // 🚨 DATE VALIDATION FIXED — always shows your error properly
     if (challanDate && receivedDate) {
       const cd = new Date(challanDate);
       const rd = new Date(receivedDate);
@@ -740,7 +766,7 @@ export default function EditSparepartPurchase({ purchaseId }) {
 
   const handleSubmit = async () => {
     if (!validateForm()) {
-      toast.error("Please fix the errors below");
+      toast.error("Please fill the form correctly before submitting.");
       return;
     }
 
@@ -1098,12 +1124,12 @@ export default function EditSparepartPurchase({ purchaseId }) {
                           disabled={idx > 0 && !isPreviousRowComplete(spareparts[idx - 1])}
                           onClick={() => {
                             if (idx > 0 && !isPreviousRowComplete(spareparts[idx - 1])) {
-                              toast.error("Please fill the previous spareparts required fields first");
+                              toast.error("Please complete the previous spare part before adding another.");
                             }
                           }}
                           onChange={(e) => {
                             if (idx > 0 && !isPreviousRowComplete(spareparts[idx - 1])) {
-                              toast.error("Please fill the previous spareparts required fields first");
+                              toast.error("Please complete the previous spare part before adding another.");
                               return;
                             }
                             handleSparepartChange(idx, e.target.value);

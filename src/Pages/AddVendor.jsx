@@ -327,7 +327,6 @@ export default function AddVendor() {
       return;
     }
 
-    // 🔹 If selected as main, make all others NOT main
     if (contactToSave.isMain) {
       updatedContacts = updatedContacts.map((c) => ({ ...c, isMain: false }));
     }
@@ -495,23 +494,23 @@ export default function AddVendor() {
       if (err.response && err.response.data && err.response.data.errors) {
         const errors = err.response.data.errors;
 
-   Object.entries(errors).forEach(([key, messages]) => {
-    const message = Array.isArray(messages) ? messages.join(", ") : messages;
+        Object.entries(errors).forEach(([key, messages]) => {
+          const message = Array.isArray(messages) ? messages.join(", ") : messages;
 
-    if (key === "vendor") {
-        toast.error("Company name already exists");
-    } else if (key === "email") {
-        toast.error("Email already taken");
-    } else if (key === "mobile_no") {
-        toast.error("Mobile number already taken");
-    } else if (key === "gst_no") {
-        toast.error("GST number already exists");
-    } else if (key.startsWith("contact_persons")) {
-        toast.error(message);  // ⭐ FIXED — show real backend validation message
-    } else {
-        toast.error(`${key.replace("_", " ")}: ${message}`);
-    }
-});
+          if (key === "vendor") {
+            toast.error("Company name already exists");
+          } else if (key === "email") {
+            toast.error("Email already taken");
+          } else if (key === "mobile_no") {
+            toast.error("Mobile number already taken");
+          } else if (key === "gst_no") {
+            toast.error("GST number already exists");
+          } else if (key.startsWith("contact_persons")) {
+            toast.error(message);  // ⭐ FIXED — show real backend validation message
+          } else {
+            toast.error(`${key.replace("_", " ")}: ${message}`);
+          }
+        });
 
       } else if (err.response && err.response.data && err.response.data.message) {
         toast.error(err.response.data.message);
@@ -1015,7 +1014,7 @@ export default function AddVendor() {
 
             <div className="d-flex justify-content-end mt-3">
               <Button variant="success" onClick={addContactPerson}>
-                Save
+                {editingIndex !== null ? "Update" : "Save"}
               </Button>
             </div>
           </Form>

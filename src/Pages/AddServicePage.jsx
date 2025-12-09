@@ -232,6 +232,41 @@ const AddServicePage = () => {
 
 
   const addRow = () => {
+    const last = formData.items[formData.items.length - 1];
+
+    // Required: Product must be selected
+    if (!last.sparepart_id) {
+      toast.error("Please select a product before adding another row.");
+      return;
+    }
+
+    // PCB validation
+    if (last.isPCB) {
+      if (!last.vci_serial_no.trim()) {
+        toast.error("Please enter serial number before adding another row.");
+        return;
+      }
+
+      if (!last.status) {
+        toast.error("Please select status before adding another row.");
+        return;
+      }
+    }
+
+    // Non-PCB validation
+    if (!last.isPCB) {
+      if (!last.quantity || Number(last.quantity) <= 0) {
+        toast.error("Please enter quantity before adding another row.");
+        return;
+      }
+
+      if (!last.status) {
+        toast.error("Please select status before adding another row.");
+        return;
+      }
+    }
+
+    // If all validations pass → add row
     setFormData((prev) => ({
       ...prev,
       items: [
@@ -248,6 +283,7 @@ const AddServicePage = () => {
       ],
     }));
   };
+
 
   const removeRow = (index) => {
     MySwal.fire({
@@ -272,7 +308,7 @@ const AddServicePage = () => {
     e.preventDefault();
 
     if (!validate()) {
-      toast.error("Please fix validation errors before saving.");
+      toast.error("Please fill  the required fields.");
       return;
     }
 
@@ -321,7 +357,6 @@ const AddServicePage = () => {
         const backendErrors = err.response.data.errors;
         const newErrors = {};
 
-        // Convert server keys like items.0.quantity to your UI keys
         Object.keys(backendErrors).forEach((key) => {
           if (key.startsWith("items.")) {
             const parts = key.split(".");
@@ -447,9 +482,15 @@ const AddServicePage = () => {
                   variant="link"
                   size="sm"
                   className="text-success ms-1 p-0"
-                  onClick={() =>
-                    setRecipientFiles((prev) => [...prev, null])
-                  }
+                  onClick={() => {
+                    const lastFile = recipientFiles[recipientFiles.length - 1];
+                    if (!lastFile || !(lastFile instanceof File)) {
+                      toast.error("Please upload a file before adding another receipt.");
+                      return;
+                    }
+
+                    setRecipientFiles((prev) => [...prev, null]);
+                  }}
                 >
                   + Add
                 </Button>
@@ -535,9 +576,18 @@ const AddServicePage = () => {
                       name="quantity"
                       placeholder="Enter Quantity"
                       value={item.quantity}
-                      onChange={(e) => handleItemChange(i, e)}
+                      min="1"
+                      onChange={(e) => {
+                        // Prevent negative or zero
+                        if (Number(e.target.value) <= 0) {
+                          toast.error("Quantity must be greater than 0.");
+                          return;
+                        }
+                        handleItemChange(i, e);
+                      }}
                       isInvalid={!!errors[`quantity_${i}`]}
                     />
+
                   )}
 
                   <Form.Control.Feedback type="invalid">

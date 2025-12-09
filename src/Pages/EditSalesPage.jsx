@@ -20,35 +20,32 @@ export default function EditSalesPage() {
   const [shipmentName, setShipmentName] = useState("");
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [formErrors, setFormErrors] = useState({});
   const [loadedSale, setLoadedSale] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
 
   const MySwal = withReactContent(Swal);
 
-  // Pagination
   const itemsPerPage = 10;
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const paginatedItems = items.slice(startIndex, endIndex);
 
+  // Load token
   useEffect(() => {
     const token = localStorage.getItem("authToken");
     if (token) setAuthToken(token);
   }, []);
 
+  // Load customers
   useEffect(() => {
     api
       .get(`/customers/get`)
       .then((res) => setCustomers(res.data))
-      .catch(() => toast.error("Failed to load customers"))
-      .finally(() => setLoading(false));
+      .catch(() => toast.error("Failed to load customers"));
   }, []);
 
-  // -------------------------------------------
-  // GROUP PRODUCTS BY PRODUCT ID + SERIALS
-  // -------------------------------------------
+  // Group items coming from sale API
   const groupProducts = (serialItems) => {
     const grouped = {};
 
@@ -76,124 +73,88 @@ export default function EditSalesPage() {
     return Object.values(grouped);
   };
 
-// LOAD SALE
-useEffect(() => {
-  if (loadedSale) return;
+  // ---------------------------------------------------------
+  // LOAD SALE ONLY ONCE, DO NOT OVERWRITE IF NEW PRODUCTS EXIST
+  // ---------------------------------------------------------
+  useEffect(() => {
+    if (loadedSale) return;
 
-  const selected = localStorage.getItem("selectedProducts");
+    const hasSelected = localStorage.getItem("selectedProducts");
 
-  // Load sale header regardless
-  api.get(`/sales/${id}`).then((res) => {
-    const sale = res.data;
-    setCustomerId(sale.customer?.id || "");
-    setChallanNo(sale.challan_no);
-    setChallanDate(sale.challan_date);
-    setShipmentDate(sale.shipment_date);
-    setShipmentName(sale.shipment_name || "");
-    setNotes(sale.notes || "");
+    api.get(`/sales/${id}`).then((res) => {
+      const sale = res.data;
 
-    // Load existing items ONLY if not adding new products
-    if (!selected) {
-      setItems(groupProducts(sale.items || []));
+      setCustomerId(sale.customer?.id || "");
+      setChallanNo(sale.challan_no);
+      setChallanDate(sale.challan_date);
+      setShipmentDate(sale.shipment_date);
+      setShipmentName(sale.shipment_name || "");
+      setNotes(sale.notes || "");
+
+      // If user is NOT adding new items -> Load sale items
+      if (!hasSelected) {
+        setItems(groupProducts(sale.items || []));
+      }
+
+      setLoadedSale(true);
+    });
+  }, [id, loadedSale]);
+
+  useEffect(() => {
+    if (!loadedSale) return;
+
+    const stored = localStorage.getItem("selectedProducts");
+    if (stored) {
+      loadSelectedProducts();
+      localStorage.removeItem("selectedProducts");
     }
+  }, [loadedSale]);
 
-    setLoadedSale(true);
-  });
-}, [id, loadedSale]);
-
-
-// AFTER sale loaded → then merge newly added products
-useEffect(() => {
-  if (!loadedSale) return;
-
+ const loadSelectedProducts = () => {
   const stored = localStorage.getItem("selectedProducts");
   if (!stored) return;
 
   const selected = JSON.parse(stored);
   if (!Array.isArray(selected)) return;
 
-  setItems((prev) => {
-    const updated = [...prev];
+  setItems(prevItems => {
+    const map = {};
 
-    selected.forEach((p) => {
-      const pid = String(p.product_id);
-      let existing = updated.find((i) => String(i.product_id) === pid);
+    prevItems.forEach(item => {
+      map[item.product_id] = { ...item };
+    });
 
-      if (existing) {
-        const existingSerials = existing.serials.map(String);
-        const newSerial = String(p.serial_no);
+    selected.forEach(p => {
+      const pid = Number(p.product_id);
+      const incomingQty = Number(p.quantity || 1);
 
-        existing.serials = [...new Set([...existingSerials, newSerial])];
-        existing.quantity = existing.serials.length;
-      } else {
-        updated.push({
+      if (!map[pid]) {
+        // Completely new product
+        map[pid] = {
           product_id: pid,
           name: p.product_name || p.name || "Unknown Product",
-          serials: [String(p.serial_no)],
-          quantity: 1,
-        });
+          serials: p.serial_no ? [String(p.serial_no)] : [],
+          quantity: incomingQty,
+        };
+      } else {
+        // Merge quantity
+        map[pid].quantity += incomingQty;
+
+        // Merge serial if provided
+        if (p.serial_no) {
+          const s = String(p.serial_no);
+          if (!map[pid].serials.includes(s)) {
+            map[pid].serials.push(s);
+          }
+        }
       }
     });
 
-    return updated;
+    return Object.values(map);
   });
-
-  localStorage.removeItem("selectedProducts");
-}, [loadedSale]);
-
-  const loadSelectedProducts = () => {
-    const stored = localStorage.getItem("selectedProducts");
-    if (!stored) return;
-
-    const selected = JSON.parse(stored);
-    if (!Array.isArray(selected)) return;
-
-    setItems((prevItems) => {
-      const updated = [...prevItems];
-
-      selected.forEach((p) => {
-        const pid = String(p.product_id);
-
-        let existing = updated.find(
-          (item) => String(item.product_id) === pid
-        );
-
-        if (existing) {
-          if (!Array.isArray(existing.serials)) existing.serials = [];
-
-          const existingSerials = existing.serials.map(s => String(s));
-          const newSerial = String(p.serial_no);
-
-          // merge & remove duplicates
-          existing.serials = [...new Set([...existingSerials, newSerial])];
-
-          // update quantity
-          existing.quantity = existing.serials.length;
-
-        } else {
-          updated.push({
-            product_id: pid,
-            name: p.product_name || p.name || "Unknown Product",
-            serials: [String(p.serial_no)],
-            quantity: 1,
-          });
-        }
-      });
-
-      return updated;
-    });
-
-    localStorage.removeItem("selectedProducts");
-  };
+};
 
 
-  // useEffect(() => {
-  //   loadSelectedProducts();
-  // }, []);
-
-  // -------------------------------------------
-  // FORM VALIDATION
-  // -------------------------------------------
   const validateForm = () => {
     const errors = {};
 
@@ -229,9 +190,9 @@ useEffect(() => {
     return Object.keys(errors).length === 0;
   };
 
-  // -------------------------------------------
+  // ---------------------------------------------------------
   // SAVE UPDATED SALE
-  // -------------------------------------------
+  // ---------------------------------------------------------
   const handleSave = async () => {
     if (!validateForm()) {
       toast.warning("Please fix the highlighted errors!");
@@ -265,9 +226,7 @@ useEffect(() => {
     }
   };
 
-  // -------------------------------------------
-  // DELETE ITEM
-  // -------------------------------------------
+  // Delete item
   const handleDeleteItem = (index) => {
     MySwal.fire({
       title: "Are you sure?",
@@ -286,9 +245,6 @@ useEffect(() => {
     });
   };
 
-  // -------------------------------------------
-  // RENDER UI
-  // -------------------------------------------
   return (
     <div className="container-fluid px-4 py-4 bg-light min-vh-100">
       <Row className="align-items-center mb-3">
@@ -310,7 +266,7 @@ useEffect(() => {
       <Card className="border-0 shadow-sm rounded-3" style={{ backgroundColor: "#f4f4f8" }}>
         <Card.Body>
           <Form>
-            {/* ------------------- Customer Details ------------------- */}
+            {/* Customer Section */}
             <div className="row g-3">
               <div className="col-md-6">
                 <Form.Group>
@@ -342,9 +298,6 @@ useEffect(() => {
                     onChange={(e) => setChallanNo(e.target.value)}
                     isInvalid={!!formErrors.challanNo}
                   />
-                  <Form.Control.Feedback type="invalid">
-                    {formErrors.challanNo}
-                  </Form.Control.Feedback>
                 </Form.Group>
               </div>
 
@@ -357,9 +310,6 @@ useEffect(() => {
                     onChange={(e) => setChallanDate(e.target.value)}
                     isInvalid={!!formErrors.challanDate}
                   />
-                  <Form.Control.Feedback type="invalid">
-                    {formErrors.challanDate}
-                  </Form.Control.Feedback>
                 </Form.Group>
               </div>
 
@@ -372,9 +322,6 @@ useEffect(() => {
                     onChange={(e) => setShipmentDate(e.target.value)}
                     isInvalid={!!formErrors.shipmentDate}
                   />
-                  <Form.Control.Feedback type="invalid">
-                    {formErrors.shipmentDate}
-                  </Form.Control.Feedback>
                 </Form.Group>
               </div>
 
@@ -391,7 +338,7 @@ useEffect(() => {
               </div>
             </div>
 
-            {/* ------------------- Products Table ------------------- */}
+            {/* Products */}
             <div className="mt-4">
               <div className="d-flex justify-content-between align-items-center mb-2">
                 <Form.Label>Products</Form.Label>
@@ -430,17 +377,13 @@ useEffect(() => {
                       <th>Action</th>
                     </tr>
                   </thead>
+
                   <tbody>
                     {paginatedItems.map((item, index) => (
                       <tr key={startIndex + index}>
                         <td>{item.name}</td>
                         <td>
-                          <Form.Control
-                            type="number"
-                            min="1"
-                            value={item.quantity}
-                            readOnly
-                          />
+                          <Form.Control type="number" min="1" value={item.quantity} readOnly />
                         </td>
                         <td>
                           <Button
@@ -460,7 +403,7 @@ useEffect(() => {
               )}
             </div>
 
-            {/* ------------------- Pagination ------------------- */}
+            {/* Pagination */}
             {items.length > itemsPerPage && (
               <div className="d-flex justify-content-between mt-3">
                 <Button
@@ -485,7 +428,7 @@ useEffect(() => {
               </div>
             )}
 
-            {/* ------------------- Footer Buttons ------------------- */}
+            {/* Footer */}
             <div className="mt-4 d-flex justify-content-end gap-2">
               <Button variant="secondary" onClick={() => navigate("/sales-order")}>
                 Cancel

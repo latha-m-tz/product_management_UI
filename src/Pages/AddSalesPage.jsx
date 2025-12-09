@@ -148,7 +148,9 @@ export default function AddSalesPage() {
     // } else if (new Date(challanDate) > new Date()) {
     //   errors.challanDate = "Challan Date cannot be in the future";
     // }
-
+if (!challanDate) {
+      errors.challanDate = "Challan Date is required";}
+      if (!shipmentName.trim()) errors.shipmentName = "Shipment Name is required";  
     if (!shipmentDate) {
       errors.shipmentDate = "Shipment Date is required";}
     // } else if (new Date(shipmentDate) > new Date()) {
