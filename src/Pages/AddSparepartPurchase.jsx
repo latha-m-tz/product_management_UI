@@ -174,7 +174,6 @@ export default function AddSparepartPurchase() {
 
     clearError("sparepart_id", index);
   };
-
   const handleInputChange = (index, field, value) => {
     const updated = [...spareparts];
     const type = sparepartTypeOf(updated[index].sparepart_id);
@@ -201,15 +200,17 @@ export default function AddSparepartPurchase() {
       }
     }
 
-    // NON-SERIAL ITEMS (manual qty)
+    // NON-SERIAL ITEMS
     if (!isSerialItem && field === "qty") {
       updated[index].qty = value.replace(/\D/g, "");
     }
 
-    // Always update
-    updated[index][field] = value;
+    // DO NOT overwrite cleaned values for serials
+    if (!isSerialItem || !isSerialField) {
+      updated[index][field] = value;
+    }
 
-    // Row becomes valid?
+    // FUNCTION THAT CHECKS IF ROW IS COMPLETE
     const isValid = () => {
       const sp = updated[index];
       if (!sp.sparepart_id) return false;
@@ -220,37 +221,55 @@ export default function AddSparepartPurchase() {
       return Number(sp.qty) > 0;
     };
 
-    // Auto-create next row once valid
-    if (index === spareparts.length - 1 && isValid()) {
-      updated.push({
-        sparepart_id: "",
-        qty: "",
-        warranty_status: "Active",
-        from_serial: "",
-        to_serial: "",
-      });
-    }
+    // AUTO–ADD NEXT CARD
+    // if (index === spareparts.length - 1 && isValid()) {
+    //   updated.push({
+    //     sparepart_id: "",
+    //     qty: "",
+    //     warranty_status: "Active",
+    //     from_serial: "",
+    //     to_serial: "",
+    //   });
+    // }
 
     setSpareparts(updated);
   };
-const isLastRowValid = () => {
-  const last = spareparts[spareparts.length - 1];
-  const type = sparepartTypeOf(last.sparepart_id);
 
-  if (!last.sparepart_id) return false;
+  const isRowComplete = (row) => {
+    const type = sparepartTypeOf(row.sparepart_id);
 
-  if (type.includes("serial")) {
-    return (
-      last.from_serial &&
-      last.to_serial &&
-      Number(last.qty) > 0
-    );
-  }
+    if (!row.sparepart_id) return false;
 
-  return Number(last.qty) > 0;
-};
+    if (type.includes("serial")) {
+      return row.from_serial && row.to_serial && Number(row.qty) > 0;
+    }
+
+    return Number(row.qty) > 0;
+  };
+
+  const isLastRowValid = () => {
+    const last = spareparts[spareparts.length - 1];
+    const type = sparepartTypeOf(last.sparepart_id);
+
+    if (!last.sparepart_id) return false;
+
+    if (type.includes("serial")) {
+      return (
+        last.from_serial &&
+        last.to_serial &&
+        Number(last.qty) > 0
+      );
+    }
+
+    return Number(last.qty) > 0;
+  };
 
   const handleDeleteSparepart = (index) => {
+    if (index === 0) {
+      toast.error("At least one spare part is required.");
+      return;
+    }
+
     MySwal.fire({
       title: "Are you sure?",
       text: "You won't be able to revert this!",
@@ -261,11 +280,12 @@ const isLastRowValid = () => {
       confirmButtonText: "Yes, delete it!",
     }).then((result) => {
       if (result.isConfirmed) {
-        removeSparepart(index); // Use your existing removeSparepart function
+        removeSparepart(index);
         toast.success("Spare part deleted successfully!");
       }
     });
   };
+
 
 
 
@@ -292,18 +312,36 @@ const isLastRowValid = () => {
 
 
   const addSparepart = () => {
-    setSpareparts((prev) => [
-      ...prev,
+    const last = spareparts[spareparts.length - 1];
+    const type = sparepartTypeOf(last.sparepart_id);
+
+    const isComplete =
+      last.sparepart_id &&
+      (
+        (!type.includes("serial") && Number(last.qty) > 0) ||
+        (type.includes("serial") &&
+          last.from_serial &&
+          last.to_serial &&
+          Number(last.qty) > 0)
+      );
+
+    if (!isComplete) {
+      toast.error("Please fill all required fields before adding another spare part.");
+      return;
+    }
+
+    setSpareparts([
+      ...spareparts,
       {
         sparepart_id: "",
         qty: "",
         warranty_status: "Active",
-        // product_id: "",
         from_serial: "",
         to_serial: "",
       },
     ]);
   };
+
 
   const removeSparepart = (index) => {
     if (index === 0) {
@@ -334,85 +372,79 @@ const isLastRowValid = () => {
     });
   };
 
-const validateForm = () => {
-  const errs = {};
+  const validateForm = () => {
+    const errs = {};
 
-  if (!vendorId) errs.vendor_id = "Vendor is required";
-  if (!challanNo) errs.challan_no = "Challan No is required";
-  if (!challanDate) errs.challan_date = "Challan Date is required";
-  if (!receivedDate) errs.received_date = "Received Date is required";
+    if (!vendorId) errs.vendor_id = "Vendor is required";
+    if (!challanNo) errs.challan_no = "Challan No is required";
+    if (!challanDate) errs.challan_date = "Challan Date is required";
+    if (!receivedDate) errs.received_date = "Received Date is required";
 
-  if (challanDate && receivedDate) {
-    const challan = new Date(challanDate);
-    const received = new Date(receivedDate);
+    if (challanDate && receivedDate) {
+      const challan = new Date(challanDate);
+      const received = new Date(receivedDate);
 
-    if (received < challan) {
-      errs.received_date = "Received Date cannot be before Challan Date";
-    }
-  }
-
-  const itemErrors = {};
-
-  spareparts.forEach((sp, idx) => {
-    const type = sparepartTypeOf(sp.sparepart_id);
-    const itemErr = {};
-
-    // Sparepart required
-    if (!sp.sparepart_id) {
-      itemErr.sparepart_id = "Sparepart is required";
-    }
-
-    // Serial-based validation
-    if (type.includes("serial")) {
-      if (!sp.from_serial || !sp.from_serial.trim()) {
-        itemErr.from_serial = "From Serial is required";
-      }
-
-      if (!sp.to_serial || !sp.to_serial.trim()) {
-        itemErr.to_serial = "To Serial is required";
-      }
-
-      if (sp.from_serial && sp.to_serial) {
-        const fromNum = Number(sp.from_serial);
-        const toNum = Number(sp.to_serial);
-
-        if (fromNum > toNum) {
-          itemErr.from_serial = "From Serial must be <= To Serial";
-          itemErr.to_serial = "From Serial must be <= To Serial";
-        }
-
-        // Exactly 6 digits
-        if (!/^\d{6}$/.test(sp.from_serial)) {
-          itemErr.from_serial = "From Serial must be exactly 6 digits";
-        }
-        if (!/^\d{6}$/.test(sp.to_serial)) {
-          itemErr.to_serial = "To Serial must be exactly 6 digits";
-        }
+      if (received < challan) {
+        errs.received_date = "Received Date cannot be before Challan Date";
       }
     }
 
-    // Quantity required
-    if (!sp.qty || Number(sp.qty) < 1) {
-      itemErr.qty = "Quantity is required";
+    const itemErrors = {};
+
+    spareparts.forEach((sp, idx) => {
+      const type = sparepartTypeOf(sp.sparepart_id);
+      const itemErr = {};
+
+      // Sparepart required
+      if (!sp.sparepart_id) {
+        itemErr.sparepart_id = "Sparepart is required";
+      }
+
+      if (type.includes("serial")) {
+        if (!sp.from_serial || !sp.from_serial.trim()) {
+          itemErr.from_serial = "From Serial is required";
+        }
+
+        if (!sp.to_serial || !sp.to_serial.trim()) {
+          itemErr.to_serial = "To Serial is required";
+        }
+
+        if (sp.from_serial && sp.to_serial) {
+          const fromNum = Number(sp.from_serial);
+          const toNum = Number(sp.to_serial);
+
+          if (fromNum > toNum) {
+            itemErr.from_serial = "From Serial must be <= To Serial";
+            itemErr.to_serial = "From Serial must be <= To Serial";
+          }
+
+          // Exactly 6 digits
+          if (!/^\d{6}$/.test(sp.from_serial)) {
+            itemErr.from_serial = "From Serial must be exactly 6 digits";
+          }
+          if (!/^\d{6}$/.test(sp.to_serial)) {
+            itemErr.to_serial = "To Serial must be exactly 6 digits";
+          }
+        }
+      }
+
+      if (!sp.qty || Number(sp.qty) < 1) {
+        itemErr.qty = "Quantity is required";
+      }
+
+      if (Object.keys(itemErr).length > 0) {
+        itemErrors[idx] = itemErr;
+      }
+    });
+
+    if (Object.keys(itemErrors).length > 0) {
+      errs.items = itemErrors;
     }
 
-    // Collect row errors
-    if (Object.keys(itemErr).length > 0) {
-      itemErrors[idx] = itemErr;
-    }
-  });
+    setErrors(errs);
 
-  // Attach item-level errors to main error object
-  if (Object.keys(itemErrors).length > 0) {
-    errs.items = itemErrors;
-  }
-
-  // SET STATE
-  setErrors(errs);
-
-  // VALID IF NO MAIN ERRORS
-  return Object.keys(errs).length === 0;
-};
+    return Object.keys(errs).length === 0;
+  };
 
 
 
@@ -425,7 +457,7 @@ const validateForm = () => {
 
     if (vendorId) {
       const parts = vendorId.split("-");
-      vendor_id = parts[0]; 
+      vendor_id = parts[0];
       contact_person_id = parts[1] && parts[1] !== "0" ? parts[1] : null; // null if main vendor
     } else {
       vendor_id = "";
@@ -434,23 +466,16 @@ const validateForm = () => {
     formData.append("vendor_id", vendor_id);
     if (contact_person_id) formData.append("contact_person_id", contact_person_id);
 
-   
+
 
     // formData.append("contact_person_id", contactPersonId || "")
     formData.append("challan_no", challanNo || "");
     formData.append("tracking_number", trackingNumber || "");
     formData.append("courier_name", courierName || "");
 
-    // Convert yyyy-mm-dd → mm-dd-yyyy
-    const formatDateMDY = (dateStr) => {
-      if (!dateStr) return "";
-      const [year, month, day] = dateStr.split("-");
-      return `${month}-${day}-${year}`;
-    };
+    formData.append("challan_date", challanDate);
+    formData.append("received_date", receivedDate);
 
-    // In handleSubmit
-    formData.append("challan_date", formatDateMDY(challanDate));
-    formData.append("received_date", formatDateMDY(receivedDate));
 
 
     recipientFiles.forEach((f) => {
@@ -609,7 +634,7 @@ const validateForm = () => {
                 )}
               </Form.Group>
             </Col>
-     <Col md={4}>
+            <Col md={4}>
               <Form.Group className="mb-2 form-field">
                 <Form.Label>Courier Name</Form.Label>
                 <Form.Control
@@ -631,7 +656,7 @@ const validateForm = () => {
                 />
               </Form.Group>
             </Col>
-       
+
 
             {/* Receipt Files */}
             <Col md={6}>
@@ -764,6 +789,7 @@ const validateForm = () => {
                         </Form.Label>
                         <Form.Select
                           value={sp.sparepart_id}
+                          disabled={index > 0 && !isRowComplete(spareparts[index - 1])}
                           onChange={(e) => handleSparepartChange(index, e.target.value)}
                         >
                           <option value="">Select Spare parts</option>
@@ -773,7 +799,6 @@ const validateForm = () => {
                             </option>
                           ))}
                         </Form.Select>
-
                         {errors.items?.[index]?.sparepart_id && (
                           <div style={feedbackStyle}>{errors.items[index].sparepart_id}</div>
                         )}
@@ -900,12 +925,9 @@ const validateForm = () => {
         <Button
           variant="success"
           onClick={addSparepart}
-          disabled={!isLastRowValid()}
         >
           <i className="bi bi-plus-lg me-1" /> Add Spare Parts
         </Button>
-
-
         <div>
           <Button
             variant="secondary"

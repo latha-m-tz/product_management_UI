@@ -679,7 +679,7 @@ export default function EditVendor() {
 
   const saveVendor = async () => {
     if (!validateVendor()) {
-      toast.error("Please correct the errors before saving.");
+      toast.error("Please fill the required fields.");
       return;
     }
 

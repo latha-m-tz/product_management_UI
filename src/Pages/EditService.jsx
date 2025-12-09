@@ -27,9 +27,6 @@ const EditServicePage = () => {
     items: [],
   });
 
-  /* ---------------------------------------------------
-        LOAD INITIAL DATA
-  --------------------------------------------------- */
   useEffect(() => {
     const token = localStorage.getItem("authToken");
     if (token) setAuthToken(token);
@@ -68,7 +65,9 @@ const EditServicePage = () => {
           challan_no: service.challan_no,
           challan_date: service.challan_date,
           tracking_no: service.tracking_no,
-          receipt_files: service.receipt_files || [],
+          receipt_files: service.receipt_files && service.receipt_files.length > 0
+            ? service.receipt_files
+            : [null],
           items: formattedItems,
         });
 
@@ -82,9 +81,6 @@ const EditServicePage = () => {
     loadServiceData();
   }, [id]);
 
-  /* ---------------------------------------------------
-        HANDLE TOP-LEVEL FORM INPUT
-  --------------------------------------------------- */
   const handleChange = (e) => {
     const { name, value, files } = e.target;
 
@@ -97,9 +93,6 @@ const EditServicePage = () => {
     setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
-  /* ---------------------------------------------------
-        HANDLE ITEM ROW UPDATES
-  --------------------------------------------------- */
   const handleItemChange = (index, e) => {
     const { name, value, files } = e.target;
     const updatedItems = [...formData.items];
@@ -111,7 +104,6 @@ const EditServicePage = () => {
       updatedItems[index].sparepart_id = Number(value);
       updatedItems[index].isPCB = isPCB;
 
-      // Reset PCB / quantity fields  
       updatedItems[index].vci_serial_no = "";
       updatedItems[index].quantity = "";
 
@@ -128,11 +120,38 @@ const EditServicePage = () => {
 
     setFormData((prev) => ({ ...prev, items: updatedItems }));
   };
+  const validateLastRow = () => {
+    const lastIndex = formData.items.length - 1;
+    const row = formData.items[lastIndex];
 
-  /* ---------------------------------------------------
-        ADD / REMOVE ROWS
-  --------------------------------------------------- */
+    if (!row.sparepart_id) {
+      toast.error("Please select a product before adding another row.");
+      return false;
+    }
+
+    if (row.isPCB) {
+      if (!row.vci_serial_no.trim()) {
+        toast.error("Please enter Serial Number before adding another row.");
+        return false;
+      }
+    } else {
+      if (!row.quantity || row.quantity <= 0) {
+        toast.error("Please enter a valid Quantity before adding another row.");
+        return false;
+      }
+    }
+
+    if (!row.status) {
+      toast.error("Please select a Status before adding another row.");
+      return false;
+    }
+
+    return true;
+  };
+
   const addRow = () => {
+    if (!validateLastRow()) return; // <-- prevent adding new row
+
     setFormData((prev) => ({
       ...prev,
       items: [
@@ -148,7 +167,10 @@ const EditServicePage = () => {
         },
       ],
     }));
+
+    toast.success("New row added!");
   };
+
 
   const removeRow = (index) => {
     MySwal.fire({
@@ -169,9 +191,6 @@ const EditServicePage = () => {
     });
   };
 
-  /* ---------------------------------------------------
-        FORM VALIDATION
-  --------------------------------------------------- */
   const validate = () => {
     const newErrors = {};
 
@@ -193,6 +212,15 @@ const EditServicePage = () => {
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+  const isItemRowComplete = (item) => {
+    if (!item.sparepart_id) return false;
+
+    if (item.isPCB) {
+      return item.vci_serial_no && item.vci_serial_no.trim() !== "";
+    }
+
+    return item.quantity && Number(item.quantity) > 0;
   };
 
   const handleSubmit = async (e) => {
@@ -257,7 +285,6 @@ const EditServicePage = () => {
             firstErrorMessage = message;
           }
 
-          // Handle items.*.quantity or items.*.vci_serial_no
           if (key.startsWith("items.")) {
             const parts = key.split(".");
             const rowIndex = parts[1]; // items.0.quantity => 0
@@ -275,7 +302,6 @@ const EditServicePage = () => {
 
         setErrors(formatted);
 
-        // Show real backend error — not generic text
         toast.error(firstErrorMessage);
 
       } else {
@@ -357,6 +383,17 @@ const EditServicePage = () => {
               </Form.Select>
             </Form.Group>
           </Col>
+          <Col md={6}>
+            <Form.Group>
+              <Form.Label>Tracking No</Form.Label>
+              <Form.Control
+                type="text"
+                name="tracking_no"
+                value={formData.tracking_no}
+                onChange={handleChange}
+              />
+            </Form.Group>
+          </Col>
           {/* RECEIPT DOCUMENTS */}
           <Row className="mb-3">
             <Col md={6}>
@@ -367,12 +404,20 @@ const EditServicePage = () => {
                     variant="link"
                     size="sm"
                     className="text-success ms-1 p-0"
-                    onClick={() =>
+                    onClick={() => {
+                      const lastFile = formData.receipt_files[formData.receipt_files.length - 1];
+
+                      // Must upload before adding next row
+                      if (!lastFile || (!(lastFile instanceof File) && typeof lastFile !== "string")) {
+                        toast.error("Please upload the receipt file before adding another.");
+                        return;
+                      }
+
                       setFormData(prev => ({
                         ...prev,
-                        receipt_files: [...prev.receipt_files, null]
-                      }))
-                    }
+                        receipt_files: [...prev.receipt_files, null],
+                      }));
+                    }}
                   >
                     + Add
                   </Button>
@@ -392,29 +437,28 @@ const EditServicePage = () => {
                       }}
                     />
 
-                    {/* Delete Button */}
+                    {/* Delete button (DISABLED for first row) */}
                     <Button
                       variant="link"
                       size="sm"
                       className="text-danger ms-2 p-0"
-                      disabled={formData.receipt_files.length === 1}
+                      disabled={i === 0}
                       onClick={() =>
                         setFormData(prev => ({
                           ...prev,
-                          receipt_files: prev.receipt_files.filter((_, idx) => idx !== i)
+                          receipt_files: prev.receipt_files.filter((_, idx) => idx !== i),
                         }))
                       }
                     >
                       ❌
                     </Button>
-
                   </div>
                 ))}
 
-                {/* SHOW EXISTING FILE LINKS */}
-                {formData.receipt_files.map((file, i) => (
-                  typeof file === "string" && (
-                    <div key={`link-${i}`} className="mt-1">
+                {/* EXISTING FILE LINKS */}
+                {formData.receipt_files.map((file, i) =>
+                  typeof file === "string" ? (
+                    <div key={`existing-${i}`} className="mt-1">
                       <a
                         href={`${API_BASE_URL.replace("/api", "")}/storage/${file}`}
                         target="_blank"
@@ -423,23 +467,12 @@ const EditServicePage = () => {
                         📄 View Uploaded File {i + 1}
                       </a>
                     </div>
-                  )
-                ))}
+                  ) : null
+                )}
               </Form.Group>
             </Col>
           </Row>
 
-          <Col md={6}>
-            <Form.Group>
-              <Form.Label>Tracking No</Form.Label>
-              <Form.Control
-                type="text"
-                name="tracking_no"
-                value={formData.tracking_no}
-                onChange={handleChange}
-              />
-            </Form.Group>
-          </Col>
         </Row>
 
         {/* ITEMS TABLE */}
@@ -529,9 +562,9 @@ const EditServicePage = () => {
                     onChange={(e) => handleItemChange(i, e)}
                   />
 
-                  {typeof item.upload_image === "string" && (
+                  {item.upload_image && typeof item.upload_image === "string" && (
                     <a
-                      href={`${API_BASE_URL.replace("/api", "")}/storage/${item.upload_image}`}
+                      href={item.upload_image}    // ← FIXED
                       target="_blank"
                       rel="noopener noreferrer"
                     >

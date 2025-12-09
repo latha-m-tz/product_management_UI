@@ -44,7 +44,6 @@ const SkeletonChart = () => (
   ></div>
 );
 
-// Auto-scale Y-Axis
 function getYAxisConfig(maxVal) {
   const paddedMax = maxVal * 1.1;
 
@@ -66,7 +65,7 @@ export default function OverviewPage() {
   });
 
   const [graphData, setGraphData] = useState([]);
-  const [loading, setLoading] = useState(true); 
+  const [loading, setLoading] = useState(true);
   const [countLoading, setCountLoading] = useState(true);
   const [duration, setDuration] = useState("Month");
   const [availableYears, setAvailableYears] = useState([]);
@@ -77,14 +76,15 @@ export default function OverviewPage() {
     if (token) setAuthToken(token);
 
     fetchCounts();
+    fetchGraphData();
+
   }, [duration, selectedYear]);
 
   const fetchCounts = async () => {
     setCountLoading(true);
-    setLoading(true);
 
     try {
-      const [vendorsRes, customersRes, salesSummaryRes, productSoldCount] =
+      const [vendorsRes, customersRes, availableRes, soldRes] =
         await Promise.all([
           api.get("/vendors/count"),
           api.get("/customers/count"),
@@ -92,45 +92,37 @@ export default function OverviewPage() {
           api.get("/products/sold/count"),
         ]);
 
-      // Helper to extract count
-      const extract = (obj) => {
-        if (!obj) return 0;
-        return (
-          obj.count ??
-          obj.total ??
-          obj.data ??
-          obj.totalProductsSold ??
-          obj.total_products_sold ??
-          0
-        );
-      };
+      const extract = (obj) =>
+        obj?.count ??
+        obj?.total ??
+        obj?.data ??
+        obj?.totalProductsSold ??
+        obj?.total_products_sold ??
+        0;
 
       setStats({
         customers: extract(customersRes.data),
         vendors: extract(vendorsRes.data),
-       productSales: salesSummaryRes.data.count ?? 0,
-
-        soldCount: extract(productSoldCount.data),
+        productSales: extract(availableRes.data),
+        soldCount: extract(soldRes.data),
       });
+    } catch (error) {
+      console.error("Dashboard API Error:", error);
+    } finally {
+      setCountLoading(false);
+    }
+  };
 
-      // Fix graph data
-      const summary = salesSummaryRes.data;
+  const fetchGraphData = async () => {
+    setLoading(true);
 
-      const yearly =
-        summary.yearly_sales ??
-        summary.yearlySales ??
-        summary.yearly ??
-        summary.yearly_data ??
-        [];
+    try {
+      const res = await api.get("/products/sold/count");
 
-      const monthly =
-        summary.monthly_sales ??
-        summary.monthlySales ??
-        summary.monthly ??
-        summary.monthly_data ??
-        [];
+      const yearly = res.data.yearly_sales || [];
+      const monthly = res.data.monthly_sales || [];
 
-      const years = yearly.map((y) => y.year);
+      const years = yearly.map((y) => Number(y.year));
       setAvailableYears(years);
 
       if (!selectedYear && years.length > 0) {
@@ -140,82 +132,50 @@ export default function OverviewPage() {
         );
       }
 
-      // YEARLY GRAPH
       if (duration === "Year") {
         setGraphData(
           yearly.map((y) => ({
             label: y.year.toString(),
-            value:
-              y.total_quantity ??
-              y.totalQuantity ??
-              y.total ??
-              Number(y.total) ??
-              0,
+            value: Number(y.total_quantity) || 0,
           }))
         );
-      }
-      // MONTHLY GRAPH
-      else {
+      } else {
         const allMonths = [
-          "January",
-          "February",
-          "March",
-          "April",
-          "May",
-          "June",
-          "July",
-          "August",
-          "September",
-          "October",
-          "November",
-          "December",
+          "January", "February", "March", "April", "May", "June",
+          "July", "August", "September", "October", "November", "December"
         ];
 
         const short = {
-          January: "Jan",
-          February: "Feb",
-          March: "Mar",
-          April: "Apr",
-          May: "May",
-          June: "Jun",
-          July: "Jul",
-          August: "Aug",
-          September: "Sep",
-          October: "Oct",
-          November: "Nov",
-          December: "Dec",
+          January: "Jan", February: "Feb", March: "Mar", April: "Apr",
+          May: "May", June: "Jun", July: "Jul", August: "Aug",
+          September: "Sep", October: "Oct", November: "Nov", December: "Dec"
         };
 
-        const filteredMonthly = selectedYear
-          ? monthly.filter((m) => Number(m.year) === Number(selectedYear))
-          : monthly;
+        const filtered = monthly.filter(
+          (m) => Number(m.year) === Number(selectedYear)
+        );
 
         const lookup = {};
-        filteredMonthly.forEach((m) => {
-          lookup[m.month_name.trim()] =
-            m.total_quantity ??
-            m.totalQuantity ??
-            m.total ??
-            Number(m.total) ??
-            0;
+        filtered.forEach((m) => {
+          lookup[m.month_name.trim()] = Number(m.total_quantity) || 0;
         });
 
-        const fullYear = allMonths.map((month) => ({
-          label: short[month],
-          value: lookup[month] ?? 0,
-        }));
-
-        setGraphData(fullYear);
+        setGraphData(
+          allMonths.map((month) => ({
+            label: short[month],
+            value: lookup[month] ?? 0,
+          }))
+        );
       }
+
     } catch (error) {
-      console.error("Dashboard API Error:", error);
-      setStats({ vendors: 0, customers: 0, productSales: 0, soldCount: 0 });
+      console.error("Graph API Error:", error);
       setGraphData([]);
     } finally {
-      setCountLoading(false);
       setLoading(false);
     }
   };
+
 
   const formatCount = (num) => {
     if (!num) return 0;
@@ -252,23 +212,25 @@ export default function OverviewPage() {
     scales: {
       x: { grid: { display: false } },
       y: {
-        grid: { display: false },
-        min: yMin,
-        max: yMax,
+        beginAtZero: true,
+        min: 0,
+        max: 1000,       
         ticks: {
-          stepSize,
-          callback: (val) =>
-            yMax >= 1000 && val % 1000 === 0 ? `${val / 1000}k` : val,
+          stepSize: 100,
+          callback: (val) => val,
         },
+        grid: { display: false },
       },
     },
   };
+
 
   return (
     <>
       <div className="container-fluid px-0">
         <Row className="mb-4 g-3 w-100 mx-0">
-          {/* CARDS */}
+
+          {/* CUSTOMER */}
           <Col xs={12} sm={6} md={3} className="px-2">
             <Card className="border-0 shadow-sm h-100" style={{ backgroundColor: "#E3F5FF" }}>
               <Card.Body>
@@ -278,6 +240,7 @@ export default function OverviewPage() {
             </Card>
           </Col>
 
+          {/* VENDOR */}
           <Col xs={12} sm={6} md={3} className="px-2">
             <Card className="border-0 shadow-sm h-100" style={{ backgroundColor: "#E5ECF6" }}>
               <Card.Body>
@@ -287,6 +250,7 @@ export default function OverviewPage() {
             </Card>
           </Col>
 
+          {/* PRODUCTS AVAILABLE */}
           <Col xs={12} sm={6} md={3} className="px-2">
             <Card className="border-0 shadow-sm h-100" style={{ backgroundColor: "#E5ECF6" }}>
               <Card.Body>
@@ -296,6 +260,7 @@ export default function OverviewPage() {
             </Card>
           </Col>
 
+          {/* SOLD PRODUCTS */}
           <Col xs={12} sm={6} md={3} className="px-2">
             <Card className="border-0 shadow-sm h-100" style={{ backgroundColor: "#cbddf8" }}>
               <Card.Body>

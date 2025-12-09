@@ -344,6 +344,7 @@ export default function AddAssemblePage() {
             // 🔥 3. ADD TO TABLE
             const newProducts = validSerials.map(s => ({
                 serial_no: s,
+                product_id: parseInt(product_id),
                 tested_by: testedBy,
                 tested_status: ["PASS"],
                 test_remarks: "",
@@ -415,52 +416,65 @@ export default function AddAssemblePage() {
             }
         });
     };
+   const handleSubmit = async () => {
+    try {
+        if (products.length === 0) {
+            toast.error("Add at least one product before saving.");
+            return;
+        }
 
+        // ⭐ GROUP BY product_id
+        const grouped = {};
+        products.forEach(p => {
+            if (!grouped[p.product_id]) grouped[p.product_id] = [];
+            grouped[p.product_id].push(p.serial_no);
+        });
 
-    const handleSubmit = async () => {
-        try {
-            if (products.length === 0) {
-                toast.error("Add at least one product before saving.");
-                return;
-            }
+        let allValidSerials = [];
 
-            // Prepare payload to check purchase status first
-            const serialsToCheck = products.map(p => p.serial_no);
+        // ⭐ VALIDATE EACH PRODUCT SEPARATELY
+        for (const pid in grouped) {
+            const checkRes = await api.post("/check-serials-purchased", {
+                product_id: parseInt(pid),  // backend requires product_id, NOT product_ids
+                serials: grouped[pid],
+            });
 
-            const checkPayload = {
-                product_id: parseInt(form.product_id, 10),
-                serials: serialsToCheck,
-            };
+            const purchased = checkRes.data.serial_validation?.purchased || [];
+            const notPurchased = checkRes.data.serial_validation?.not_purchased || [];
 
-            // ✅ Call API to check if serials are purchased
-            const checkRes = await api.post("/check-serials-purchased", checkPayload);
-
-            const purchasedSerials =
-                checkRes.data.serial_validation?.purchased || [];
-
-            const notPurchasedSerials =
-                checkRes.data.serial_validation?.not_purchased || [];
-
-            if (notPurchasedSerials.length > 0) {
+            if (notPurchased.length > 0) {
                 toast.error(
-                    `Serial(s) ${notPurchasedSerials.join(", ")} are not purchased. Only purchased serials can be added.`,
-                    { autoClose: 8000 }
+                    `Product ${pid}: These serial(s) are not purchased → ${notPurchased.join(", ")}`
                 );
             }
 
-            if (purchasedSerials.length === 0) {
-                toast.error("No purchased serials to save.");
-                return;
-            }
+            allValidSerials.push(...purchased);
+        }
 
-            // Filter products to only include purchased serials
-            const productsToSave = products.filter(p => purchasedSerials.includes(p.serial_no));
+        // ⭐ FILTER ONLY PURCHASED SERIALS
+        const productsToSave = products.filter(p =>
+            allValidSerials.includes(p.serial_no)
+        );
 
+        if (productsToSave.length === 0) {
+            toast.error("No valid purchased serials to save.");
+            return;
+        }
+
+        // ⭐ GROUP AGAIN FOR SAVING
+        const saveGroups = {};
+        productsToSave.forEach(p => {
+            if (!saveGroups[p.product_id]) saveGroups[p.product_id] = [];
+            saveGroups[p.product_id].push(p);
+        });
+
+        // ⭐ SAVE EACH PRODUCT ID TO /inventory
+        for (const pid in saveGroups) {
             const payload = {
-                product_id: parseInt(form.product_id, 10),
+                product_id: parseInt(pid),
                 firmware_version: form.firmwareVersion,
                 tested_date: form.testedDate,
-                items: productsToSave.map(p => ({
+                items: saveGroups[pid].map(p => ({
                     serial_no: p.serial_no,
                     tested_by: p.tested_by || null,
                     tested_status: Array.isArray(p.tested_status)
@@ -473,17 +487,19 @@ export default function AddAssemblePage() {
                 })),
             };
 
-            // ✅ Save purchased serials to inventory
-            const response = await api.post("/inventory", payload);
-
-            toast.success(response.data.message || "Inventory saved successfully!");
-            navigate("/assemble");
-
-        } catch (error) {
-            console.error(error);
-            toast.error(error.response?.data?.message || "Error saving inventory. Please try again.");
+            await api.post("/inventory", payload);
         }
-    };
+
+        toast.success("Inventory saved successfully!");
+        navigate("/assemble");
+
+    } catch (error) {
+        console.error(error);
+        toast.error(error.response?.data?.message || "Error saving inventory.");
+    }
+};
+
+
 
 
     const filteredProducts = products.filter((p) => {

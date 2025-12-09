@@ -72,7 +72,7 @@ export default function App() {
   //       console.error("Error fetching product types:", err);
   //       toast.error("Failed to load product types.");
   //     }
-  //   };
+  //   };a
   //   fetchProductTypes();
   // }, []);
 
@@ -217,25 +217,32 @@ export default function App() {
 
   const errorStyle = { color: "#dc3545", fontSize: "13px", marginTop: "4px" };
 
-  const paginated = spareparts
-    .filter(part => {
-      const searchLower = search.toLowerCase();
-      return (
-        part.name?.toLowerCase().includes(searchLower) ||
-        (part.code ?? "").toLowerCase().includes(searchLower) ||
-        (part.vendor ?? "").toLowerCase().includes(searchLower) ||
-        (part.is_active ?? "").toString().toLowerCase().includes(searchLower) ||
-        (part.quantity ?? "").toString().includes(searchLower)
-      );
-    })
-    .sort((a, b) => {
-      const valueA = (a[sortField] ?? "").toString().toLowerCase();
-      const valueB = (b[sortField] ?? "").toString().toLowerCase();
-      if (valueA < valueB) return sortDirection === "asc" ? -1 : 1;
-      if (valueA > valueB) return sortDirection === "asc" ? 1 : -1;
-      return 0;
-    })
-    .slice((page - 1) * perPage, page * perPage);
+const paginated = spareparts
+  .filter(part => {
+    const searchLower = search.toLowerCase();
+    return (
+      part.name?.toLowerCase().includes(searchLower) ||
+      (part.code ?? "").toLowerCase().includes(searchLower) ||
+      (part.vendor ?? "").toLowerCase().includes(searchLower) ||
+      (part.is_active ?? "").toString().toLowerCase().includes(searchLower) ||
+      (part.quantity ?? "").toString().includes(searchLower)
+    );
+  })
+
+  .sort((a, b) => b.id - a.id)
+
+  // ⭐ custom sorting only if user selected a field
+  .sort((a, b) => {
+    if (!sortField) return 0;
+    const valueA = (a[sortField] ?? "").toString().toLowerCase();
+    const valueB = (b[sortField] ?? "").toString().toLowerCase();
+    if (valueA < valueB) return sortDirection === "asc" ? -1 : 1;
+    if (valueA > valueB) return sortDirection === "asc" ? 1 : -1;
+    return 0;
+  })
+
+  .slice((page - 1) * perPage, page * perPage);
+
 
   return (
     <div className="px-4 " style={{ fontSize: "0.75rem" }}>
