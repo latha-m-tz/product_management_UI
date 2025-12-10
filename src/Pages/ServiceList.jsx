@@ -103,7 +103,13 @@ export default function ServiceList() {
     setLoading(true);
     try {
       const res = await api.get(`/service-vci`);
-      setServices(Array.isArray(res.data) ? res.data.reverse() : []);
+
+      // 🔥 Sort by newest first (created_at desc)
+      const sorted = Array.isArray(res.data)
+        ? res.data.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        : [];
+
+      setServices(sorted);
     } catch (error) {
       console.error("Failed to fetch services:", error);
       toast.error("Failed to fetch services!");
@@ -112,6 +118,59 @@ export default function ServiceList() {
       setLoading(false);
     }
   };
+  const fetchSmartLogHistory = async (serial, sparepartName) => {
+    try {
+      const res = await api.get(`/service-vci`);
+
+      let matchedLogs = [];
+
+      if (serial) {
+        // ✅ Only Serial-based history
+        matchedLogs = res.data.flatMap(service =>
+          (service.items || [])
+            .filter(item => item.vci_serial_no === serial)
+            .map(item => ({
+              challan_no: service.challan_no,
+              vendor_id: service.vendor_id,
+              vci_serial_no: item.vci_serial_no,
+              sparepart: item.sparepart,
+              quantity: item.quantity,
+              status: item.status,
+              created_at: item.created_at
+            }))
+        );
+
+        setSelectedSerial(serial);
+      } else if (sparepartName) {
+        // ✅ Only Sparepart-based history
+        matchedLogs = res.data.flatMap(service =>
+          (service.items || [])
+            .filter(item => item.sparepart === sparepartName)
+            .map(item => ({
+              challan_no: service.challan_no,
+              vendor_id: service.vendor_id,
+              vci_serial_no: item.vci_serial_no,
+              sparepart: item.sparepart,
+              quantity: item.quantity,
+              status: item.status,
+              created_at: item.created_at
+            }))
+        );
+
+        setSelectedSerial(sparepartName);
+      }
+
+      matchedLogs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+      setLogData(matchedLogs);
+      setShowLogModal(true);
+
+    } catch (error) {
+      toast.error("Failed to fetch log history!");
+    }
+  };
+
+
 
   const fetchLogsBySerial = async (serial) => {
     try {
@@ -484,7 +543,7 @@ export default function ServiceList() {
                 <th style={headerStyle}>Challan Date</th>
                 <th style={headerStyle}>VCI Serial No / Sparepart</th>
                 <th style={headerStyle}>Status</th>
-                <th style={headerStyle}>Created Time</th>
+                {/* <th style={headerStyle}>Created Time</th> */}
                 <th
                   style={{
                     ...headerStyle,
@@ -551,9 +610,9 @@ export default function ServiceList() {
                               : "-"}
                           </td>
 
-                          <td style={{ fontSize: "0.90rem" }}>
+                          {/* <td style={{ fontSize: "0.90rem" }}>
                             {item.created_at ? (item.created_at) : "-"}
-                          </td>
+                          </td> */}
 
                           <td className="text-center">
                             <Button
@@ -585,7 +644,7 @@ export default function ServiceList() {
                             <Button
                               variant=""
                               size="sm"
-                              onClick={() => fetchLogsBySerial(item.vci_serial_no)}
+                              onClick={() => fetchSmartLogHistory(item.vci_serial_no, item.sparepart)}
                               style={{
                                 borderColor: "#2E3A59",
                                 color: "#2E3A59",
@@ -595,6 +654,7 @@ export default function ServiceList() {
                             >
                               <i className="bi bi-clock-history"></i>
                             </Button>
+
                           </td>
                         </tr>
                       );
@@ -681,7 +741,7 @@ export default function ServiceList() {
       >
         <Modal.Header closeButton>
           <Modal.Title>
-            Log History for Serial No: <strong>{selectedSerial}</strong>
+            Log History: <strong>{selectedSerial}</strong>
           </Modal.Title>
         </Modal.Header>
         <Modal.Body>
