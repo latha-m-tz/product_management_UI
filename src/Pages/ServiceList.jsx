@@ -282,32 +282,41 @@ export default function ServiceList() {
         };
       })
     )
-    .filter((row) => {
-      const challanNo = (row.challan_no || "").toLowerCase();
-      const challanDate = (row.challan_date || "");
-      const serial = (row.item?.vci_serial_no || "").toLowerCase();
-      const sparepart = (row.item?.sparepart || "").toLowerCase();
-      const status = (row.item?.status || "").toLowerCase();
+  .filter((row) => {
+  const challanNo = (row.challan_no || "").toLowerCase();
+  const challanDate = (row.challan_date || "");
+  const serial = (row.item?.vci_serial_no || "").toLowerCase();
+  const sparepart = (row.item?.sparepart || "").toLowerCase();
 
-      const matchVendor =
-        row.from.toLowerCase().includes(filterVendor.toLowerCase()) ||
-        row.to.toLowerCase().includes(filterVendor.toLowerCase());
+  // 🔥 NORMALIZE STATUS
+  let status = (row.item?.status || "").toLowerCase();
+  if (status === "return") status = "returned";
 
-      const matchChallanNo = challanNo.includes(filterChallanNo.toLowerCase());
-      const matchChallanDate = !filterChallanDate || challanDate === filterChallanDate;
-      const matchSerialOrSparepart =
-        serial.includes(searchValue) ||
-        sparepart.includes(searchValue);
-      const matchStatus = filterStatus ? status === filterStatus.toLowerCase() : true;
+  const matchVendor =
+    row.from.toLowerCase().includes(filterVendor.toLowerCase()) ||
+    row.to.toLowerCase().includes(filterVendor.toLowerCase());
 
-      return (
-        matchVendor &&
-        matchChallanNo &&
-        matchChallanDate &&
-        matchSerialOrSparepart &&
-        matchStatus
-      );
-    });
+  const matchChallanNo = challanNo.includes(filterChallanNo.toLowerCase());
+  const matchChallanDate = !filterChallanDate || challanDate === filterChallanDate;
+
+  const matchSerialOrSparepart =
+    serial.includes(filterSerial.toLowerCase()) ||
+    sparepart.includes(filterSerial.toLowerCase());
+
+  // 🔥 CLEAN STATUS FILTER (works for all: inward, testing, delivered, returned)
+  const matchStatus = filterStatus
+    ? status === filterStatus.toLowerCase()
+    : true;
+
+  return (
+    matchVendor &&
+    matchChallanNo &&
+    matchChallanDate &&
+    matchSerialOrSparepart &&
+    matchStatus
+  );
+});
+
 
 
 
@@ -489,6 +498,7 @@ export default function ServiceList() {
                 <option value="inward">Inward</option>
                 <option value="testing">Testing</option>
                 <option value="delivered">Delivered</option>
+                <option value="returned">Return</option>
               </Form.Select>
             </div>
 
@@ -717,7 +727,7 @@ export default function ServiceList() {
                             <i className="bi bi-trash"></i>
                           </Button>
                         </td>
-                      </tr>,
+                      </tr>
                     ]
                 )
               )}

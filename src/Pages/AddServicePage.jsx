@@ -34,6 +34,13 @@ const AddServicePage = () => {
       },
     ],
   });
+  const selected = new Date(formData.challan_date + "T00:00:00");
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (selected.getTime() > today.getTime()) {
+    newErrors.challan_date = "Future dates not allowed";
+  }
 
   const validate = () => {
     const newErrors = {};
@@ -44,14 +51,15 @@ const AddServicePage = () => {
     if (!formData.challan_date) {
       newErrors.challan_date = "Challan Date is required";
     } else {
-      const selected = new Date(formData.challan_date);
+      const selected = new Date(formData.challan_date + "T00:00:00");
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      if (selected > today) {
+      if (selected.getTime() > today.getTime()) {
         newErrors.challan_date = "Future dates not allowed";
       }
     }
+
 
     // Items: require at least one non-empty item
     if (!Array.isArray(formData.items) || formData.items.length === 0) {
@@ -305,98 +313,98 @@ const AddServicePage = () => {
   };
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  if (!validate()) {
-    toast.error("Please fill the required fields.");
-    return;
-  }
-
-  const payload = new FormData();
-  payload.append("vendor_id", String(formData.vendor_id).trim());
-  payload.append("challan_no", String(formData.challan_no).trim());
-  payload.append("challan_date", String(formData.challan_date).trim());
-  payload.append("tracking_no", String(formData.tracking_no || "").trim());
-
-  recipientFiles.forEach((file, i) => {
-    if (file instanceof File) {
-      payload.append(`receipt_files[${i}]`, file);
-    }
-  });
-
-  formData.items.forEach((item, index) => {
-    if (!item || !item.sparepart_id) return;
-
-    payload.append(`items[${index}][sparepart_id]`, String(item.sparepart_id));
-
-    if (item.isPCB) {
-      payload.append(
-        `items[${index}][vci_serial_no]`,
-        String((item.vci_serial_no || "").trim())
-      );
-    } else {
-      payload.append(`items[${index}][quantity]`, String(item.quantity));
+    if (!validate()) {
+      toast.error("Please fill the required fields.");
+      return;
     }
 
-    payload.append(`items[${index}][status]`, String(item.status || "").trim());
-    payload.append(`items[${index}][remarks]`, String(item.remarks || "").trim());
+    const payload = new FormData();
+    payload.append("vendor_id", String(formData.vendor_id).trim());
+    payload.append("challan_no", String(formData.challan_no).trim());
+    payload.append("challan_date", String(formData.challan_date).trim());
+    payload.append("tracking_no", String(formData.tracking_no || "").trim());
 
-    if (item.upload_image instanceof File) {
-      payload.append(`items[${index}][upload_image]`, item.upload_image);
-    }
-  });
-
-  try {
-    await api.post("/service-vci", payload, {
-      headers: { "Content-Type": "multipart/form-data" },
+    recipientFiles.forEach((file, i) => {
+      if (file instanceof File) {
+        payload.append(`receipt_files[${i}]`, file);
+      }
     });
 
-    toast.success("Service added successfully!");
-    navigate("/service-product");
-  } catch (err) {
-    console.error("Submit Error →", err);
+    formData.items.forEach((item, index) => {
+      if (!item || !item.sparepart_id) return;
 
-    if (err.response?.data?.errors) {
-      const backendErrors = err.response.data.errors;
-      const newErrors = {};
+      payload.append(`items[${index}][sparepart_id]`, String(item.sparepart_id));
 
-      Object.keys(backendErrors).forEach((key) => {
-        if (key.startsWith("items.")) {
-          const parts = key.split("."); // items.0.quantity
-          const index = parts[1];       // "0"
-          const msg = backendErrors[key][0] || "";
+      if (item.isPCB) {
+        payload.append(
+          `items[${index}][vci_serial_no]`,
+          String((item.vci_serial_no || "").trim())
+        );
+      } else {
+        payload.append(`items[${index}][quantity]`, String(item.quantity));
+      }
 
-          const lower = msg.toLowerCase();
+      payload.append(`items[${index}][status]`, String(item.status || "").trim());
+      payload.append(`items[${index}][remarks]`, String(item.remarks || "").trim());
 
-          // Quantity related messages (includes "Only 0 qty available")
-          if (
-            lower.includes("quantity") ||
-            lower.includes("qty") ||
-            lower.includes("available")
-          ) {
-            newErrors[`quantity_${index}`] = msg;
-          }
-          // Serial related
-          else if (lower.includes("serial")) {
-            newErrors[`vci_serial_no_${index}`] = msg;
-          }
-          // Default item-level errors → map to product
-          else {
-            newErrors[`sparepart_id_${index}`] = msg;
-          }
-        } else {
-          // Top-level form errors (vendor_id, challan_no, etc.)
-          newErrors[key] = backendErrors[key][0];
-        }
+      if (item.upload_image instanceof File) {
+        payload.append(`items[${index}][upload_image]`, item.upload_image);
+      }
+    });
+
+    try {
+      await api.post("/service-vci", payload, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
 
-      setErrors(newErrors);
-      toast.error("Validation failed!");
-    } else {
-      toast.error("Failed to submit. Check console for details.");
+      toast.success("Service added successfully!");
+      navigate("/service-product");
+    } catch (err) {
+      console.error("Submit Error →", err);
+
+      if (err.response?.data?.errors) {
+        const backendErrors = err.response.data.errors;
+        const newErrors = {};
+
+        Object.keys(backendErrors).forEach((key) => {
+          if (key.startsWith("items.")) {
+            const parts = key.split("."); // items.0.quantity
+            const index = parts[1];       // "0"
+            const msg = backendErrors[key][0] || "";
+
+            const lower = msg.toLowerCase();
+
+            // Quantity related messages (includes "Only 0 qty available")
+            if (
+              lower.includes("quantity") ||
+              lower.includes("qty") ||
+              lower.includes("available")
+            ) {
+              newErrors[`quantity_${index}`] = msg;
+            }
+            // Serial related
+            else if (lower.includes("serial")) {
+              newErrors[`vci_serial_no_${index}`] = msg;
+            }
+            // Default item-level errors → map to product
+            else {
+              newErrors[`sparepart_id_${index}`] = msg;
+            }
+          } else {
+            // Top-level form errors (vendor_id, challan_no, etc.)
+            newErrors[key] = backendErrors[key][0];
+          }
+        });
+
+        setErrors(newErrors);
+        toast.error("Validation failed!");
+      } else {
+        toast.error("Failed to submit. Check console for details.");
+      }
     }
-  }
-};
+  };
 
 
 
@@ -594,16 +602,24 @@ const AddServicePage = () => {
                       value={item.quantity}
                       min="1"
                       onChange={(e) => {
-                        // Prevent negative or zero
-                        if (Number(e.target.value) <= 0) {
-                          toast.error("Quantity must be greater than 0.");
+                        const val = e.target.value;
+
+                        if (val === "") {
+                          handleItemChange(i, e);
                           return;
                         }
-                        handleItemChange(i, e);
+
+                        if (/^\d+$/.test(val)) {
+                          const num = Number(val);
+                          if (num > 0) {
+                            handleItemChange(i, e);
+                          }
+                        } else {
+                          toast.error("Quantity must be a positive number.");
+                        }
                       }}
                       isInvalid={!!errors[`quantity_${i}`]}
                     />
-
                   )}
 
                   <Form.Control.Feedback type="invalid">
