@@ -72,33 +72,44 @@ export default function EditSalesPage() {
 
     return Object.values(grouped);
   };
+useEffect(() => {
+  const draft = localStorage.getItem("draftSale");
+  if (!draft) return;
 
-  // ---------------------------------------------------------
-  // LOAD SALE ONLY ONCE, DO NOT OVERWRITE IF NEW PRODUCTS EXIST
-  // ---------------------------------------------------------
-  useEffect(() => {
-    if (loadedSale) return;
+  const data = JSON.parse(draft);
 
-    const hasSelected = localStorage.getItem("selectedProducts");
+  setCustomerId(data.customer_id || "");
+  setChallanNo(data.challan_no || "");
+  setChallanDate(data.challan_date || "");
+  setShipmentDate(data.shipment_date || "");
+  setShipmentName(data.shipment_name || "");
+  setNotes(data.notes || "");
+  setItems(data.items || []);
 
-    api.get(`/sales/${id}`).then((res) => {
-      const sale = res.data;
+  setLoadedSale(true); // prevents API overwrite
+}, []);
+ useEffect(() => {
+  if (loadedSale) return;   // <-- now prevents overwrite
 
-      setCustomerId(sale.customer?.id || "");
-      setChallanNo(sale.challan_no);
-      setChallanDate(sale.challan_date);
-      setShipmentDate(sale.shipment_date);
-      setShipmentName(sale.shipment_name || "");
-      setNotes(sale.notes || "");
+  const hasSelected = localStorage.getItem("selectedProducts");
 
-      // If user is NOT adding new items -> Load sale items
-      if (!hasSelected) {
-        setItems(groupProducts(sale.items || []));
-      }
+  api.get(`/sales/${id}`).then((res) => {
+    const sale = res.data;
 
-      setLoadedSale(true);
-    });
-  }, [id, loadedSale]);
+    setCustomerId(sale.customer?.id || "");
+    setChallanNo(sale.challan_no);
+    setChallanDate(sale.challan_date);
+    setShipmentDate(sale.shipment_date);
+    setShipmentName(sale.shipment_name || "");
+    setNotes(sale.notes || "");
+
+    if (!hasSelected) {
+      setItems(groupProducts(sale.items || []));
+    }
+
+    setLoadedSale(true);
+  });
+}, [id, loadedSale]);
 
   useEffect(() => {
     if (!loadedSale) return;
@@ -140,7 +151,6 @@ export default function EditSalesPage() {
         // Merge quantity
         map[pid].quantity += incomingQty;
 
-        // Merge serial if provided
         if (p.serial_no) {
           const s = String(p.serial_no);
           if (!map[pid].serials.includes(s)) {
