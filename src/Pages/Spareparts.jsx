@@ -229,7 +229,7 @@ const paginated = spareparts
     );
   })
 
-  .sort((a, b) => b.id - a.id)
+.sort((a, b) => Number(b.id) - Number(a.id))
 
   // ⭐ custom sorting only if user selected a field
   .sort((a, b) => {

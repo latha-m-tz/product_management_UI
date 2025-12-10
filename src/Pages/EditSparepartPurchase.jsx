@@ -119,6 +119,12 @@ export default function EditSparepartPurchase({ purchaseId }) {
 
 
   const handleDelete = async (id, sp) => {
+    // ❗ Prevent deleting last row
+    if (spareparts.length === 1) {
+      toast.error("At least one spare part is required.");
+      return;
+    }
+
     MySwal.fire({
       title: "Are you sure?",
       text: "This will delete the item!",
@@ -603,10 +609,36 @@ export default function EditSparepartPurchase({ purchaseId }) {
 
 
 
-const addSparepart = () => {
-  // If no spareparts yet → allow first row
-  if (spareparts.length === 0) {
-    setSpareparts([
+  const addSparepart = () => {
+    // If no spareparts yet → allow first row
+    if (spareparts.length === 0) {
+      setSpareparts([
+        {
+          id: null,
+          rowKey: Date.now(),
+          isNew: true,
+          sparepart_id: "",
+          qty: "",
+          warranty_status: "Active",
+          from_serial: "",
+          to_serial: "",
+          serials: [],
+        }
+      ]);
+      return;
+    }
+
+    // Validate previous row
+    const lastRow = spareparts[spareparts.length - 1];
+
+    if (!isPreviousRowComplete(lastRow)) {
+      toast.error("Please complete the previous spare part before adding another.");
+      return; // ❌ STOP – do not add row
+    }
+
+    // If last row is complete → add new row
+    setSpareparts(prev => [
+      ...prev,
       {
         id: null,
         rowKey: Date.now(),
@@ -619,33 +651,7 @@ const addSparepart = () => {
         serials: [],
       }
     ]);
-    return;
-  }
-
-  // Validate previous row
-  const lastRow = spareparts[spareparts.length - 1];
-
-  if (!isPreviousRowComplete(lastRow)) {
-    toast.error("Please complete the previous spare part before adding another.");
-    return; // ❌ STOP – do not add row
-  }
-
-  // If last row is complete → add new row
-  setSpareparts(prev => [
-    ...prev,
-    {
-      id: null,
-      rowKey: Date.now(),
-      isNew: true,
-      sparepart_id: "",
-      qty: "",
-      warranty_status: "Active",
-      from_serial: "",
-      to_serial: "",
-      serials: [],
-    }
-  ]);
-};
+  };
 
 
   const removeSparepart = (index) => {
@@ -697,6 +703,19 @@ const addSparepart = () => {
 
   const validateForm = () => {
     const errs = {};
+
+    // 🔥 Must have at least one sparepart row
+    if (spareparts.length === 0) {
+      toast.error("Please add at least one spare part before updating.");
+      return false;
+    }
+
+    // 🔥 Must have at least one *valid* sparepart (not an empty row)
+    const hasValidItem = spareparts.some(sp => sp.sparepart_id);
+    if (!hasValidItem) {
+      toast.error("Please complete at least one sparepart entry.");
+      return false;
+    }
 
     // Vendor Required
     if (!vendorId) errs.vendor_id = "Vendor is required";
@@ -756,7 +775,6 @@ const addSparepart = () => {
       errs.items = itemErrors;
     }
 
-    // SET ALL ERRORS
     setErrors(errs);
 
     return Object.keys(errs).length === 0;

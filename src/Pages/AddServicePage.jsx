@@ -305,83 +305,99 @@ const AddServicePage = () => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    if (!validate()) {
-      toast.error("Please fill  the required fields.");
-      return;
+  if (!validate()) {
+    toast.error("Please fill the required fields.");
+    return;
+  }
+
+  const payload = new FormData();
+  payload.append("vendor_id", String(formData.vendor_id).trim());
+  payload.append("challan_no", String(formData.challan_no).trim());
+  payload.append("challan_date", String(formData.challan_date).trim());
+  payload.append("tracking_no", String(formData.tracking_no || "").trim());
+
+  recipientFiles.forEach((file, i) => {
+    if (file instanceof File) {
+      payload.append(`receipt_files[${i}]`, file);
+    }
+  });
+
+  formData.items.forEach((item, index) => {
+    if (!item || !item.sparepart_id) return;
+
+    payload.append(`items[${index}][sparepart_id]`, String(item.sparepart_id));
+
+    if (item.isPCB) {
+      payload.append(
+        `items[${index}][vci_serial_no]`,
+        String((item.vci_serial_no || "").trim())
+      );
+    } else {
+      payload.append(`items[${index}][quantity]`, String(item.quantity));
     }
 
-    const payload = new FormData();
-    payload.append("vendor_id", String(formData.vendor_id).trim());
-    payload.append("challan_no", String(formData.challan_no).trim());
-    payload.append("challan_date", String(formData.challan_date).trim());
-    payload.append("tracking_no", String(formData.tracking_no || "").trim());
+    payload.append(`items[${index}][status]`, String(item.status || "").trim());
+    payload.append(`items[${index}][remarks]`, String(item.remarks || "").trim());
 
-    recipientFiles.forEach((file, i) => {
-      if (file instanceof File) {
-        payload.append(`receipt_files[${i}]`, file);
-      }
+    if (item.upload_image instanceof File) {
+      payload.append(`items[${index}][upload_image]`, item.upload_image);
+    }
+  });
+
+  try {
+    await api.post("/service-vci", payload, {
+      headers: { "Content-Type": "multipart/form-data" },
     });
 
-    formData.items.forEach((item, index) => {
-      if (!item || !item.sparepart_id) return;
+    toast.success("Service added successfully!");
+    navigate("/service-product");
+  } catch (err) {
+    console.error("Submit Error →", err);
 
-      payload.append(`items[${index}][sparepart_id]`, String(item.sparepart_id));
+    if (err.response?.data?.errors) {
+      const backendErrors = err.response.data.errors;
+      const newErrors = {};
 
-      if (item.isPCB) {
-        payload.append(`items[${index}][vci_serial_no]`, String((item.vci_serial_no || "").trim()));
-      } else {
-        payload.append(`items[${index}][quantity]`, String(item.quantity));
-      }
+      Object.keys(backendErrors).forEach((key) => {
+        if (key.startsWith("items.")) {
+          const parts = key.split("."); // items.0.quantity
+          const index = parts[1];       // "0"
+          const msg = backendErrors[key][0] || "";
 
-      payload.append(`items[${index}][status]`, String(item.status || "").trim());
-      payload.append(`items[${index}][remarks]`, String(item.remarks || "").trim());
+          const lower = msg.toLowerCase();
 
-      if (item.upload_image instanceof File) {
-        payload.append(`items[${index}][upload_image]`, item.upload_image);
-      }
-    });
-
-    try {
-      await api.post("/service-vci", payload, {
-        headers: { "Content-Type": "multipart/form-data" },
+          // Quantity related messages (includes "Only 0 qty available")
+          if (
+            lower.includes("quantity") ||
+            lower.includes("qty") ||
+            lower.includes("available")
+          ) {
+            newErrors[`quantity_${index}`] = msg;
+          }
+          // Serial related
+          else if (lower.includes("serial")) {
+            newErrors[`vci_serial_no_${index}`] = msg;
+          }
+          // Default item-level errors → map to product
+          else {
+            newErrors[`sparepart_id_${index}`] = msg;
+          }
+        } else {
+          // Top-level form errors (vendor_id, challan_no, etc.)
+          newErrors[key] = backendErrors[key][0];
+        }
       });
 
-      toast.success("Service added successfully!");
-      navigate("/service-product");
-    } catch (err) {
-      console.error("Submit Error →", err);
-
-      if (err.response?.data?.errors) {
-        const backendErrors = err.response.data.errors;
-        const newErrors = {};
-
-        Object.keys(backendErrors).forEach((key) => {
-          if (key.startsWith("items.")) {
-            const parts = key.split(".");
-            const index = parts[1]; // e.g., "0"
-            const msg = backendErrors[key][0];
-
-            if (msg.toLowerCase().includes("quantity")) {
-              newErrors[`quantity_${index}`] = msg;
-            } else if (msg.toLowerCase().includes("serial")) {
-              newErrors[`vci_serial_no_${index}`] = msg;
-            } else {
-              newErrors[`sparepart_id_${index}`] = msg;
-            }
-          } else {
-            newErrors[key] = backendErrors[key][0];
-          }
-        });
-
-        setErrors(newErrors);
-        toast.error("Validation failed!");
-      } else {
-        toast.error("Failed to submit. Check console for details.");
-      }
+      setErrors(newErrors);
+      toast.error("Validation failed!");
+    } else {
+      toast.error("Failed to submit. Check console for details.");
     }
-  };
+  }
+};
+
 
 
   return (
