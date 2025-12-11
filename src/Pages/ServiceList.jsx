@@ -37,9 +37,15 @@ export default function ServiceList() {
     fetchServices();
     fetchVendors();
   }, []);
-  const getFromTo = (status, vendorId) => {
+  const getFromTo = (status, vendorId, item) => {
     const vendorName = getVendorName(vendorId);
 
+    // 🔥 SPAREPART → TamilZorous → Vendor
+    if (item?.sparepart && !item?.vci_serial_no) {
+      return { from: "TamilZorous", to: vendorName };
+    }
+
+    // 🔵 SERIAL ITEMS
     if (status?.toLowerCase() === "inward") {
       return { from: vendorName, to: "TamilZorous" };
     }
@@ -48,8 +54,9 @@ export default function ServiceList() {
       return { from: "TamilZorous", to: vendorName };
     }
 
-    return { from: "TamilZorous", to: "TamilZorous" };
+    return { from: "TamilZorous", to: vendorName };
   };
+
 
   // const formatDate = (dateStr) => {
   //   if (!dateStr) return "-";
@@ -272,7 +279,7 @@ export default function ServiceList() {
   const filteredServices = services
     .flatMap((service) =>
       (service.items || []).map((item) => {
-        const { from, to } = getFromTo(item.status, service.vendor_id);
+        const { from, to } = getFromTo(item.status, service.vendor_id, item);
 
         return {
           ...service,
@@ -282,44 +289,39 @@ export default function ServiceList() {
         };
       })
     )
-  .filter((row) => {
-  const challanNo = (row.challan_no || "").toLowerCase();
-  const challanDate = (row.challan_date || "");
-  const serial = (row.item?.vci_serial_no || "").toLowerCase();
-  const sparepart = (row.item?.sparepart || "").toLowerCase();
+    .filter((row) => {
+      const challanNo = (row.challan_no || "").toLowerCase();
+      const challanDate = (row.challan_date || "");
+      const serial = (row.item?.vci_serial_no || "").toLowerCase();
+      const sparepart = (row.item?.sparepart || "").toLowerCase();
 
-  // 🔥 NORMALIZE STATUS
-  let status = (row.item?.status || "").toLowerCase();
-  if (status === "return") status = "returned";
+      let status = (row.item?.status || "").toLowerCase();
+      if (status === "return") status = "returned";
 
-  const matchVendor =
-    row.from.toLowerCase().includes(filterVendor.toLowerCase()) ||
-    row.to.toLowerCase().includes(filterVendor.toLowerCase());
+      const matchVendor =
+        row.from.toLowerCase().includes(filterVendor.toLowerCase()) ||
+        row.to.toLowerCase().includes(filterVendor.toLowerCase());
 
-  const matchChallanNo = challanNo.includes(filterChallanNo.toLowerCase());
-  const matchChallanDate = !filterChallanDate || challanDate === filterChallanDate;
+      const matchChallanNo = challanNo.includes(filterChallanNo.toLowerCase());
+      const matchChallanDate = !filterChallanDate || challanDate === filterChallanDate;
 
-  const matchSerialOrSparepart =
-    serial.includes(filterSerial.toLowerCase()) ||
-    sparepart.includes(filterSerial.toLowerCase());
+      const matchSerialOrSparepart =
+        serial.includes(filterSerial.toLowerCase()) ||
+        sparepart.includes(filterSerial.toLowerCase());
 
-  // 🔥 CLEAN STATUS FILTER (works for all: inward, testing, delivered, returned)
-  const matchStatus = filterStatus
-    ? status === filterStatus.toLowerCase()
-    : true;
+      // 🔥 CLEAN STATUS FILTER (works for all: inward, testing, delivered, returned)
+      const matchStatus = filterStatus
+        ? status === filterStatus.toLowerCase()
+        : true;
 
-  return (
-    matchVendor &&
-    matchChallanNo &&
-    matchChallanDate &&
-    matchSerialOrSparepart &&
-    matchStatus
-  );
-});
-
-
-
-
+      return (
+        matchVendor &&
+        matchChallanNo &&
+        matchChallanDate &&
+        matchSerialOrSparepart &&
+        matchStatus
+      );
+    });
 
   const paginatedServices = filteredServices.slice(
     (page - 1) * perPage,
@@ -546,8 +548,8 @@ export default function ServiceList() {
                 >
                   S.No
                 </th>
-                <th style={{ ...headerStyle, width: "110px" }}>From</th>
-                <th style={{ ...headerStyle, width: "110px" }}>To</th>
+                <th style={{ ...headerStyle, width: "80px" }}>From</th>
+                <th style={{ ...headerStyle, width: "80px" }}>To</th>
                 {/* <th style={headerStyle}>Vendor Name</th> */}
                 <th style={headerStyle}>Challan No</th>
                 <th style={headerStyle}>Challan Date</th>
@@ -583,153 +585,135 @@ export default function ServiceList() {
                   </td>
                 </tr>
               ) : (
-                paginatedServices.flatMap((service, index) =>
-                  service.items.length > 0
-                    ? service.items.map((item) => {
-                      // ✅ GET FROM & TO HERE
-                      const { from, to } = getFromTo(item.status, service.vendor_id);
+                paginatedServices.map((row, index) => (
+                  <tr key={`${row.id}-${index}`}>
+                    <td className="text-center">
+                      {(page - 1) * perPage + index + 1}
+                    </td>
 
-                      return (
-                        <tr key={item.id}>
-                          <td className="text-center">
-                            {(page - 1) * perPage + index + 1}
-                          </td>
+                    {/* FROM */}
+                    <td
+                      style={{
+                        fontSize: "0.90rem",
+                        fontFamily: "Product Sans, sans-serif",
+                        padding: "4px 6px",
+                      }}
+                    >
+                      {row.from}
+                    </td>
 
-                          {/* FROM */}
-                          <td style={{ fontSize: "0.90rem", width: "110px" }}>{from}</td>
-                          <td style={{ fontSize: "0.90rem", width: "110px" }}>{to}</td>
+                    {/* TO */}
+                    <td
+                      style={{
+                        fontSize: "0.90rem",
+                        padding: "4px 6px",
+                        fontFamily: "Product Sans, sans-serif",
+                      }}
+                    >
+                      {row.to}
+                    </td>
 
-                          {/* Vendor Name */}
-                          {/* <td style={{ fontSize: "0.90rem" }}>
-                            {getVendorName(service.vendor_id)}
-                          </td> */}
+                    {/* CHALLAN NO */}
+                    <td
+                      style={{
+                        fontSize: "0.90rem",
+                        fontFamily: "Product Sans, sans-serif"
+                      }}
+                    >
+                      {row.challan_no}
+                    </td>
 
-                          <td style={{ fontSize: "0.90rem" }}>{service.challan_no}</td>
-                          <td style={{ fontSize: "0.90rem" }}>{service.challan_date}</td>
+                    {/* CHALLAN DATE */}
+                    <td
+                      style={{
+                        fontSize: "0.90rem",
+                        fontFamily: "Product Sans, sans-serif"
+                      }}
+                    >
+                      {row.challan_date}
+                    </td>
 
-                          <td style={{ fontSize: "0.90rem" }}>
-                            <div style={{ fontWeight: 600 }}>{item.vci_serial_no}</div>
-                            <div style={{ fontSize: "0.80rem", color: "#555" }}>
-                              {item.sparepart ?? "-"}
-                            </div>
-                          </td>
-                          <td style={{ fontSize: "0.90rem" }}>
-                            {item.status
-                              ? item.status.charAt(0).toUpperCase() +
-                              item.status.slice(1)
-                              : "-"}
-                          </td>
+                    {/* SERIAL + SPAREPART */}
+                    <td>
+                      <div
+                        style={{
+                          fontSize: "0.90rem",
+                          fontFamily: "Product Sans, sans-serif"
+                        }}
+                      >
+                        {row.item.vci_serial_no}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: "0.90rem",
+                          fontFamily: "Product Sans, sans-serif"
+                        }}
+                      >
+                        {row.item.sparepart ?? "-"}
+                      </div>
+                    </td>
 
-                          {/* <td style={{ fontSize: "0.90rem" }}>
-                            {item.created_at ? (item.created_at) : "-"}
-                          </td> */}
+                    {/* STATUS */}
+                    <td
+                      style={{
+                        fontSize: "0.90rem",
+                        fontFamily: "Product Sans, sans-serif"
+                      }}
+                    >
+                      {row.item.status
+                        ? row.item.status.charAt(0).toUpperCase() + row.item.status.slice(1)
+                        : "-"}
+                    </td>
 
-                          <td className="text-center">
-                            <Button
-                              variant=""
-                              size="sm"
-                              className="me-1"
-                              onClick={() => navigate(`/service/${service.id}/edit`)}
-                              style={{
-                                borderColor: "#2E3A59",
-                                color: "#2E3A59",
-                              }}
-                            >
-                              <i className="bi bi-pencil-square"></i>
-                            </Button>
+                    {/* ACTION BUTTONS */}
+                    <td className="text-center">
+                      <Button
+                        variant=""
+                        size="sm"
+                        className="me-1"
+                        onClick={() => navigate(`/service/${row.id}/edit`)}
+                        style={{
+                          borderColor: "#2E3A59",
+                          color: "#2E3A59"
+                        }}
+                      >
+                        <i className="bi bi-pencil-square"></i>
+                      </Button>
 
-                            <Button
-                              variant="outline-primary"
-                              size="sm"
-                              onClick={() => handleDelete(service.id)}
-                              style={{
-                                borderColor: "#2E3A59",
-                                color: "#2E3A59",
-                                backgroundColor: "transparent",
-                              }}
-                            >
-                              <i className="bi bi-trash"></i>
-                            </Button>
+                      <Button
+                        variant="outline-primary"
+                        size="sm"
+                        onClick={() => handleDelete(row.id)}
+                        style={{
+                          borderColor: "#2E3A59",
+                          color: "#2E3A59",
+                          backgroundColor: "transparent"
+                        }}
+                      >
+                        <i className="bi bi-trash"></i>
+                      </Button>
 
-                            <Button
-                              variant=""
-                              size="sm"
-                              onClick={() => fetchSmartLogHistory(item.vci_serial_no, item.sparepart)}
-                              style={{
-                                borderColor: "#2E3A59",
-                                color: "#2E3A59",
-                                backgroundColor: "transparent",
-                                marginLeft: "4px",
-                              }}
-                            >
-                              <i className="bi bi-clock-history"></i>
-                            </Button>
-
-                          </td>
-                        </tr>
-                      );
-                    })
-                    : [
-                      <tr key={service.id}>
-                        <td className="text-center">
-                          {(page - 1) * perPage + index + 1}
-                        </td>
-
-                        {/* No item case */}
-                        <td style={{ fontSize: "0.90rem" }}>-</td>
-                        <td style={{ fontSize: "0.90rem" }}>-</td>
-
-                        {/* <td style={{ fontSize: "0.90rem" }}>
-                          {getVendorName(service.vendor_id)}
-                        </td> */}
-
-                        <td>{service.challan_no}</td>
-                        <td>{service.challan_date}</td>
-                        <td>-</td>
-
-                        <td>
-                          {service.status
-                            ? service.status.charAt(0).toUpperCase() +
-                            service.status.slice(1)
-                            : "-"}
-                        </td>
-
-                        <td>
-                          {service.created_at
-                            ? new Date(service.created_at).toLocaleString()
-                            : "-"}
-                        </td>
-
-                        <td className="text-center">
-                          <Button
-                            variant=""
-                            size="sm"
-                            className="me-1"
-                            onClick={() => navigate(`/service/${service.id}/edit`)}
-                            style={{
-                              borderColor: "#2E3A59",
-                              color: "#2E3A59",
-                            }}
-                          >
-                            <i className="bi bi-pencil-square"></i>
-                          </Button>
-
-                          <Button
-                            variant="outline-primary"
-                            size="sm"
-                            onClick={() => handleDelete(service.id)}
-                            style={{
-                              borderColor: "#2E3A59",
-                              color: "#2E3A59",
-                              backgroundColor: "transparent",
-                            }}
-                          >
-                            <i className="bi bi-trash"></i>
-                          </Button>
-                        </td>
-                      </tr>
-                    ]
-                )
+                      <Button
+                        size="sm"
+                        variant=""
+                        onClick={() =>
+                          fetchSmartLogHistory(
+                            row.item.vci_serial_no,
+                            row.item.sparepart
+                          )
+                        }
+                        style={{
+                          borderColor: "#2E3A59",
+                          color: "#2E3A59",
+                          backgroundColor: "transparent",
+                          marginLeft: "4px"
+                        }}
+                      >
+                        <i className="bi bi-clock-history"></i>
+                      </Button>
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </Table>
