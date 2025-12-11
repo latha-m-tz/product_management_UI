@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api, { setAuthToken } from "../api";
-import { Card, Button, Table, Spinner, Badge, Form ,Col} from "react-bootstrap";
+import { Card, Button, Table, Spinner, Badge, Form, Col } from "react-bootstrap";
 import BreadCrumb from "../components/BreadCrumb";
 import Pagination from "../components/Pagination";
 import Search from "../components/Search";
@@ -38,18 +38,20 @@ export default function ProductSaleStatusPage() {
 
       setProductName(
         sold[0]?.product?.name ||
-          unsold[0]?.product_name ||
-          "Product"
+        unsold[0]?.product_name ||
+        "Product"
       );
 
       const combined = [
         ...sold.map((s) => ({
           serial_no: s.serial_no,
           status: "Sold",
+          tested_status: s.tested_status || "Fail"
         })),
         ...unsold.map((s) => ({
           serial_no: s.serial_no,
           status: "Unsold",
+          tested_status: s.tested_status || "Fail"
         })),
       ];
 
@@ -104,15 +106,15 @@ export default function ProductSaleStatusPage() {
         <div className="d-flex justify-content-between align-items-center mb-2">
           <h4 className="m-0">{productName} – Status</h4>
 
-        <Col className="text-end">
-          <Button
-            variant="outline-secondary"
-            size="sm"
-            onClick={() => navigate("/sales-order")}
-          >
-            <i className="bi bi-arrow-left"></i> Back
-          </Button>
-        </Col>
+          <Col className="text-end">
+            <Button
+              variant="outline-secondary"
+              size="sm"
+              onClick={() => navigate("/sales-order")}
+            >
+              <i className="bi bi-arrow-left"></i> Back
+            </Button>
+          </Col>
         </div>
 
         {/* DataTable Controls */}
@@ -172,9 +174,9 @@ export default function ProductSaleStatusPage() {
           <Table className="table-sm align-middle mb-0" bordered>
             <thead style={headerStyle}>
               <tr>
-                <th style={{ width: "60px", textAlign: "center" ,backgroundColor:"#2E3A59",color:"white"}}>S.No</th>
-                <th style={{ backgroundColor:"#2E3A59",color:"white" }}>Serial Number</th>
-                <th style={{ width: "120px",backgroundColor:"#2E3A59",color:"white" }}>Status</th>
+                <th style={{ width: "60px", textAlign: "center", backgroundColor: "#2E3A59", color: "white" }}>S.No</th>
+                <th style={{ backgroundColor: "#2E3A59", color: "white" }}>Serial Number</th>
+                <th style={{ width: "120px", backgroundColor: "#2E3A59", color: "white" }}>Status</th>
               </tr>
             </thead>
 
@@ -202,11 +204,14 @@ export default function ProductSaleStatusPage() {
 
                     <td>
                       {item.status === "Sold" ? (
-                        <Badge bg="danger">Sold</Badge>
+                        <Badge bg="primary">{item.status}</Badge>
+                      ) : item.status === "Unsold" && item.tested_status?.toUpperCase() === "FAIL" ? (
+                        <Badge bg="danger">{`${item.status} (Fail)`}</Badge>
                       ) : (
-                        <Badge bg="success">Unsold</Badge>
+                        <Badge bg="success">{item.status}</Badge>
                       )}
                     </td>
+
                   </tr>
                 ))
               )}
