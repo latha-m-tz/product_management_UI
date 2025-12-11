@@ -91,43 +91,52 @@ export default function AddSalesPage() {
       const selected = JSON.parse(stored);
 
       // Group by product_id
+      // Group by product_name instead of product_id
       const grouped = selected.reduce((acc, item) => {
-        const key = item.product_id || "unknown";
+        const key = item.product_name || "Unknown Product";
+
         if (!acc[key]) {
           acc[key] = {
-            product_id: key,
-            product_name: item.product_name || "Unknown Product",
+            product_name: key,
+            product_id: item.product_id,  // still keep product_id
             serials: [],
           };
         }
+
         acc[key].serials.push(item.serial_no);
         return acc;
       }, {});
 
+
       // Convert grouped object to array
-      const groupedArray = Object.values(grouped).map((g) => ({
+      const groupedArray = Object.values(grouped).map(g => ({
         product_id: g.product_id,
         product_name: g.product_name,
-        serials: g.serials,
-        quantity: g.serials.length,
+        serials: [...new Set(g.serials)],
+        quantity: g.serials.length
       }));
 
-      setItems((prev) => {
+      setItems(prev => {
         const merged = [...prev];
 
-        groupedArray.forEach((newItem) => {
-          merged.push({
-            product_id: newItem.product_id,
-            product_name: newItem.product_name,
-            serials: [...newItem.serials],
-            quantity: newItem.serials.length
-          });
+        groupedArray.forEach(newItem => {
+          const index = merged.findIndex(
+            item => item.product_name === newItem.product_name
+          );
+
+          if (index >= 0) {
+            merged[index].serials = [
+              ...new Set([...merged[index].serials, ...newItem.serials])
+            ];
+            merged[index].quantity = merged[index].serials.length;
+          } else {
+            merged.push({
+              ...newItem,
+              serials: [...new Set(newItem.serials)],
+              quantity: newItem.serials.length,
+            });
+          }
         });
-
-        const activeProductIds = merged.map((item) => String(item.product_id));
-        localStorage.setItem("inSaleProducts", JSON.stringify(activeProductIds));
-
-        window.dispatchEvent(new Event("inSaleProductsUpdated"));
 
         return merged;
       });
@@ -148,11 +157,13 @@ export default function AddSalesPage() {
     // } else if (new Date(challanDate) > new Date()) {
     //   errors.challanDate = "Challan Date cannot be in the future";
     // }
-if (!challanDate) {
-      errors.challanDate = "Challan Date is required";}
-      if (!shipmentName.trim()) errors.shipmentName = "Shipment Name is required";  
+    if (!challanDate) {
+      errors.challanDate = "Challan Date is required";
+    }
+    if (!shipmentName.trim()) errors.shipmentName = "Shipment Name is required";
     if (!shipmentDate) {
-      errors.shipmentDate = "Shipment Date is required";}
+      errors.shipmentDate = "Shipment Date is required";
+    }
     // } else if (new Date(shipmentDate) > new Date()) {
     //   errors.shipmentDate = "Shipment Date cannot be in the future";
     // } else if (new Date(shipmentDate) < new Date(challanDate)) {
@@ -234,13 +245,17 @@ if (!challanDate) {
   const handleItemChange = (index, field, value) => {
     const newItems = [...items];
     newItems[index][field] = value;
-    setItems(newItems);
-    setFormErrors((prev) => {
-      const updated = { ...prev };
-      delete updated[`serialNo_${index}`];
-      delete updated[`quantity_${index}`];
-      return updated;
+    setItems(() => {
+      const newList = groupedArray.map((g) => ({
+        product_id: g.product_id,
+        product_name: g.product_name,
+        serials: Array.from(new Set(g.serials)),
+        quantity: g.serials.length,
+      }));
+
+      return newList;
     });
+    setFormErrors((prev) => ({ ...prev, [`${field}_${index}`]: undefined }));
   };
 
   const removeItem = (index) => {

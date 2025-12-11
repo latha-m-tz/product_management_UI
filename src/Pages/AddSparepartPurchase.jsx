@@ -50,9 +50,7 @@ export default function AddSparepartPurchase() {
   const removeFileField = (type, id) => {
     if (type === "recipient") {
       setRecipientFiles(prev => {
-        // At least 1 row must remain
-        if (prev.length === 1) return prev;
-
+        if (prev.length === 1) return prev; // prevent removing last row
         return prev.filter(f => f.id !== id);
       });
     }
@@ -695,7 +693,7 @@ export default function AddSparepartPurchase() {
                     </div>
 
                     {/* SHOW DELETE BUTTON FOR ALL ROWS BUT NOT WHEN THERE IS ONLY 1 ROW */}
-                    {recipientFiles.length > 1 && f.file && (
+                    {!(recipientFiles.length === 1 && !f.file) && (
                       <Button
                         variant="link"
                         size="sm"
