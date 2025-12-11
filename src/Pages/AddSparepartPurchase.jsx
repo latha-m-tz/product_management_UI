@@ -23,6 +23,8 @@ export default function AddSparepartPurchase() {
   const [courierName, setCourierName] = useState("");
   const [fromSerial, setFromSerial] = useState("");
   const [toSerial, setToSerial] = useState("");
+  const [addLoading, setAddLoading] = useState(false);
+
   const handleFromSerialChange = (e) => {
     const value = e.target.value;
     setFromSerial(value);
@@ -309,36 +311,49 @@ export default function AddSparepartPurchase() {
   };
 
 
-  const addSparepart = () => {
-    const last = spareparts[spareparts.length - 1];
-    const type = sparepartTypeOf(last.sparepart_id);
+ const addSparepart = () => {
+  const last = spareparts[spareparts.length - 1];
+  const type = sparepartTypeOf(last.sparepart_id);
 
-    const isComplete =
-      last.sparepart_id &&
-      (
-        (!type.includes("serial") && Number(last.qty) > 0) ||
-        (type.includes("serial") &&
-          last.from_serial &&
-          last.to_serial &&
-          Number(last.qty) > 0)
-      );
+  // Check whether last row is complete
+  const isComplete =
+    last.sparepart_id &&
+    (
+      (!type.includes("serial") && Number(last.qty) > 0) ||
+      (type.includes("serial") &&
+        last.from_serial &&
+        last.to_serial &&
+        Number(last.qty) > 0)
+    );
 
-    if (!isComplete) {
-      toast.error("Please fill all required fields before adding another spare part.");
-      return;
-    }
+  if (!isComplete) {
+    toast.error("Please fill all required fields before adding another spare part.");
+    return;
+  }
 
-    setSpareparts([
-      ...spareparts,
-      {
-        sparepart_id: "",
-        qty: "",
-        warranty_status: "Active",
-        from_serial: "",
-        to_serial: "",
-      },
-    ]);
-  };
+  // ❌ PREVENT DOUBLE ADD — If last row is already empty, DO NOT add again
+  if (
+    last.sparepart_id === "" &&
+    last.qty === "" &&
+    last.from_serial === "" &&
+    last.to_serial === ""
+  ) {
+    return; // Ignore 2nd click
+  }
+
+  // Add new sparepart row
+  setSpareparts(prev => [
+    ...prev,
+    {
+      sparepart_id: "",
+      qty: "",
+      warranty_status: "Active",
+      from_serial: "",
+      to_serial: "",
+    },
+  ]);
+};
+
 
 
   const removeSparepart = (index) => {

@@ -117,18 +117,26 @@ export default function EditVendor() {
         setContactPersons(
           (data.contacts || []).map(c => {
             let mobile_no = c.mobile_no || "";
+
             if (mobile_no && !mobile_no.startsWith("+")) {
               mobile_no = countryCode === "IN" ? `+91${mobile_no}` : `+${mobile_no}`;
             }
+
             try {
               const phoneNumber = parsePhoneNumberFromString(mobile_no);
               if (phoneNumber && phoneNumber.isValid()) {
-                mobile_no = phoneNumber.number; // E.164 format
+                mobile_no = phoneNumber.number;
               }
             } catch { }
-            return { ...c, mobile_no };
+
+            return {
+              ...c,
+              mobile_no,
+              isMain: c.is_main === 1 || c.is_main === true  // 🔥 FIX HERE
+            };
           })
         );
+
 
         if (data.vendor?.pincode) await fetchPincodeDetails(data.vendor.pincode);
 

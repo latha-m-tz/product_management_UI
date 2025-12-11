@@ -72,44 +72,44 @@ export default function EditSalesPage() {
 
     return Object.values(grouped);
   };
-useEffect(() => {
-  const draft = localStorage.getItem("draftSale");
-  if (!draft) return;
+  useEffect(() => {
+    const draft = localStorage.getItem("draftSale");
+    if (!draft) return;
 
-  const data = JSON.parse(draft);
+    const data = JSON.parse(draft);
 
-  setCustomerId(data.customer_id || "");
-  setChallanNo(data.challan_no || "");
-  setChallanDate(data.challan_date || "");
-  setShipmentDate(data.shipment_date || "");
-  setShipmentName(data.shipment_name || "");
-  setNotes(data.notes || "");
-  setItems(data.items || []);
+    setCustomerId(data.customer_id || "");
+    setChallanNo(data.challan_no || "");
+    setChallanDate(data.challan_date || "");
+    setShipmentDate(data.shipment_date || "");
+    setShipmentName(data.shipment_name || "");
+    setNotes(data.notes || "");
+    setItems(data.items || []);
 
-  setLoadedSale(true); // prevents API overwrite
-}, []);
- useEffect(() => {
-  if (loadedSale) return;   // <-- now prevents overwrite
+    setLoadedSale(true); // prevents API overwrite
+  }, []);
+  useEffect(() => {
+    if (loadedSale) return;   // <-- now prevents overwrite
 
-  const hasSelected = localStorage.getItem("selectedProducts");
+    const hasSelected = localStorage.getItem("selectedProducts");
 
-  api.get(`/sales/${id}`).then((res) => {
-    const sale = res.data;
+    api.get(`/sales/${id}`).then((res) => {
+      const sale = res.data;
 
-    setCustomerId(sale.customer?.id || "");
-    setChallanNo(sale.challan_no);
-    setChallanDate(sale.challan_date);
-    setShipmentDate(sale.shipment_date);
-    setShipmentName(sale.shipment_name || "");
-    setNotes(sale.notes || "");
+      setCustomerId(sale.customer?.id || "");
+      setChallanNo(sale.challan_no);
+      setChallanDate(sale.challan_date);
+      setShipmentDate(sale.shipment_date);
+      setShipmentName(sale.shipment_name || "");
+      setNotes(sale.notes || "");
 
-    if (!hasSelected) {
-      setItems(groupProducts(sale.items || []));
-    }
+      if (!hasSelected) {
+        setItems(groupProducts(sale.items || []));
+      }
 
-    setLoadedSale(true);
-  });
-}, [id, loadedSale]);
+      setLoadedSale(true);
+    });
+  }, [id, loadedSale]);
 
   useEffect(() => {
     if (!loadedSale) return;
@@ -121,48 +121,58 @@ useEffect(() => {
     }
   }, [loadedSale]);
 
- const loadSelectedProducts = () => {
-  const stored = localStorage.getItem("selectedProducts");
-  if (!stored) return;
+  const loadSelectedProducts = () => {
+    const stored = localStorage.getItem("selectedProducts");
+    if (!stored) return;
 
-  const selected = JSON.parse(stored);
-  if (!Array.isArray(selected)) return;
+    const selected = JSON.parse(stored);
+    if (!Array.isArray(selected)) return;
 
-  setItems(prevItems => {
-    const map = {};
+    setItems(prevItems => {
+      const map = {};
 
-    prevItems.forEach(item => {
-      map[item.product_id] = { ...item };
-    });
+      // Unique key using BOTH product_id + product_name
+      const makeKey = (p) => `${p.product_id}_${p.product_name || p.name}`;
 
-    selected.forEach(p => {
-      const pid = Number(p.product_id);
-      const incomingQty = Number(p.quantity || 1);
+      // Add previous items
+      prevItems.forEach(item => {
+        const key = makeKey(item);
+        map[key] = { ...item };
+      });
 
-      if (!map[pid]) {
-        // Completely new product
-        map[pid] = {
-          product_id: pid,
-          name: p.product_name || p.name || "Unknown Product",
-          serials: p.serial_no ? [String(p.serial_no)] : [],
-          quantity: incomingQty,
-        };
-      } else {
-        // Merge quantity
-        map[pid].quantity += incomingQty;
+      // Add selected items
+      selected.forEach(p => {
+        const pid = Number(p.product_id);
+        const name = p.product_name || p.name || "Unknown Product";
+        const incomingQty = Number(p.quantity || 1);
 
-        if (p.serial_no) {
-          const s = String(p.serial_no);
-          if (!map[pid].serials.includes(s)) {
-            map[pid].serials.push(s);
+        const key = `${pid}_${name}`;
+
+        if (!map[key]) {
+          // New product (unique combination)
+          map[key] = {
+            product_id: pid,
+            name: name,
+            serials: p.serial_no ? [String(p.serial_no)] : [],
+            quantity: incomingQty,
+          };
+        } else {
+          // Same product & same name — update this row only
+          map[key].quantity += incomingQty;
+
+          if (p.serial_no) {
+            const s = String(p.serial_no);
+            if (!map[key].serials.includes(s)) {
+              map[key].serials.push(s);
+            }
           }
         }
-      }
-    });
+      });
 
-    return Object.values(map);
-  });
-};
+      return Object.values(map);
+    });
+  };
+
 
 
   const validateForm = () => {

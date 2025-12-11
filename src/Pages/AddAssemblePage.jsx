@@ -423,7 +423,6 @@ export default function AddAssemblePage() {
             return;
         }
 
-        // ⭐ GROUP BY product_id
         const grouped = {};
         products.forEach(p => {
             if (!grouped[p.product_id]) grouped[p.product_id] = [];
@@ -498,9 +497,6 @@ export default function AddAssemblePage() {
         toast.error(error.response?.data?.message || "Error saving inventory.");
     }
 };
-
-
-
 
     const filteredProducts = products.filter((p) => {
         const lowerCaseSearchTerm = searchTerm.toLowerCase();
