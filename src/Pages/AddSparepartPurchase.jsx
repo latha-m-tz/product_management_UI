@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
 // import { useNavigate } from "react-router-dom";
+import Select, { components } from "react-select";
 
 export default function AddSparepartPurchase() {
   const [vendorId, setVendorId] = useState("");
@@ -21,41 +22,146 @@ export default function AddSparepartPurchase() {
   const [trackingNumber, setTrackingNumber] = useState("");
   const [recipientFiles, setRecipientFiles] = useState([{ id: Date.now(), file: null }]);
   const [courierName, setCourierName] = useState("");
-  const [fromSerial, setFromSerial] = useState("");
-  const [toSerial, setToSerial] = useState("");
+  // const [fromSerial, setFromSerial] = useState("");
+  // const [toSerial, setToSerial] = useState("");
   const [addLoading, setAddLoading] = useState(false);
+  const [availableSpareparts, setAvailableSpareparts] = useState([]);
 
-  const handleFromSerialChange = (e) => {
-    const value = e.target.value;
-    setFromSerial(value);
+  const sparepartOptions = availableSpareparts.map(s => ({
+    value: s.id,
+    label: s.name,
+  }));
 
-    // Auto-fill To Serial with the same value
-    setToSerial(value);
+  const handleMultiSelect = (selectedOptions = []) => {
+    setSpareparts(prev => {
+      let updated = [...prev];
+
+      const selectedIds = selectedOptions.map(o => o.value);
+
+      // 🔴 find which sparepart was removed
+      const removedIds = [...new Set(prev.map(p => p.sparepart_id))]
+        .filter(id => id && !selectedIds.includes(id));
+
+      // 🔴 remove ONLY ONE row for each removed sparepart
+      removedIds.forEach(id => {
+        const indexToRemove = updated.findIndex(
+          sp => sp.sparepart_id === id
+        );
+        if (indexToRemove !== -1) {
+          updated.splice(indexToRemove, 1); // ✅ ONLY ONE
+        }
+      });
+
+      // 🟢 add row when newly selected
+      selectedIds.forEach(id => {
+        const exists = updated.some(sp => sp.sparepart_id === id);
+        if (!exists) {
+          updated.push({
+            row_id: Date.now() + Math.random(),
+            sparepart_id: id,
+            qty: "",
+            warranty_status: "Active",
+            from_serial: "",
+            to_serial: "",
+          });
+        }
+      });
+
+      return updated;
+    });
   };
+
+
+
+
+  // const handleFromSerialChange = (e) => {
+  //   const value = e.target.value;
+  //   setFromSerial(value);
+
+  //   // Auto-fill To Serial with the same value
+  //   setToSerial(value);
+  // };
+
+  const duplicateSparepart = (index) => {
+    const current = spareparts[index];
+
+    const newRow = {
+      ...current,
+      row_id: Date.now() + Math.random(), // ✅ NEW row id
+      qty: "",
+      from_serial: "",
+      to_serial: "",
+    };
+
+    const updated = [...spareparts];
+    updated.splice(index + 1, 0, newRow);
+    setSpareparts(updated);
+  };
+
 
 
   const MySwal = withReactContent(Swal);
 
-  const [spareparts, setSpareparts] = useState([
-    {
-      sparepart_id: "",
-      qty: "",
-      warranty_status: "Active",
-      // product_id: "",
-      from_serial: "",
-      to_serial: "",
-    },
-  ]);
-  const [availableSpareparts, setAvailableSpareparts] = useState([]);
+  const [spareparts, setSpareparts] = useState([]);
+
   const [availableVendors, setAvailableVendors] = useState([]);
   const [availableCategories, setAvailableCategories] = useState([]);
   const removeFileField = (type, id) => {
     if (type === "recipient") {
       setRecipientFiles(prev => {
-        if (prev.length === 1) return prev; // prevent removing last row
+        if (prev.length === 1) return prev;
         return prev.filter(f => f.id !== id);
       });
     }
+  };
+  const selectValue = spareparts
+    .filter(sp => sp.sparepart_id)
+    .map((sp, index) => ({
+      value: `${sp.sparepart_id}-${index}`, // 👈 UNIQUE PER ROW
+      sparepart_id: sp.sparepart_id,
+      label:
+        availableSpareparts.find(a => a.id === sp.sparepart_id)?.name || "",
+    }));
+
+  const selectStyles = {
+    option: (provided, state) => ({
+      ...provided,
+      backgroundColor: "white",
+      color: "black",
+      cursor: "pointer",
+      ":active": {
+        backgroundColor: "white",
+      },
+    }),
+
+    control: (provided) => ({
+      ...provided,
+      borderColor: "#ced4da",
+      boxShadow: "none",
+      "&:hover": {
+        borderColor: "#86b7fe",
+      },
+    }),
+
+    multiValue: (provided) => ({
+      ...provided,
+      backgroundColor: "#e9ecef", // light gray tag (Bootstrap default)
+    }),
+
+    multiValueLabel: (provided) => ({
+      ...provided,
+      color: "#212529",
+      fontWeight: 500,
+    }),
+
+    multiValueRemove: (provided) => ({
+      ...provided,
+      color: "#6c757d",
+      ":hover": {
+        backgroundColor: "#dee2e6",
+        color: "#000",
+      },
+    }),
   };
 
   const handleFileChange = (type, id, file) => {
@@ -75,10 +181,6 @@ export default function AddSparepartPurchase() {
       });
     }
   };
-
-
-
-
 
   const addFileField = (type) => {
     if (type === "recipient") {
@@ -102,17 +204,16 @@ export default function AddSparepartPurchase() {
 
 
 
-  // Helper (place in your component)
-  const calcQtyFromSerials = (fromSerial, toSerial) => {
-    const from = parseInt(fromSerial, 10);
-    const to = parseInt(toSerial, 10);
+  // const calcQtyFromSerials = (fromSerial, toSerial) => {
+  //   const from = parseInt(fromSerial, 10);
+  //   const to = parseInt(toSerial, 10);
 
-    if (Number.isInteger(from) && Number.isInteger(to) && to >= from) {
-      return to - from + 1; // valid range
-    }
-    // when either serial is empty/invalid, return empty string so input shows blank
-    return "";
-  };
+  //   if (Number.isInteger(from) && Number.isInteger(to) && to >= from) {
+  //     return to - from + 1; // valid range
+  //   }
+  //   // when either serial is empty/invalid, return empty string so input shows blank
+  //   return "";
+  // };
 
   useEffect(() => {
     const token = localStorage.getItem("authToken");
@@ -131,6 +232,13 @@ export default function AddSparepartPurchase() {
     fetchData();
   }, []);
 
+  const handleSparepartSelectOpen = () => {
+    if (!vendorId) {
+      toast.error("Please choose Vendor first");
+      return false;
+    }
+    return true;
+  };
 
   const sparepartTypeOf = (id) => {
     if (!id) return "";
@@ -146,7 +254,6 @@ export default function AddSparepartPurchase() {
 
     const updated = [...spareparts];
 
-    // Validation: Prevent selecting next row unless previous row is complete
     if (index > 0) {
       const prev = updated[index - 1];
       const prevType = sparepartTypeOf(prev.sparepart_id);
@@ -177,75 +284,42 @@ export default function AddSparepartPurchase() {
   const handleInputChange = (index, field, value) => {
     const updated = [...spareparts];
     const type = sparepartTypeOf(updated[index].sparepart_id);
-
     const isSerialItem = type.includes("serial");
-    const isSerialField = field === "from_serial" || field === "to_serial";
 
-    clearError("from_serial", index);
-    clearError("to_serial", index);
-    clearError("qty", index);
+    if (isSerialItem && (field === "from_serial" || field === "to_serial")) {
+      const cleaned = value.replace(/\D/g, "").slice(0, 6);
 
-    // SERIAL ITEMS
-    if (isSerialItem && isSerialField) {
-      let cleaned = value.replace(/\D/g, "").slice(0, 6);
       updated[index][field] = cleaned;
 
       const from = Number(updated[index].from_serial);
       const to = Number(updated[index].to_serial);
 
-      if (updated[index].from_serial && updated[index].to_serial && to >= from) {
-        updated[index].qty = to - from + 1;
-      } else {
-        updated[index].qty = "";
-      }
+      updated[index].qty =
+        from && to && to >= from ? to - from + 1 : "";
     }
-
-    // NON-SERIAL ITEMS
-    if (!isSerialItem && field === "qty") {
+    else if (!isSerialItem && field === "qty") {
       updated[index].qty = value.replace(/\D/g, "");
     }
-
-    // DO NOT overwrite cleaned values for serials
-    if (!isSerialItem || !isSerialField) {
+    else {
       updated[index][field] = value;
     }
-
-    // FUNCTION THAT CHECKS IF ROW IS COMPLETE
-    const isValid = () => {
-      const sp = updated[index];
-      if (!sp.sparepart_id) return false;
-
-      if (type.includes("serial")) {
-        return sp.from_serial && sp.to_serial && Number(sp.qty) > 0;
-      }
-      return Number(sp.qty) > 0;
-    };
-
-    // AUTO–ADD NEXT CARD
-    // if (index === spareparts.length - 1 && isValid()) {
-    //   updated.push({
-    //     sparepart_id: "",
-    //     qty: "",
-    //     warranty_status: "Active",
-    //     from_serial: "",
-    //     to_serial: "",
-    //   });
-    // }
 
     setSpareparts(updated);
   };
 
-  const isRowComplete = (row) => {
-    const type = sparepartTypeOf(row.sparepart_id);
 
-    if (!row.sparepart_id) return false;
 
-    if (type.includes("serial")) {
-      return row.from_serial && row.to_serial && Number(row.qty) > 0;
-    }
+  // const isRowComplete = (row) => {
+  //   const type = sparepartTypeOf(row.sparepart_id);
 
-    return Number(row.qty) > 0;
-  };
+  //   if (!row.sparepart_id) return false;
+
+  //   if (type.includes("serial")) {
+  //     return row.from_serial && row.to_serial && Number(row.qty) > 0;
+  //   }
+
+  //   return Number(row.qty) > 0;
+  // };
 
   const isLastRowValid = () => {
     const last = spareparts[spareparts.length - 1];
@@ -286,9 +360,6 @@ export default function AddSparepartPurchase() {
     });
   };
 
-
-
-
   const clearError = (field, index = null) => {
     setErrors((prev) => {
       const newErrors = { ...prev };
@@ -311,48 +382,46 @@ export default function AddSparepartPurchase() {
   };
 
 
- const addSparepart = () => {
-  const last = spareparts[spareparts.length - 1];
-  const type = sparepartTypeOf(last.sparepart_id);
+  const addSparepart = () => {
+    const last = spareparts[spareparts.length - 1];
+    const type = sparepartTypeOf(last.sparepart_id);
 
-  // Check whether last row is complete
-  const isComplete =
-    last.sparepart_id &&
-    (
-      (!type.includes("serial") && Number(last.qty) > 0) ||
-      (type.includes("serial") &&
-        last.from_serial &&
-        last.to_serial &&
-        Number(last.qty) > 0)
-    );
+    // Check whether last row is complete
+    const isComplete =
+      last.sparepart_id &&
+      (
+        (!type.includes("serial") && Number(last.qty) > 0) ||
+        (type.includes("serial") &&
+          last.from_serial &&
+          last.to_serial &&
+          Number(last.qty) > 0)
+      );
 
-  if (!isComplete) {
-    toast.error("Please fill all required fields before adding another spare part.");
-    return;
-  }
+    if (!isComplete) {
+      toast.error("Please fill all required fields before adding another spare part.");
+      return;
+    }
 
-  // ❌ PREVENT DOUBLE ADD — If last row is already empty, DO NOT add again
-  if (
-    last.sparepart_id === "" &&
-    last.qty === "" &&
-    last.from_serial === "" &&
-    last.to_serial === ""
-  ) {
-    return; // Ignore 2nd click
-  }
+    if (
+      last.sparepart_id === "" &&
+      last.qty === "" &&
+      last.from_serial === "" &&
+      last.to_serial === ""
+    ) {
+      return; // Ignore 2nd click
+    }
 
-  // Add new sparepart row
-  setSpareparts(prev => [
-    ...prev,
-    {
-      sparepart_id: "",
-      qty: "",
-      warranty_status: "Active",
-      from_serial: "",
-      to_serial: "",
-    },
-  ]);
-};
+    setSpareparts(prev => [
+      ...prev,
+      {
+        sparepart_id: "",
+        qty: "",
+        warranty_status: "Active",
+        from_serial: "",
+        to_serial: "",
+      },
+    ]);
+  };
 
 
 
@@ -530,6 +599,20 @@ export default function AddSparepartPurchase() {
   };
 
   const feedbackStyle = { color: "red", fontSize: "0.85rem", marginTop: "4px" };
+
+  const CheckboxOption = (props) => {
+    return (
+      <components.Option {...props}>
+        <input
+          type="checkbox"
+          checked={props.isSelected}
+          onChange={() => null}
+          style={{ marginRight: 8 }}
+        />
+        <label>{props.label}</label>
+      </components.Option>
+    );
+  };
 
   return (
     <div
@@ -763,184 +846,182 @@ export default function AddSparepartPurchase() {
       </Card>
 
       {/* Spare Parts Section */}
-      {spareparts.length > 0 && (
-        <Card className="mb-3" style={{ background: "#F4F4F8", borderRadius: 6 }}>
-          <Card.Body>
-            <div className="d-flex justify-content-between align-items-center mb-3">
-              <h6 className="mb-0">Spare Parts Details</h6>
+      <Card className="mb-3" style={{ background: "#F4F4F8", borderRadius: 6 }}>
+        <Card.Body>
+          <div className="d-flex justify-content-between align-items-center mb-3">
+            <h6 className="mb-0">Spare Parts Details</h6>
+          </div>
+
+          {/* ✅ SELECT ALWAYS VISIBLE */}
+          <Form.Group className="mb-3">
+            <Form.Label>
+              Select Spare Parts <span style={{ color: "red" }}>*</span>
+            </Form.Label>
+
+            <Select
+              isMulti
+              closeMenuOnSelect={false}
+              hideSelectedOptions={false}
+              options={sparepartOptions}
+              components={{ Option: CheckboxOption }}
+              styles={selectStyles}
+              value={spareparts.map(sp => ({
+                value: sp.sparepart_id,
+                label:
+                  availableSpareparts.find(a => a.id === sp.sparepart_id)?.name || "",
+              }))}
+
+              onMenuOpen={() => {
+                if (!vendorId) {
+                  toast.error("Please choose Vendor first");
+                  return false; // ❌ stop opening
+                }
+              }}
+
+              onChange={(selected) => {
+                if (!vendorId) {
+                  toast.error("Please choose Vendor first");
+                  return;
+                }
+                handleMultiSelect(selected);
+              }}
+            />
+          </Form.Group>
+
+          {/* ✅ SHOW HELPER TEXT WHEN EMPTY */}
+          {spareparts.length === 0 && (
+            <div style={{ color: "#6c757d", fontSize: "13px" }}>
+              No spare parts selected
             </div>
+          )}
 
-            {spareparts.map((sp, index) => {
-              const type = sparepartTypeOf(sp.sparepart_id);
+          {/* ✅ ROWS ONLY AFTER SELECTION */}
+          {spareparts.map((sp, index) => {
+            const type = sparepartTypeOf(sp.sparepart_id);
+            const isSerial = type.includes("serial");
 
-              return (
-                <div
-                  key={index}
-                  className="p-3 mb-3 position-relative"
-                  style={{
-                    border: "1px solid #dee2e6",
-                    borderRadius: "6px",
-                    backgroundColor: "#fff",
-                  }}
-                >
-                  {/* Delete button on the top-right */}
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    onClick={() => handleDeleteSparepart(index)}
-                    className="position-absolute"
-                    style={{ top: "50px", right: "8px" }}
+            return (
+              <Card key={index} className="mb-2 p-2">
+                <Row className="align-items-center">
+
+                  {/* Spare Part Name */}
+                  <Col md={4}>
+                    <Form.Group>
+                      <Form.Label>Spare Part</Form.Label>
+                      <Form.Control
+                        value={
+                          availableSpareparts.find(s => s.id === sp.sparepart_id)?.name || ""
+                        }
+                        disabled
+                      />
+                    </Form.Group>
+                  </Col>
+
+                  {/* SERIAL TYPE */}
+                  {isSerial && (
+                    <>
+                      <Col md={2}>
+                        <Form.Group>
+                          <Form.Label>
+                            From Serial <span className="text-danger">*</span>
+                          </Form.Label>
+                          <Form.Control
+                            value={sp.from_serial}
+                            onChange={(e) => {
+                              const value = e.target.value;
+
+                              handleInputChange(index, "from_serial", value);
+
+                              handleInputChange(index, "to_serial", value);
+                            }}
+                          />
+                        </Form.Group>
+                      </Col>
+
+                      <Col md={2}>
+                        <Form.Group>
+                          <Form.Label>  To Serial <span style={{ color: "red" }}>*</span>
+                          </Form.Label>
+                          <Form.Control
+                            value={sp.to_serial}
+                            onChange={(e) =>
+                              handleInputChange(index, "to_serial", e.target.value)
+                            }
+                          />
+
+                        </Form.Group>
+                      </Col>
+
+                      <Col md={2}>
+                        <Form.Group>
+                          <Form.Label>
+                            Qty <span className="text-danger">*</span>
+                          </Form.Label>
+                          <Form.Control value={sp.qty} disabled />
+                        </Form.Group>
+                      </Col>
+                    </>
+                  )}
+
+                  {/* NON-SERIAL TYPE */}
+                  {!isSerial && (
+                    <>
+                      <Col md={2}>
+                        <Form.Group>
+                          <Form.Label>  Qty <span style={{ color: "red" }}>*</span>
+                          </Form.Label>
+                          <Form.Control
+                            value={sp.qty}
+                            onChange={(e) =>
+                              handleInputChange(index, "qty", e.target.value)
+                            }
+                          />
+                        </Form.Group>
+                      </Col>
+                      <Col md={2} />
+                      <Col md={2} />
+                    </>
+                  )}
+                  {/* ACTIONS */}
+                  <Col
+                    md={2}
+                    className="d-flex align-items-center justify-content-center"
                   >
-                    <i className="bi bi-trash"></i>
-                  </Button>
+                    <div className="d-flex gap-2">
+                      <Button
+                        variant="success"
+                        size="sm"
+                        onClick={() => duplicateSparepart(index)}
+                      >
+                        <i className="bi bi-plus-lg" />
+                      </Button>
 
-                  <Row className="align-items-end mt-3">
-                    <Col md={3}>
-                      <Form.Group className="mb-2 form-field">
-                        <Form.Label>
-                          Spare Parts<span style={{ color: "red" }}> *</span>
-                        </Form.Label>
-                        <Form.Select
-                          value={sp.sparepart_id}
-                          disabled={index > 0 && !isRowComplete(spareparts[index - 1])}
-                          onChange={(e) => handleSparepartChange(index, e.target.value)}
-                        >
-                          <option value="">Select Spare parts</option>
-                          {availableSpareparts.map((s) => (
-                            <option key={s.id} value={s.id}>
-                              {s.name}
-                            </option>
-                          ))}
-                        </Form.Select>
-                        {errors.items?.[index]?.sparepart_id && (
-                          <div style={feedbackStyle}>{errors.items[index].sparepart_id}</div>
-                        )}
-
-                      </Form.Group>
-                    </Col>
-
-                    {/* Conditional Fields */}
-                    {sp.sparepart_id && (() => {
-                      if (type.includes("serial")) {
-                        return (
-                          <>
-                            {/* <Col md={2}>
-                              <Form.Group className="mb-2">
-                                <Form.Label>Product</Form.Label>
-                                <Form.Select
-                                  value={sp.product_id}
-                                  onChange={(e) =>
-                                    handleInputChange(index, "product_id", e.target.value)
-                                  }
-                                >
-                                  <option value="">Select Product</option>
-                                  {availableCategories.map((c) => (
-                                    <option key={c.id} value={c.id}>
-                                      {c.name}
-                                    </option>
-                                  ))}
-                                </Form.Select>
-                              </Form.Group>
-                            </Col> */}
-
-                            <Col md={2}>
-                              <Form.Group className="mb-2">
-                                <Form.Label>From Serial</Form.Label>
-                                <Form.Control
-                                  type="text"
-                                  maxLength={6}
-                                  value={sp.from_serial}
-                                  onChange={(e) => {
-                                    const value = e.target.value;
-
-                                    // Update FROM SERIAL
-                                    handleInputChange(index, "from_serial", value);
-
-                                    // Auto-fill TO SERIAL with same value
-                                    handleInputChange(index, "to_serial", value);
-                                  }}
-                                />
-                                {errors.items?.[index]?.from_serial && (
-                                  <div style={feedbackStyle}>{errors.items[index].from_serial}</div>
-                                )}
-                              </Form.Group>
-                            </Col>
-
-                            <Col md={2}>
-                              <Form.Group className="mb-2">
-                                <Form.Label>To Serial</Form.Label>
-                                <Form.Control
-                                  type="text"
-                                  maxLength={6}
-                                  value={sp.to_serial}
-                                  onChange={(e) =>
-                                    handleInputChange(index, "to_serial", e.target.value)
-                                  }
-                                />
-                                {errors.items?.[index]?.to_serial && (
-                                  <div style={feedbackStyle}>{errors.items[index].to_serial}</div>
-                                )}
-                              </Form.Group>
-                            </Col>
-
-                            <Col md={2}>
-                              <Form.Group className="mb-2">
-                                <Form.Label>Quantity</Form.Label>
-                                <Form.Control
-                                  type="number"
-                                  value={sp.qty}
-                                  readOnly
-                                  style={{
-                                    backgroundColor: "white",
-                                    pointerEvents: "none",
-                                  }}
-                                  disabled
-                                />
-                                {errors.items?.[index]?.qty && (
-                                  <div style={feedbackStyle}>{errors.items[index].qty}</div>
-                                )}
-                              </Form.Group>
-                            </Col>
-                          </>
-                        );
-                      } else {
-                        return (
-                          <Col md={3}>
-                            <Form.Group className="mb-2">
-                              <Form.Label>Quantity <span style={{ color: "red" }}>*</span></Form.Label>
-                              <Form.Control
-                                type="number"
-                                min="1"
-                                value={sp.qty}
-                                onChange={(e) => handleInputChange(index, "qty", e.target.value)}
-                              />
-                              {errors.items?.[index]?.qty && (
-                                <div style={feedbackStyle}>{errors.items[index].qty}</div>
-                              )}
-                            </Form.Group>
-                          </Col>
-                        );
-                      }
-                    })()}
-                  </Row>
-                </div>
-              );
-            })}
-          </Card.Body>
-        </Card>
-      )}
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        onClick={() => handleDeleteSparepart(index)}
+                      >
+                        <i className="bi bi-trash" />
+                      </Button>
+                    </div>
+                  </Col>
 
 
+                </Row>
+              </Card>
+            );
+          })}
 
-
+        </Card.Body>
+      </Card>
 
       <div className="d-flex justify-content-between mt-3">
-        <Button
+        {/* <Button
           variant="success"
           onClick={addSparepart}
         >
           <i className="bi bi-plus-lg me-1" /> Add Spare Parts
-        </Button>
+        </Button> */}
         <div>
           <Button
             variant="secondary"
@@ -958,4 +1039,3 @@ export default function AddSparepartPurchase() {
   );
 
 }
-

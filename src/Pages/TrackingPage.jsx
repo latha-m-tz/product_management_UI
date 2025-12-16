@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api, { setAuthToken } from "../api";
 import { Form, Button, Spinner, Alert, Container } from "react-bootstrap";
+import { useLocation } from "react-router-dom";
 
 const styles = {
   pageTitle: { fontWeight: 700, marginBottom: '30px', paddingLeft: '20px' },
@@ -68,6 +69,7 @@ const TrackingPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const location = useLocation();
 
   const defaultTimelineStructure = [
     { stage: "SPARE PARTS PURCHASE", items: [] },
@@ -79,12 +81,45 @@ const TrackingPage = () => {
     const token = localStorage.getItem("authToken");
     if (token) setAuthToken(token);
   }, []);
+
+  // useEffect(() => {
+  //   const previousPath = document.referrer;
+
+  //   const isFromTrackingChild =
+  //     previousPath.includes("spare-partsPurchase/view") ||
+  //     previousPath.includes("sales-order-overview") ||
+  //     previousPath.includes("service_vci/view");
+
+  //   if (isFromTrackingChild) {
+  //     const savedSerial = localStorage.getItem("lastSerialNumber");
+
+  //     if (savedSerial) {
+  //       setSerialNumber(savedSerial);
+  //       fetchTimeline();
+  //     }
+  //   } else {
+  //     setSerialNumber("");
+  //     setTimeline([]);
+  //   }
+  // }, []);
   useEffect(() => {
-    const savedSerial = localStorage.getItem("lastSerialNumber");
-    if (savedSerial) {
-      setSerialNumber(savedSerial);
+    if (location.state?.fromTracking === true) {
+      const savedSerial = localStorage.getItem("lastSerialNumber");
+
+      if (savedSerial) {
+        setSerialNumber(savedSerial);
+        fetchTimeline();
+      }
+
+      // Clear state so it does not repeat again
+      navigate(location.pathname, { replace: true });
+    } else {
+      // Coming from sidebar or other pages → show empty
+      setSerialNumber("");
+      setTimeline([]);
     }
-  }, []);
+
+  }, [location.key]);
 
   useEffect(() => {
     if (serialNumber) {
@@ -97,6 +132,18 @@ const TrackingPage = () => {
       fetchTimeline();
     }
   }, [serialNumber]);
+  useEffect(() => {
+    if (location.state?.fromTracking) {
+      const savedSerial = localStorage.getItem("lastSerialNumber");
+
+      if (savedSerial) {
+        setSerialNumber(savedSerial);
+        fetchTimeline();
+      }
+
+      navigate(location.pathname, { replace: true });
+    }
+  }, [location.state]);
 
   const getStageColor = (stage) => "#2E3A59";
   const formatDateTime = (value) => {
@@ -185,11 +232,15 @@ const TrackingPage = () => {
             console.error("purchase_id is missing:", item);
             return;
           }
-          navigate(`/spare-partsPurchase/view/${item.purchase_id}`);
+          navigate(`/spare-partsPurchase/view/${item.purchase_id}`, {
+            state: { fromTracking: true }
+          });
           break;
 
         case "SALE":
-          navigate(`/sales-order-overview/${item.sale_id}`);
+          navigate(`/sales-order-overview/${item.sale_id}`, {
+            state: { fromTracking: true }
+          });
           break;
 
         case "SERVICE":
@@ -283,7 +334,7 @@ const TrackingPage = () => {
                 }
               }}
               style={styles.searchInput}
-              maxLength={6} 
+              maxLength={6}
             />
 
           </div>

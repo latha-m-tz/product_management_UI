@@ -17,6 +17,7 @@ const EditServicePage = () => {
   const [vendors, setVendors] = useState([]);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(true);
+  const [spareparts, setSpareparts] = useState([]);
 
   const [formData, setFormData] = useState({
     vendor_id: "",
@@ -33,25 +34,49 @@ const EditServicePage = () => {
 
     const loadServiceData = async () => {
       try {
-        const [spRes, venRes, serviceRes] = await Promise.all([
-          api.get("/spareparts/get"),
+        const [prodRes, spRes, venRes, serviceRes] = await Promise.all([
+          api.get("/product"),              // ✅ PRODUCTS
+          api.get("/spareparts/get"),       // ✅ SPAREPARTS
           api.get("/vendorsget"),
           api.get(`/service-vci/${id}`),
         ]);
 
-        setProducts(spRes.data.spareparts || []);
+        setProducts(
+          Array.isArray(prodRes.data)
+            ? prodRes.data
+            : prodRes.data.products || []
+        );
+
+        setSpareparts(spRes.data.spareparts || []);
         setVendors(venRes.data || []);
+
 
         const service = serviceRes.data;
 
         const formattedItems = service.items.map((it) => {
-          const spare = spRes.data.spareparts.find((p) => p.id === it.sparepart_id);
-          const isPCB = spare && String(spare.name).toLowerCase().includes("pcb");
+          if (it.product_id) {
+            // PRODUCT ROW
+            return {
+              id: it.id,
+              type: "product",
+              product_id: it.product_id,
+              serial_from: it.serial_from || "",
+              serial_to: it.serial_to || "",
+              status: it.status || "",
+              remarks: it.remarks || "",
+              upload_image: it.upload_image || null,
+            };
+          }
+
+          // SPAREPART ROW
+          const spare = spRes.data.spareparts.find(p => p.id === it.sparepart_id);
+          const isPCB = spare?.product_type_name === "vci";
 
           return {
             id: it.id,
+            type: "sparepart",
             sparepart_id: it.sparepart_id,
-            isPCB: isPCB,
+            isPCB,
             vci_serial_no: it.vci_serial_no || "",
             quantity: it.quantity || "",
             status: it.status || "",
@@ -59,6 +84,7 @@ const EditServicePage = () => {
             upload_image: it.upload_image || null,
           };
         });
+
 
         setFormData({
           vendor_id: service.vendor_id,
@@ -95,30 +121,44 @@ const EditServicePage = () => {
 
   const handleItemChange = (index, e) => {
     const { name, value, files } = e.target;
-    const updatedItems = [...formData.items];
+    const items = [...formData.items];
+    const row = items[index];
 
-    if (name === "sparepart_id") {
-      const spare = products.find((p) => p.id === Number(value));
-      const isPCB = spare && spare.name.toLowerCase().includes("pcb");
-
-      updatedItems[index].sparepart_id = Number(value);
-      updatedItems[index].isPCB = isPCB;
-
-      updatedItems[index].vci_serial_no = "";
-      updatedItems[index].quantity = "";
-
-      setErrors((prev) => {
-        const copy = { ...prev };
-        delete copy[`vci_serial_no_${index}`];
-        delete copy[`quantity_${index}`];
-        delete copy[`sparepart_id_${index}`];
-        return copy;
-      });
-    } else {
-      updatedItems[index][name] = files ? files[0] : value;
+    // PRODUCT SELECT
+    if (name === "product_id") {
+      row.product_id = Number(value);
+      row.sparepart_id = "";
+      row.serial_from = "";
+      row.serial_to = "";
+      row.isPCB = false;
     }
 
-    setFormData((prev) => ({ ...prev, items: updatedItems }));
+    // SPAREPART SELECT
+    if (name === "sparepart_id") {
+      const spare = products.find(p => p.id === Number(value));
+      row.sparepart_id = Number(value);
+      row.product_id = "";
+      row.isPCB = spare?.product_type_name === "vci";
+      row.vci_serial_no = "";
+      row.quantity = "";
+    }
+
+    // SERIAL / QTY
+    if (["serial_from", "serial_to", "vci_serial_no", "quantity"].includes(name)) {
+      row[name] = value.replace(/\D/g, "");
+    }
+
+    // OTHER FIELDS
+    if (["status", "remarks"].includes(name)) {
+      row[name] = value;
+    }
+
+    // FILE
+    if (files) {
+      row.upload_image = files[0];
+    }
+
+    setFormData(prev => ({ ...prev, items }));
   };
   const validateLastRow = () => {
     const lastIndex = formData.items.length - 1;
@@ -198,21 +238,39 @@ const EditServicePage = () => {
     if (!formData.challan_no) newErrors.challan_no = "Challan No is required";
 
     formData.items.forEach((item, i) => {
-      if (!item.sparepart_id)
-        newErrors[`sparepart_id_${i}`] = "Product is required";
 
-      if (item.isPCB) {
-        if (!item.vci_serial_no.trim())
-          newErrors[`vci_serial_no_${i}`] = "Serial is required for PCB";
-      } else {
-        if (!item.quantity || item.quantity <= 0)
-          newErrors[`quantity_${i}`] = "Quantity required";
+      if (item.type === "product") {
+        if (!item.product_id)
+          newErrors[`product_id_${i}`] = "Product is required";
+
+        if (!item.serial_from || !item.serial_to)
+          newErrors[`serial_${i}`] = "Serial From and To required";
+
+        if (Number(item.serial_to) < Number(item.serial_from))
+          newErrors[`serial_${i}`] = "Serial To must be ≥ Serial From";
       }
+
+      if (item.type === "sparepart") {
+        if (!item.sparepart_id)
+          newErrors[`sparepart_id_${i}`] = "Sparepart required";
+
+        if (item.isPCB) {
+          if (!item.vci_serial_no)
+            newErrors[`vci_serial_no_${i}`] = "VCI Serial required";
+        } else {
+          if (!item.quantity || item.quantity <= 0)
+            newErrors[`quantity_${i}`] = "Quantity required";
+        }
+      }
+
+      if (!item.status)
+        newErrors[`status_${i}`] = "Status required";
     });
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
+
   const isItemRowComplete = (item) => {
     if (!item.sparepart_id) return false;
 
@@ -246,21 +304,32 @@ const EditServicePage = () => {
     formData.items.forEach((item, i) => {
       if (item.id) fd.append(`items[${i}][id]`, item.id);
 
-      fd.append(`items[${i}][sparepart_id]`, item.sparepart_id);
-
-      if (item.isPCB) {
-        fd.append(`items[${i}][vci_serial_no]`, item.vci_serial_no);
-      } else {
-        fd.append(`items[${i}][quantity]`, item.quantity);
-      }
-
       fd.append(`items[${i}][status]`, item.status || "");
       fd.append(`items[${i}][remarks]`, item.remarks || "");
+
+      // PRODUCT
+      if (item.type === "product") {
+        fd.append(`items[${i}][product_id]`, item.product_id);
+        fd.append(`items[${i}][serial_from]`, item.serial_from);
+        fd.append(`items[${i}][serial_to]`, item.serial_to);
+      }
+
+      // SPAREPART
+      if (item.type === "sparepart") {
+        fd.append(`items[${i}][sparepart_id]`, item.sparepart_id);
+
+        if (item.isPCB) {
+          fd.append(`items[${i}][vci_serial_no]`, item.vci_serial_no);
+        } else {
+          fd.append(`items[${i}][quantity]`, item.quantity);
+        }
+      }
 
       if (item.upload_image instanceof File) {
         fd.append(`items[${i}][upload_image]`, item.upload_image);
       }
     });
+
 
     try {
       await api.post(`/service-vci/${id}`, fd, {
@@ -315,7 +384,7 @@ const EditServicePage = () => {
 
   return (
     <Container fluid>
-      <Row className="mb-3 fixed-header align-items-center">
+      <Row className="align-items-center mb-3">
         <Col><h4>Edit Service</h4></Col>
         <Col className="text-end">
           <Button
@@ -492,65 +561,158 @@ const EditServicePage = () => {
           <tbody>
             {formData.items.map((item, i) => (
               <tr key={i}>
-                {/* PRODUCT */}
+                {/* PRODUCT / SPAREPART SELECT */}
                 <td>
-                  <Form.Select
-                    name="sparepart_id"
-                    value={item.sparepart_id}
-                    onChange={(e) => handleItemChange(i, e)}
-                    isInvalid={!!errors[`sparepart_id_${i}`]}
-                  >
-                    <option value="">Select Product</option>
-                    {products.map((p) => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                  </Form.Select>
+                  {item.type === "product" ? (
+                    <Form.Select
+                      value={item.product_id || ""}
+                      isInvalid={!!errors[`product_id_${i}`]}
+                      onChange={(e) =>
+                        handleItemChange(i, {
+                          target: { name: "product_id", value: e.target.value },
+                        })
+                      }
+                    >
+                      <option value="">Select Product</option>
+                      {products.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </Form.Select>
+                  ) : (
+                    <Form.Select
+                      value={item.sparepart_id || ""}
+                      isInvalid={!!errors[`sparepart_id_${i}`]}
+                      onChange={(e) =>
+                        handleItemChange(i, {
+                          target: { name: "sparepart_id", value: e.target.value },
+                        })
+                      }
+                    >
+                      <option value="">Select Sparepart</option>
+                      {spareparts.map((sp) => (
+                        <option key={sp.id} value={sp.id}>
+                          {sp.name}
+                        </option>
+                      ))}
+                    </Form.Select>
+                  )}
                 </td>
 
-                {/* SERIAL / QTY */}
+                {/* SERIAL FROM / TO  OR  QTY / PCB SERIAL */}
                 <td>
-                  {item.isPCB ? (
-                    <Form.Control
-                      type="text"
-                      name="vci_serial_no"
-                      placeholder="Enter Serial"
-                      value={item.vci_serial_no}
-                      onChange={(e) => handleItemChange(i, e)}
-                      isInvalid={!!errors[`vci_serial_no_${i}`]}
-                    />
+                  {item.type === "product" ? (
+                    <>
+                      <Row>
+                        <Col>
+                          <Form.Control
+                            placeholder="Serial From"
+                            value={item.serial_from || ""}
+                            isInvalid={!!errors[`serial_${i}`]}
+                            onChange={(e) =>
+                              handleItemChange(i, {
+                                target: { name: "serial_from", value: e.target.value },
+                              })
+                            }
+                          />
+                        </Col>
+                        <Col>
+                          <Form.Control
+                            placeholder="Serial To"
+                            value={item.serial_to || ""}
+                            isInvalid={!!errors[`serial_${i}`]}
+                            onChange={(e) =>
+                              handleItemChange(i, {
+                                target: { name: "serial_to", value: e.target.value },
+                              })
+                            }
+                          />
+                        </Col>
+                      </Row>
+
+                      {errors[`serial_${i}`] && (
+                        <div className="invalid-feedback d-block">
+                          {errors[`serial_${i}`]}
+                        </div>
+                      )}
+                    </>
+                  ) : item.isPCB ? (
+                    <>
+                      <Form.Control
+                        placeholder="VCI Serial"
+                        value={item.vci_serial_no || ""}
+                        isInvalid={!!errors[`vci_serial_no_${i}`]}
+                        onChange={(e) =>
+                          handleItemChange(i, {
+                            target: { name: "vci_serial_no", value: e.target.value },
+                          })
+                        }
+                      />
+                      <Form.Control.Feedback type="invalid">
+                        {errors[`vci_serial_no_${i}`]}
+                      </Form.Control.Feedback>
+                    </>
                   ) : (
-                    <Form.Control
-                      type="number"
-                      name="quantity"
-                      placeholder="Qty"
-                      value={item.quantity}
-                      onChange={(e) => handleItemChange(i, e)}
-                      isInvalid={!!errors[`quantity_${i}`]}
-                    />
+                    <>
+                      <Form.Control
+                        type="number"
+                        min="1"
+                        placeholder="Quantity"
+                        value={item.quantity || ""}
+                        isInvalid={!!errors[`quantity_${i}`]}
+                        onChange={(e) =>
+                          handleItemChange(i, {
+                            target: { name: "quantity", value: e.target.value },
+                          })
+                        }
+                      />
+                      <Form.Control.Feedback type="invalid">
+                        {errors[`quantity_${i}`]}
+                      </Form.Control.Feedback>
+                    </>
                   )}
                 </td>
 
                 {/* STATUS */}
                 <td>
                   <Form.Select
-                    name="status"
-                    value={item.status}
-                    onChange={(e) => handleItemChange(i, e)}
+                    value={item.status || ""}
+                    isInvalid={!!errors[`status_${i}`]}
+                    onChange={(e) =>
+                      handleItemChange(i, {
+                        target: { name: "status", value: e.target.value },
+                      })
+                    }
                   >
                     <option value="">Select</option>
-                    <option value="Inward">Inward</option>
-                    <option value="Testing">Testing</option>
-                    <option value="Delivered">Delivered</option>
-                    <option value="Return">Return</option>
+
+                    {/* ✅ ONLY when added via Add Sparepart button */}
+                    {item.addedAsSparepart ? (
+                      <option value="Return">Return</option>
+                    ) : (
+                      <>
+                        <option value="Inward">Inward</option>
+                        <option value="Testing">Testing</option>
+                        <option value="Delivered">Delivered</option>
+                      </>
+                    )}
                   </Form.Select>
+
+                  <Form.Control.Feedback type="invalid">
+                    {errors[`status_${i}`]}
+                  </Form.Control.Feedback>
                 </td>
 
                 {/* REMARKS */}
                 <td>
                   <Form.Control
-                    name="remarks"
-                    value={item.remarks}
-                    onChange={(e) => handleItemChange(i, e)}
+                    value={item.remarks || ""}
+                    onChange={(e) =>
+                      handleItemChange(i, {
+                        target: { name: "remarks", value: e.target.value },
+                      })
+                    }
                   />
                 </td>
 
@@ -558,15 +720,19 @@ const EditServicePage = () => {
                 <td>
                   <Form.Control
                     type="file"
-                    name="upload_image"
-                    onChange={(e) => handleItemChange(i, e)}
+                    onChange={(e) =>
+                      handleItemChange(i, {
+                        target: { name: "upload_image", files: e.target.files },
+                      })
+                    }
                   />
 
                   {item.upload_image && typeof item.upload_image === "string" && (
                     <a
-                      href={item.upload_image}    // ← FIXED
+                      href={item.upload_image}
                       target="_blank"
                       rel="noopener noreferrer"
+                      className="d-block mt-1"
                     >
                       View File
                     </a>
@@ -588,10 +754,58 @@ const EditServicePage = () => {
           </tbody>
         </Table>
 
-        <Button variant="success" onClick={addRow}>
-          + Add Row
-        </Button>
+        <div className="mb-3">
+          <Button
+            variant="success"
+            className="me-2"
+            onClick={() =>
+              setFormData(prev => ({
+                ...prev,
+                items: [
+                  ...prev.items,
+                  {
+                    type: "product",
+                    product_id: "",
+                    serial_from: "",
+                    serial_to: "",
+                    status: "",
+                    remarks: "",
+                    upload_image: null,
+                  },
+                ],
+              }))
+            }
+          >
+            + Service Product
+          </Button>
 
+          <Button
+            variant="success"
+            onClick={() =>
+              setFormData(prev => ({
+                ...prev,
+                items: [
+                  ...prev.items,
+                  {
+                    type: "sparepart",
+                    sparepart_id: "",
+                    isPCB: false,
+                    vci_serial_no: "",
+                    quantity: "",
+                    status: "",
+                    remarks: "",
+                    upload_image: null,
+
+                    addedAsSparepart: true,
+                  },
+                ],
+              }))
+            }
+          >
+            + Service Sparepart
+          </Button>
+
+        </div>
         {/* SUBMIT BUTTONS */}
         <div className="mt-4 d-flex justify-content-end">
           <Button
