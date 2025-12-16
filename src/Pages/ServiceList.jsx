@@ -255,27 +255,28 @@ export default function ServiceList() {
     return summary;
   };
 
-  const handleDelete = async (id) => {
+  const handleDeleteItem = async (itemId) => {
     try {
       const result = await MySwal.fire({
-        title: "Are you sure?",
-        text: "Do you want to delete this service?",
+        title: "Delete this item?",
+        text: "Only this product/sparepart will be deleted",
         icon: "warning",
         showCancelButton: true,
         confirmButtonColor: "#d33",
         cancelButtonColor: "#2FA64F",
-        confirmButtonText: "Yes, delete it!",
+        confirmButtonText: "Yes, delete",
       });
 
       if (result.isConfirmed) {
-        await api.delete(`/service-vci/${id}`);
-        toast.success("Service deleted!");
-        fetchServices();
+        await api.delete(`/service-vci-item/${itemId}`);
+        toast.success("Item deleted successfully");
+        fetchServices(); // reload list
       }
-    } catch {
-      toast.error("Failed to delete service!");
+    } catch (error) {
+      toast.error("Failed to delete item");
     }
   };
+
   const filteredServices = services
     .flatMap((service) =>
       (service.items || []).map((item) => {
@@ -309,7 +310,6 @@ export default function ServiceList() {
         serial.includes(filterSerial.toLowerCase()) ||
         sparepart.includes(filterSerial.toLowerCase());
 
-      // 🔥 CLEAN STATUS FILTER (works for all: inward, testing, delivered, returned)
       const matchStatus = filterStatus
         ? status === filterStatus.toLowerCase()
         : true;
@@ -635,22 +635,43 @@ export default function ServiceList() {
 
                     {/* SERIAL + SPAREPART */}
                     <td>
-                      <div
-                        style={{
-                          fontSize: "0.90rem",
-                          fontFamily: "Product Sans, sans-serif"
-                        }}
-                      >
-                        {row.item.vci_serial_no}
-                      </div>
-                      <div
-                        style={{
-                          fontSize: "0.90rem",
-                          fontFamily: "Product Sans, sans-serif"
-                        }}
-                      >
-                        {row.item.sparepart ?? "-"}
-                      </div>
+                      <td>
+                        {/* SERIAL ITEM */}
+                        {row.item.vci_serial_no ? (
+                          <>
+                            <div
+                              style={{
+                                fontSize: "0.90rem",
+                                fontWeight: "600",
+                                fontFamily: "Product Sans, sans-serif",
+                              }}
+                            >
+                              {row.item.vci_serial_no}
+                            </div>
+
+                            <div
+                              style={{
+                                fontSize: "0.80rem",
+                                color: "#555",
+                                fontFamily: "Product Sans, sans-serif",
+                              }}
+                            >
+                              {row.item.product || "-"}
+                            </div>
+                          </>
+                        ) : (
+                          /* SPAREPART ITEM */
+                          <div
+                            style={{
+                              fontSize: "0.90rem",
+                              fontFamily: "Product Sans, sans-serif",
+                            }}
+                          >
+                            {row.item.sparepart || "-"}
+                          </div>
+                        )}
+                      </td>
+
                     </td>
 
                     {/* STATUS */}
@@ -683,7 +704,7 @@ export default function ServiceList() {
                       <Button
                         variant="outline-primary"
                         size="sm"
-                        onClick={() => handleDelete(row.id)}
+                        onClick={() => handleDeleteItem(row.item.id)}
                         style={{
                           borderColor: "#2E3A59",
                           color: "#2E3A59",
