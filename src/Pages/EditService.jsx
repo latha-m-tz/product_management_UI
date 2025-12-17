@@ -18,6 +18,17 @@ const EditServicePage = () => {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(true);
   const [spareparts, setSpareparts] = useState([]);
+  const getAllowedStatuses = (item) => {
+    if (item.type === "sparepart") {
+      return ["Return"]; // 🔒 ONLY Return
+    }
+
+    if (item.type === "product") {
+      return ["Inward", "Testing", "Delivered"];
+    }
+
+    return [];
+  };
 
   const [formData, setFormData] = useState({
     vendor_id: "",
@@ -67,8 +78,18 @@ const EditServicePage = () => {
               upload_image: it.upload_image || null,
             };
           }
+          const getAllowedStatuses = (item) => {
+            if (item.type === "sparepart") {
+              return ["Return"]; // 🔒 ONLY Return
+            }
 
-          // SPAREPART ROW
+            if (item.type === "product") {
+              return ["Inward", "Testing", "Delivered"];
+            }
+
+            return [];
+          };
+
           const spare = spRes.data.spareparts.find(p => p.id === it.sparepart_id);
           const isPCB = spare?.product_type_name === "vci";
 
@@ -297,10 +318,8 @@ const EditServicePage = () => {
       if (file instanceof File) {
         fd.append(`receipt_files[${i}]`, file);
       }
-      // Important: Existing file path is ignored (backend keeps old file)
     });
 
-    // Items
     formData.items.forEach((item, i) => {
       if (item.id) fd.append(`items[${i}][id]`, item.id);
 
@@ -519,7 +538,7 @@ const EditServicePage = () => {
                         }))
                       }
                     >
-                      ❌
+                      <i className="bi bi-x-circle"></i>
                     </Button>
                   </div>
                 ))}
@@ -533,7 +552,7 @@ const EditServicePage = () => {
                         target="_blank"
                         rel="noopener noreferrer"
                       >
-                        📄 View Uploaded File {i + 1}
+                         View Uploaded File {i + 1}
                       </a>
                     </div>
                   ) : null
@@ -599,6 +618,7 @@ const EditServicePage = () => {
                     </Form.Select>
                   )}
                 </td>
+
 
                 {/* SERIAL FROM / TO  OR  QTY / PCB SERIAL */}
                 <td>
@@ -687,16 +707,11 @@ const EditServicePage = () => {
                   >
                     <option value="">Select</option>
 
-                    {/* ✅ ONLY when added via Add Sparepart button */}
-                    {item.addedAsSparepart ? (
-                      <option value="Return">Return</option>
-                    ) : (
-                      <>
-                        <option value="Inward">Inward</option>
-                        <option value="Testing">Testing</option>
-                        <option value="Delivered">Delivered</option>
-                      </>
-                    )}
+                    {getAllowedStatuses(item).map((status) => (
+                      <option key={status} value={status}>
+                        {status}
+                      </option>
+                    ))}
                   </Form.Select>
 
                   <Form.Control.Feedback type="invalid">

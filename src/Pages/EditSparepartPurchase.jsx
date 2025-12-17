@@ -62,6 +62,25 @@ export default function EditSparepartPurchase({ purchaseId }) {
     value: s.id,
     label: s.name,
   }));
+  const buildSerialsFromRange = (from, to) => {
+    const m1 = parseSerial(from);
+    const m2 = parseSerial(to);
+
+    if (
+      !m1.prefix ||
+      m1.num === null ||
+      m2.num === null ||
+      m2.num < m1.num
+    ) {
+      return [];
+    }
+
+    const list = [];
+    for (let n = m1.num; n <= m2.num; n++) {
+      list.push(`${m1.prefix}${String(n).padStart(6, "0")}`);
+    }
+    return list;
+  };
 
 
   const selectStyles = {
@@ -168,6 +187,39 @@ export default function EditSparepartPurchase({ purchaseId }) {
       orig: serial,
     };
   };
+  const groupConsecutiveSerials = (serials = []) => {
+    if (!serials.length) return [];
+
+    const nums = serials
+      .map(s => Number(s))
+      .filter(n => !isNaN(n))
+      .sort((a, b) => a - b);
+
+    const ranges = [];
+    let start = nums[0];
+    let prev = nums[0];
+
+    for (let i = 1; i <= nums.length; i++) {
+      if (nums[i] === prev + 1) {
+        prev = nums[i];
+        continue;
+      }
+
+      ranges.push({
+        from: String(start),
+        to: String(prev),
+        qty: prev - start + 1,
+        serials: nums.filter(n => n >= start && n <= prev).map(String),
+      });
+
+      start = nums[i];
+      prev = nums[i];
+    }
+
+    return ranges;
+  };
+
+
   useEffect(() => {
     const token = localStorage.getItem("authToken");
     if (token) setAuthToken(token);
@@ -371,131 +423,110 @@ export default function EditSparepartPurchase({ purchaseId }) {
           api.get(`/${purchaseKey}/purchase/edit`),
         ]);
 
+        /* ================= BASIC DATA ================= */
+
         setAvailableSpareparts(spareRes.data.spareparts || []);
         setAvailableVendors(spareRes.data.vendors || []);
         setAvailableCategories(spareRes.data.categories || []);
 
-        const p = purchaseRes.data || {}; // or purchaseRes.data.purchase if wrapped
+        const p = purchaseRes.data || {};
+
         setVendorId(p.vendor_id || "");
         setChallanNo(p.challan_no || "");
+
         const convertToInputDate = (dateStr) => {
           if (!dateStr) return "";
           const [d, m, y] = dateStr.split("-");
           return `${y}-${m}-${d}`;
         };
 
-        setChallanDate(convertToInputDate(p.challan_date) || "");
-        setReceivedDate(convertToInputDate(p.received_date) || "");
+        setChallanDate(convertToInputDate(p.challan_date));
+        setReceivedDate(convertToInputDate(p.received_date));
         setTrackingNumber(p.tracking_number || "");
         setCourierName(p.courier_name || "");
 
         setRecipientFiles(
-          Array.isArray(p.document_recipient) && p.document_recipient.length > 0
+          Array.isArray(p.document_recipient) && p.document_recipient.length
             ? p.document_recipient
             : [null]
         );
-        setInitialItems(p.items || []);
 
-        const groups = [];
+        /* ================= SERIAL RANGE REBUILD ================= */
 
+        const serialMap = {};
+        const nonSerialMap = {};
+
+        // 1️⃣ Collect backend rows
         (p.items || []).forEach((item) => {
-          const spareId = item.sparepart_id;
-          const productId = item.product_id || "";
-          const warranty = item.warranty_status || "Active";
-
-          let targetGroup = null;
+          const key = `${item.sparepart_id}-${item.product_id || ""}-${item.warranty_status || "Active"}`;
 
           if (item.serial_no) {
-            const serial = item.serial_no;
-
-            for (const g of groups) {
-              if (
-                g.sparepart_id === spareId &&
-                g.product_id === productId &&
-                g.warranty_status === warranty
-              ) {
-                const lastSerial = g.serials[g.serials.length - 1];
-                const parsedLast = parseSerial(lastSerial);
-                const parsedCurr = parseSerial(serial);
-
-                if (
-                  parsedLast.prefix === parsedCurr.prefix &&
-                  parsedCurr.num === parsedLast.num + 1
-                ) {
-                  targetGroup = g;
-                  break;
-                }
-              }
-            }
-          }
-
-          if (!targetGroup) {
-            targetGroup = {
-              sparepart_id: spareId,
-              product_id: productId,
-              warranty_status: warranty,
-              serials: [],
-              qty: 0,
-              ids: [],
-            };
-            groups.push(targetGroup);
-          }
-
-          if (item.serial_no) {
-            if (!targetGroup.serials.includes(item.serial_no)) {
-              targetGroup.serials.push(item.serial_no);
-            }
-            targetGroup.qty = targetGroup.serials.length;
+            if (!serialMap[key]) serialMap[key] = [];
+            serialMap[key].push(item.serial_no);
           } else {
-            targetGroup.qty += Number(item.quantity) || 0;
+            if (!nonSerialMap[key]) {
+              nonSerialMap[key] = {
+                id: item.id || null,
+                sparepart_id: item.sparepart_id,
+                product_id: item.product_id || "",
+                warranty_status: item.warranty_status || "Active",
+                qty: 0,
+              };
+            }
+            nonSerialMap[key].qty += Number(item.quantity) || 0;
           }
-
-          if (item.id) targetGroup.ids.push(item.id);
         });
 
+        // 2️⃣ Build UI rows
+        const mappedBackend = [];
 
-        const mappedBackend = groups.map((g) => {
-          const from_serial = g.serials[0] || "";
-          const to_serial = g.serials[g.serials.length - 1] || "";
-          return {
-            id: g.id,
-            sparepart_id: g.sparepart_id,
-            product_id: g.product_id,
-            qty: g.serials?.length ? g.serials.length : g.qty || "",
-            warranty_status: g.warranty_status,
-            from_serial,
-            to_serial,
-            serials: g.serials || [],
-          };
+        // SERIAL → RANGE ROWS
+        Object.entries(serialMap).forEach(([key, serials]) => {
+          const [sparepart_id, product_id, warranty_status] = key.split("-");
+
+          const ranges = groupConsecutiveSerials(serials);
+
+          ranges.forEach((r) => {
+            mappedBackend.push({
+              id: null,
+              sparepart_id: Number(sparepart_id),
+              product_id: product_id || "",
+              warranty_status,
+              from_serial: r.from,
+              to_serial: r.to,
+              qty: r.qty,
+              serials: r.serials,
+            });
+          });
         });
 
-        const newFrontendRows = spareparts.filter(
-          (sp) =>
-            !mappedBackend.some(
-              (m) =>
-                m.sparepart_id === sp.sparepart_id &&
-                m.product_id === sp.product_id &&
-                m.warranty_status === sp.warranty_status
-            )
+        // NON-SERIAL ROWS
+        Object.values(nonSerialMap).forEach((row) => {
+          mappedBackend.push({
+            ...row,
+            from_serial: "",
+            to_serial: "",
+            serials: [],
+          });
+        });
+
+        /* ================= SET STATE ================= */
+
+        setSpareparts(
+          mappedBackend.length
+            ? mappedBackend
+            : [{
+              id: null,
+              sparepart_id: "",
+              product_id: "",
+              qty: "",
+              warranty_status: "Active",
+              from_serial: "",
+              to_serial: "",
+              serials: [],
+            }]
         );
 
-        const finalSpareparts =
-          mappedBackend.length || newFrontendRows.length
-            ? [...mappedBackend, ...newFrontendRows]
-            : [
-              {
-                id: null,
-                sparepart_id: "",
-                product_id: "",
-                qty: "",
-                warranty_status: "Active",
-                from_serial: "",
-                to_serial: "",
-                serials: [],
-              },
-            ];
-
-        setSpareparts(finalSpareparts);
         setLoading(false);
       } catch (err) {
         console.error(err);
@@ -503,6 +534,7 @@ export default function EditSparepartPurchase({ purchaseId }) {
         setLoading(false);
       }
     };
+
     fetchData();
   }, [purchaseKey]);
 
@@ -729,6 +761,28 @@ export default function EditSparepartPurchase({ purchaseId }) {
         errs.received_date = "Received Date cannot be before Challan Date";
       }
     }
+    const seenSerials = new Set();
+
+    for (let i = 0; i < spareparts.length; i++) {
+      const sp = spareparts[i];
+      const type = sparepartTypeOf(sp.sparepart_id);
+
+      if (!type.includes("serial")) continue;
+
+      const from = Number(sp.from_serial);
+      const to = Number(sp.to_serial);
+
+      if (!from || !to) continue;
+
+      for (let s = from; s <= to; s++) {
+        const key = `${sp.sparepart_id}-${s}`;
+        if (seenSerials.has(key)) {
+          toast.error(`Duplicate serial number detected: ${s}`);
+          return false;
+        }
+        seenSerials.add(key);
+      }
+    }
 
     const itemErrors = {};
 
@@ -780,57 +834,114 @@ export default function EditSparepartPurchase({ purchaseId }) {
     }
 
     try {
+      const mergedSpareparts = Object.values(
+        spareparts.reduce((acc, sp) => {
+          if (!sp.sparepart_id) return acc;
+
+          const type = sparepartTypeOf(sp.sparepart_id);
+
+          let serials = Array.isArray(sp.serials) ? [...sp.serials] : [];
+
+          if (
+            type.includes("serial") &&
+            serials.length === 0 &&
+            sp.from_serial &&
+            sp.to_serial
+          ) {
+            serials = buildSerialsFromRange(sp.from_serial, sp.to_serial);
+          }
+
+          // 🔥 UNIQUE KEY PER SERIAL RANGE
+          const key = `${sp.sparepart_id}-${sp.warranty_status}-${sp.from_serial}-${sp.to_serial}`;
+
+          if (!acc[key]) {
+            acc[key] = {
+              sparepart_id: sp.sparepart_id,
+              warranty_status: sp.warranty_status || "Active",
+              from_serial: sp.from_serial || "",
+              to_serial: sp.to_serial || "",
+              serials,
+              qty: serials.length || Number(sp.qty) || 0,
+              ids: sp.id ? [sp.id] : [],
+            };
+          } else {
+            // same exact range (rare case)
+            acc[key].serials.push(...serials);
+            acc[key].qty = acc[key].serials.length;
+            if (sp.id) acc[key].ids.push(sp.id);
+          }
+
+          return acc;
+        }, {})
+      );
+
       const payload = new FormData();
       payload.append("_method", "PUT");
 
-      payload.append("vendor_id", String(vendorId || ""));
       payload.append("vendor_id", vendorIdOnly || "");
       payload.append(
         "contact_person_id",
         contactPersonId && contactPersonId !== "0" ? contactPersonId : ""
       );
+
       payload.append("challan_no", String(challanNo || ""));
-      const formatDateForBackend = (dateStr) => (dateStr ? dateStr : "");
-      payload.append("challan_date", formatDateForBackend(challanDate));
-      payload.append("received_date", formatDateForBackend(receivedDate));
+      payload.append("challan_date", challanDate || "");
+      payload.append("received_date", receivedDate || "");
       payload.append("tracking_number", String(trackingNumber || ""));
       payload.append("courier_name", String(courier_name || ""));
 
-      spareparts.forEach((sp, i) => {
-        payload.append(`items[${i}][id]`, sp.id || "");
-        payload.append(`items[${i}][sparepart_id]`, sp.sparepart_id || "");
+      /* ===============================
+         ITEMS (🔥 SERIALS FIXED HERE 🔥)
+         =============================== */
+      mergedSpareparts.forEach((sp, i) => {
+        (sp.ids || []).forEach((id, j) => {
+          payload.append(`items[${i}][ids][${j}]`, id);
+        });
+
+        payload.append(`items[${i}][sparepart_id]`, sp.sparepart_id);
         payload.append(`items[${i}][from_serial]`, sp.from_serial || "");
         payload.append(`items[${i}][to_serial]`, sp.to_serial || "");
-        payload.append(`items[${i}][warranty_status]`, sp.warranty_status || "");
+        payload.append(`items[${i}][warranty_status]`, sp.warranty_status);
+
+        // ✅ Quantity must follow serial count
         payload.append(
           `items[${i}][quantity]`,
-          sp.serials?.length ? sp.serials.length : Number(sp.qty) || 0
+          sp.serials.length || Number(sp.qty) || 0
         );
-        (sp.serials || []).forEach((serial, j) => {
+
+        // 🔥 CRITICAL FIX: ALWAYS SEND serials[]
+        sp.serials.forEach((serial, j) => {
           payload.append(`items[${i}][serials][${j}]`, serial);
         });
       });
 
-      deletedSparepartIds.forEach((id, i) => payload.append(`deleted_ids[${i}]`, id));
+      /* ===============================
+         DELETED ITEMS
+         =============================== */
+      deletedSparepartIds.forEach((id, i) => {
+        payload.append(`deleted_ids[${i}]`, id);
+      });
 
-      if (recipientFiles && recipientFiles.length > 0) {
-        recipientFiles.forEach((file, i) => {
-          if (file instanceof File) {
-            payload.append(`document_recipient[${i}]`, file);
-          }
-        });
-      }
+      /* ===============================
+         FILES
+         =============================== */
+      recipientFiles.forEach((file, i) => {
+        if (file instanceof File) {
+          payload.append(`document_recipient[${i}]`, file);
+        }
+      });
 
       payload.append(
         "removed_recipient_files",
         JSON.stringify(removedFiles.recipient || [])
       );
 
-      const res = await api.post(
-        `/purchaseUpdate/${purchaseKey}`,
-        payload,
-        { headers: { "Content-Type": "multipart/form-data" } }
-      );
+      /* ===============================
+         API CALL
+         =============================== */
+      await api.post(`/purchaseUpdate/${purchaseKey}`, payload, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
 
       toast.success("Purchase updated successfully!");
       navigate("/spare-partsPurchase");
@@ -845,6 +956,7 @@ export default function EditSparepartPurchase({ purchaseId }) {
       toast.error(backendError);
     }
   };
+
 
   const feedbackStyle = { color: "red", fontSize: "0.85rem", marginTop: "4px" };
   const serialInputStyle = { background: "#e9ecef" };
@@ -1186,9 +1298,9 @@ export default function EditSparepartPurchase({ purchaseId }) {
       )}
       {/* Buttons */}
       <div className="d-flex justify-content-between mt-3">
-        <Button variant="success" onClick={addSparepart}>
+        {/* <Button variant="success" onClick={addSparepart}>
           <i className="bi bi-plus-lg me-1" /> Add Spareparts
-        </Button>
+        </Button> */}
         <div>
           <Button
             variant="secondary"

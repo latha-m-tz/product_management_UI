@@ -240,127 +240,102 @@ export default function AddAssemblePage() {
     // }
 
 
-    const handleAddProduct = async () => {
-        const { fromSerial, toSerial, testedBy, product_id } = form;
-        let newErrors = {};
+const handleAddProduct = async () => {
+    const { fromSerial, toSerial, testedBy, product_id } = form;
+    let newErrors = {};
 
-        if (!product_id) newErrors.product_id = "Product is required.";
-        if (!fromSerial) newErrors.fromSerial = "From Serial is required.";
-        if (!toSerial) newErrors.toSerial = "To Serial is required.";
+    if (!product_id) newErrors.product_id = "Product is required.";
+    if (!fromSerial) newErrors.fromSerial = "From Serial is required.";
+    if (!toSerial) newErrors.toSerial = "To Serial is required.";
 
-        if (Object.keys(newErrors).length > 0) {
-            setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) {
+        setErrors(newErrors);
+        return;
+    }
+
+    const selectedProduct =
+        productOptions.find(p => p.id === parseInt(product_id)) || {};
+
+    const prefix = selectedProduct.serial_prefix || "";
+    let serialsToAdd = [];
+
+    // 🔹 Build serial(s)
+    if (fromSerial !== toSerial) {
+        const startNum = parseInt(fromSerial.replace(/\D/g, ""), 10);
+        const endNum = parseInt(toSerial.replace(/\D/g, ""), 10);
+
+        if (isNaN(startNum) || isNaN(endNum) || startNum > endNum) {
+            toast.error("Invalid serial range.");
             return;
         }
 
-        const selectedProduct = productOptions.find(
-            (p) => p.id === parseInt(product_id)
-        ) || {};
-
-        const prefix = selectedProduct.serial_prefix || "";
-        let serialsToAdd = [];
-        const isRange = toSerial && fromSerial !== toSerial;
-
-        // 🔹 Build serial range
-        if (isRange) {
-            const fromDigits = fromSerial.replace(prefix, "").replace(/\D/g, "");
-            const toDigits = toSerial.replace(prefix, "").replace(/\D/g, "");
-
-            const startNum = parseInt(fromDigits, 10);
-            const endNum = parseInt(toDigits, 10);
-
-            if (isNaN(startNum) || isNaN(endNum) || startNum > endNum) {
-                toast.error("Invalid serial range! 'From Serial' must be <= 'To Serial'.");
-                return;
-            }
-
-            for (let i = startNum; i <= endNum; i++) {
-                serialsToAdd.push(`${prefix}${i.toString().padStart(6, "0")}`);
-            }
-        } else {
-            serialsToAdd.push(fromSerial.trim().toUpperCase());
+        for (let i = startNum; i <= endNum; i++) {
+            serialsToAdd.push(`${prefix}${i.toString().padStart(6, "0")}`);
         }
+    } else {
+        serialsToAdd.push(fromSerial.trim().toUpperCase());
+    }
 
-        // 🔹 Local duplicates
-        const duplicateSerials = serialsToAdd.filter(s =>
-            products.some(p => p.serial_no === s)
-        );
+    // 🔹 Remove local duplicates
+    serialsToAdd = serialsToAdd.filter(
+        s => !products.some(p => p.serial_no === s)
+    );
 
-        if (duplicateSerials.length > 0) {
-            toast.error(`Serial(s) ${duplicateSerials.join(", ")} already exists in the list.`);
-            serialsToAdd = serialsToAdd.filter(s => !duplicateSerials.includes(s));
-            if (serialsToAdd.length === 0) return;
-        }
+    if (serialsToAdd.length === 0) {
+        toast.error("Serial already exists in the list.");
+        return;
+    }
 
-        try {
-            const checkRes = await api.post("/check-serials-purchased", {
-                product_id: parseInt(product_id),
-                serials: serialsToAdd,
+    try {
+        const res = await api.post("/check-serials-purchased", {
+            product_id: parseInt(product_id),
+            serials: serialsToAdd,
+        });
+
+        /* ❌ BLOCK IF SHORTAGES EXIST */
+        if (res.data.sparepart_shortages?.length > 0) {
+            let msg = "Cannot assemble due to sparepart shortages:\n";
+            res.data.sparepart_shortages.forEach(s => {
+                msg += `\n${s.sparepart_name} → Short by ${s.shortage}`;
             });
 
-            // ✅ SHOW SHORTAGES FIRST
-            const shortages = checkRes.data.sparepart_shortages || [];
-
-            if (shortages.length > 0) {
-                let msg = "❌ Cannot add products due to sparepart shortages:\n";
-
-                shortages.forEach(s => {
-                    msg += `\n⚠ ${s.sparepart_name}\n   Required: ${s.required}\n   Available: ${s.available}\n   Short by: ${s.shortage}\n`;
-                });
-
-                toast.error(msg, {
-                    autoClose: 9000,
-                    style: { whiteSpace: "pre-line" }
-                });
-
-                return;  // ⛔ STOP processing
-            }
-
-
-            // 🔥 2. SERIAL VALIDATION
-            const validation = checkRes.data.serial_validation || {};
-            const purchasedSerials = validation.purchased || [];
-            const notPurchasedSerials = validation.not_purchased || [];
-            const items = validation.items || [];
-
-            const existsSerials = items
-                .filter(i => i.status === "exists")
-                .map(i => i.serial_no);
-
-            if (existsSerials.length > 0) {
-                toast.info(`Serial(s) ${existsSerials.join(", ")} already exist in inventory.`);
-            }
-
-            if (notPurchasedSerials.length > 0) {
-                toast.error(`Serial(s) ${notPurchasedSerials.join(", ")} are not purchased.`);
-            }
-
-            const validSerials = purchasedSerials.filter(
-                s => !existsSerials.includes(s)
-            );
-
-            if (validSerials.length === 0) return;
-
-            // 🔥 3. ADD TO TABLE
-            const newProducts = validSerials.map(s => ({
-                serial_no: s,
-                product_id: parseInt(product_id),
-                tested_by: testedBy,
-                tested_status: ["PASS"],
-                test_remarks: "",
-                from_serial: fromSerial,
-                to_serial: toSerial || s,
-            }));
-
-            setProducts([...products, ...newProducts]);
-            setForm(prev => ({ ...prev, fromSerial: "", toSerial: "" }));
-            toast.success(`${newProducts.length} serial(s) added.`);
-
-        } catch (error) {
-            console.error("Error checking serials:", error);
-            toast.error(error.response?.data?.message || "Error checking serials.");
+            toast.error(msg, {
+                autoClose: 9000,
+                style: { whiteSpace: "pre-line" }
+            });
+            return;
         }
-    };
+
+        /* ❌ BLOCK IF BACKEND SAYS NO */
+        if (res.data.can_assemble === false) {
+            toast.error(res.data.message || "Cannot assemble.");
+            return;
+        }
+
+        /* ✅ SUCCESS — USE BACKEND SERIALS */
+        const allowedSerials = res.data.serials || serialsToAdd;
+
+        const newProducts = allowedSerials.map(s => ({
+            serial_no: s,
+            product_id: parseInt(product_id),
+            tested_by: testedBy,
+            tested_status: ["PASS"],
+            test_remarks: "",
+            from_serial: fromSerial,
+            to_serial: toSerial || s,
+        }));
+
+        setProducts(prev => [...prev, ...newProducts]);
+        setForm(prev => ({ ...prev, fromSerial: "", toSerial: "" }));
+
+        toast.success(`${newProducts.length} serial(s) added successfully.`);
+
+    } catch (error) {
+        console.error("Error checking serials:", error);
+        toast.error(error.response?.data?.message || "Error checking serials.");
+    }
+};
+
 
 
     const handleRowChange = (index, field, value) => {
