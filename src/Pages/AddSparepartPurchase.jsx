@@ -8,7 +8,6 @@ import "react-toastify/dist/ReactToastify.css";
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
-// import { useNavigate } from "react-router-dom";
 import Select, { components } from "react-select";
 
 export default function AddSparepartPurchase() {
@@ -38,21 +37,18 @@ export default function AddSparepartPurchase() {
 
       const selectedIds = selectedOptions.map(o => o.value);
 
-      // 🔴 find which sparepart was removed
       const removedIds = [...new Set(prev.map(p => p.sparepart_id))]
         .filter(id => id && !selectedIds.includes(id));
 
-      // 🔴 remove ONLY ONE row for each removed sparepart
       removedIds.forEach(id => {
         const indexToRemove = updated.findIndex(
           sp => sp.sparepart_id === id
         );
         if (indexToRemove !== -1) {
-          updated.splice(indexToRemove, 1); // ✅ ONLY ONE
+          updated.splice(indexToRemove, 1); 
         }
       });
 
-      // 🟢 add row when newly selected
       selectedIds.forEach(id => {
         const exists = updated.some(sp => sp.sparepart_id === id);
         if (!exists) {
@@ -87,7 +83,7 @@ export default function AddSparepartPurchase() {
 
     const newRow = {
       ...current,
-      row_id: Date.now() + Math.random(), // ✅ NEW row id
+      row_id: Date.now() + Math.random(), 
       qty: "",
       from_serial: "",
       to_serial: "",
@@ -117,7 +113,7 @@ export default function AddSparepartPurchase() {
   const selectValue = spareparts
     .filter(sp => sp.sparepart_id)
     .map((sp, index) => ({
-      value: `${sp.sparepart_id}-${index}`, // 👈 UNIQUE PER ROW
+      value: `${sp.sparepart_id}-${index}`, 
       sparepart_id: sp.sparepart_id,
       label:
         availableSpareparts.find(a => a.id === sp.sparepart_id)?.name || "",
@@ -145,7 +141,7 @@ export default function AddSparepartPurchase() {
 
     multiValue: (provided) => ({
       ...provided,
-      backgroundColor: "#e9ecef", // light gray tag (Bootstrap default)
+      backgroundColor: "#e9ecef",
     }),
 
     multiValueLabel: (provided) => ({
@@ -470,6 +466,28 @@ export default function AddSparepartPurchase() {
         errs.received_date = "Received Date cannot be before Challan Date";
       }
     }
+    const seenSerials = new Set();
+
+    for (let i = 0; i < spareparts.length; i++) {
+      const sp = spareparts[i];
+      const type = sparepartTypeOf(sp.sparepart_id);
+
+      if (!type.includes("serial")) continue;
+
+      const from = Number(sp.from_serial);
+      const to = Number(sp.to_serial);
+
+      if (!from || !to) continue;
+
+      for (let s = from; s <= to; s++) {
+        const key = `${sp.sparepart_id}-${s}`;
+        if (seenSerials.has(key)) {
+          toast.error(`Duplicate serial number detected: ${s}`);
+          return false;
+        }
+        seenSerials.add(key);
+      }
+    }
 
     const itemErrors = {};
 
@@ -477,7 +495,6 @@ export default function AddSparepartPurchase() {
       const type = sparepartTypeOf(sp.sparepart_id);
       const itemErr = {};
 
-      // Sparepart required
       if (!sp.sparepart_id) {
         itemErr.sparepart_id = "Sparepart is required";
       }
@@ -500,7 +517,6 @@ export default function AddSparepartPurchase() {
             itemErr.to_serial = "From Serial must be <= To Serial";
           }
 
-          // Exactly 6 digits
           if (!/^\d{6}$/.test(sp.from_serial)) {
             itemErr.from_serial = "From Serial must be exactly 6 digits";
           }
@@ -865,16 +881,24 @@ export default function AddSparepartPurchase() {
               options={sparepartOptions}
               components={{ Option: CheckboxOption }}
               styles={selectStyles}
-              value={spareparts.map(sp => ({
-                value: sp.sparepart_id,
-                label:
-                  availableSpareparts.find(a => a.id === sp.sparepart_id)?.name || "",
-              }))}
-
+              value={[
+                ...new Map(
+                  spareparts
+                    .filter(sp => sp.sparepart_id)
+                    .map(sp => [
+                      sp.sparepart_id,
+                      {
+                        value: sp.sparepart_id,
+                        label:
+                          availableSpareparts.find(a => a.id === sp.sparepart_id)?.name || "",
+                      },
+                    ])
+                ).values(),
+              ]}
               onMenuOpen={() => {
                 if (!vendorId) {
                   toast.error("Please choose Vendor first");
-                  return false; // ❌ stop opening
+                  return false; 
                 }
               }}
 

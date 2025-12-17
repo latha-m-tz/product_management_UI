@@ -62,7 +62,7 @@ const AddServicePage = () => {
   today.setHours(0, 0, 0, 0);
 
   if (selected.getTime() > today.getTime()) {
-    newErrors.challan_date = "Future dates not allowed";
+    navigate.challan_date = "Future dates not allowed";
   }
 
   const validate = () => {
@@ -694,7 +694,7 @@ const AddServicePage = () => {
                       )
                     }
                   >
-                    ❌
+                        <i className="bi bi-x-circle"></i>
                   </Button>
                 </div>
               ))}
@@ -922,7 +922,7 @@ const AddServicePage = () => {
               }))
             }
           >
-            + service Product
+            + Service Product
           </Button>
 
           <Button
@@ -943,7 +943,7 @@ const AddServicePage = () => {
               }))
             }
           >
-            + service Sparepart
+            + Service Sparepart
           </Button>
         </div>
         <div className="mt-4 d-flex justify-content-end">
