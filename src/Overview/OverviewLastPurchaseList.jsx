@@ -46,7 +46,7 @@ const LastPurchaseList = () => {
   return (
     <Card className="border-0 shadow-sm h-100">
       <Card.Body>
-        <h5 className="fw-semibold text-dark mb-4">Last Purchase List</h5>
+        <h5 className="fw-semibold text-dark mb-4">Recent Purchase List</h5>
 
         {loading ? (
           <div className="d-flex justify-content-center align-items-center py-5">

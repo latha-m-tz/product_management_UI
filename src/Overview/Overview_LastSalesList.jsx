@@ -13,7 +13,7 @@ const salesData = [
 const LastSalesList = () => {
   return (
     <div className="sales-card">
-      <h5 className="sales-title">Last Sales List</h5>
+      <h5 className="sales-title">Recent Sales List</h5>
       <div className="sales-table-wrapper">
         <table className="sales-table">
           <thead>
@@ -23,7 +23,7 @@ const LastSalesList = () => {
               <th>Shipment Date</th>
               <th>Batch</th>
               <th>Product</th>
-              <th>Quantity</th>
+              <th>Serial No</th>
             </tr>
           </thead>
           <tbody>
@@ -34,7 +34,7 @@ const LastSalesList = () => {
                 <td>{item.date}</td>
                 <td>{item.batch}</td>
                 <td>{item.product}</td>
-                <td>{item.quantity}</td>
+                <td>{item.serial_no}</td>
               </tr>
             ))}
           </tbody>

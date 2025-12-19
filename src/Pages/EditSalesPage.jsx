@@ -23,6 +23,9 @@ export default function EditSalesPage() {
   const [formErrors, setFormErrors] = useState({});
   const [loadedSale, setLoadedSale] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [receiptFiles, setReceiptFiles] = useState([]);
+  const [existingReceipts, setExistingReceipts] = useState([]);   // from API
+  const [removedReceipts, setRemovedReceipts] = useState([]);     // deleted by user
 
   const MySwal = withReactContent(Swal);
 
@@ -31,7 +34,34 @@ export default function EditSalesPage() {
   const endIndex = startIndex + itemsPerPage;
   const paginatedItems = items.slice(startIndex, endIndex);
 
-  // Load token
+  const addReceiptFile = () => {
+    // prevent adding if last row is empty
+    if (receiptFiles.length > 0 && receiptFiles[receiptFiles.length - 1] === null) {
+      toast.error("Please choose a file first");
+      return;
+    }
+
+    setReceiptFiles(prev => [...prev, null]);
+  };
+  const replaceExistingFile = (index, newFile) => {
+    const oldFile = existingReceipts[index];
+
+    setRemovedReceipts(prev => [...prev, oldFile]); // ✅ FIX
+    setExistingReceipts(prev => prev.filter((_, i) => i !== index));
+    setReceiptFiles(prev => [...prev, newFile]);
+  };
+
+  const removeReceiptFile = (index) => {
+    const updated = [...receiptFiles];
+    updated.splice(index, 1);
+    setReceiptFiles(updated);
+  };
+
+  const handleReceiptFileChange = (index, file) => {
+    const updated = [...receiptFiles];
+    updated[index] = file;
+    setReceiptFiles(updated);
+  };
   useEffect(() => {
     const token = localStorage.getItem("authToken");
     if (token) setAuthToken(token);
@@ -102,6 +132,7 @@ export default function EditSalesPage() {
       setShipmentDate(sale.shipment_date);
       setShipmentName(sale.shipment_name || "");
       setNotes(sale.notes || "");
+      setExistingReceipts(sale.receipt_files || []);
 
       if (!hasSelected) {
         setItems(groupProducts(sale.items || []));
@@ -194,8 +225,6 @@ export default function EditSalesPage() {
 
     if (!shipmentDate) {
       errors.shipmentDate = "Shipment Date is required";
-    } else if (shipment > today) {
-      errors.shipmentDate = "Shipment Date cannot be in the future";
     } else if (shipment < challan) {
       errors.shipmentDate = "Shipment Date cannot be before Challan Date";
     }
@@ -210,35 +239,60 @@ export default function EditSalesPage() {
     return Object.keys(errors).length === 0;
   };
 
-  // ---------------------------------------------------------
-  // SAVE UPDATED SALE
-  // ---------------------------------------------------------
   const handleSave = async () => {
     if (!validateForm()) {
       toast.warning("Please fix the highlighted errors!");
       return;
     }
 
-    const expandedItems = items.flatMap((item) =>
-      item.serials?.map((serial) => ({
-        product_id: item.product_id,
-        serial_no: serial,
-        quantity: 1,
-      })) || []
+    const formData = new FormData();
+
+    formData.append("customer_id", customerId);
+    formData.append("challan_no", challanNo.trim());
+    formData.append("challan_date", challanDate);
+    formData.append("shipment_date", shipmentDate);
+    formData.append("shipment_name", shipmentName.trim());
+    formData.append("notes", notes.trim());
+
+    // items.forEach((item, i) => {
+    //   if (Array.isArray(item.serials)) {
+    //     item.serials.forEach((serial) => {
+    //       formData.append(`items[${i}][serial_no]`, String(serial).trim());
+    //       formData.append(`items[${i}][quantity]`, 1);
+    //     });
+    //   }
+    // });
+    let index = 0;
+
+    items.forEach((item) => {
+      if (Array.isArray(item.serials) && item.serials.length > 0) {
+        item.serials.forEach((serial) => {
+          formData.append(`items[${index}][product_id]`, item.product_id);
+          formData.append(`items[${index}][serial_no]`, String(serial).trim());
+          formData.append(`items[${index}][quantity]`, 1);
+          index++;
+        });
+      }
+    });
+
+    receiptFiles.forEach((file) => {
+      if (file instanceof File) {
+        formData.append("receipt_files[]", file);
+      }
+    });
+
+    formData.append(
+      "removed_receipt_files",
+      JSON.stringify(removedReceipts)
     );
 
-    const payload = {
-      customer_id: parseInt(customerId),
-      challan_no: challanNo.trim(),
-      challan_date: challanDate,
-      shipment_date: shipmentDate,
-      shipment_name: shipmentName.trim(),
-      notes: notes.trim(),
-      items: expandedItems,
-    };
-
     try {
-      await api.put(`/sales/${id}`, payload);
+      await api.post(`/sales/${id}?_method=PUT`, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
       toast.success("Sale updated successfully!");
       navigate("/sales-order");
     } catch (err) {
@@ -246,7 +300,7 @@ export default function EditSalesPage() {
     }
   };
 
-  // Delete item
+
   const handleDeleteItem = (index) => {
     MySwal.fire({
       title: "Are you sure?",
@@ -283,14 +337,20 @@ export default function EditSalesPage() {
         </Col>
       </Row>
 
-      <Card className="border-0 shadow-sm rounded-3" style={{ backgroundColor: "#f4f4f8" }}>
+      <Card
+        className="border-0 shadow-sm rounded-3"
+        style={{ backgroundColor: "#f4f4f8" }}
+      >
         <Card.Body>
           <Form>
-            {/* Customer Section */}
             <div className="row g-3">
-              <div className="col-md-6">
+
+              {/* ================= ROW 1 ================= */}
+              <div className="col-md-4">
                 <Form.Group>
-                  <Form.Label>Customer</Form.Label>
+                  <Form.Label>
+                    Customer <span className="text-danger">*</span>
+                  </Form.Label>
                   <Form.Select
                     value={customerId}
                     onChange={(e) => setCustomerId(e.target.value)}
@@ -299,7 +359,7 @@ export default function EditSalesPage() {
                     <option value="">-- Select Customer --</option>
                     {customers.map((cust) => (
                       <option key={cust.id} value={cust.id}>
-                        {cust.customer} ({cust.city})
+                        {cust.customer} {cust.city ? `(${cust.city})` : ""}
                       </option>
                     ))}
                   </Form.Select>
@@ -309,59 +369,190 @@ export default function EditSalesPage() {
                 </Form.Group>
               </div>
 
-              <div className="col-md-6">
+              <div className="col-md-4">
                 <Form.Group>
-                  <Form.Label>Challan No</Form.Label>
+                  <Form.Label>
+                    Challan No <span className="text-danger">*</span>
+                  </Form.Label>
                   <Form.Control
                     type="text"
                     value={challanNo}
                     onChange={(e) => setChallanNo(e.target.value)}
                     isInvalid={!!formErrors.challanNo}
                   />
+                  <Form.Control.Feedback type="invalid">
+                    {formErrors.challanNo}
+                  </Form.Control.Feedback>
                 </Form.Group>
               </div>
 
-              <div className="col-md-6">
+              <div className="col-md-4">
                 <Form.Group>
-                  <Form.Label>Challan Date</Form.Label>
+                  <Form.Label>
+                    Challan Date <span className="text-danger">*</span>
+                  </Form.Label>
                   <Form.Control
                     type="date"
                     value={challanDate}
                     onChange={(e) => setChallanDate(e.target.value)}
                     isInvalid={!!formErrors.challanDate}
                   />
+                  <Form.Control.Feedback type="invalid">
+                    {formErrors.challanDate}
+                  </Form.Control.Feedback>
                 </Form.Group>
               </div>
 
-              <div className="col-md-6">
+              {/* ================= ROW 2 ================= */}
+              <div className="col-md-4">
                 <Form.Group>
-                  <Form.Label>Shipment Date</Form.Label>
+                  <Form.Label>
+                    Shipment Date <span className="text-danger">*</span>
+                  </Form.Label>
                   <Form.Control
                     type="date"
                     value={shipmentDate}
                     onChange={(e) => setShipmentDate(e.target.value)}
                     isInvalid={!!formErrors.shipmentDate}
                   />
+                  <Form.Control.Feedback type="invalid">
+                    {formErrors.shipmentDate}
+                  </Form.Control.Feedback>
                 </Form.Group>
               </div>
 
-              <div className="col-md-6">
+              <div className="col-md-4">
                 <Form.Group>
-                  <Form.Label>Shipment Name</Form.Label>
+                  <Form.Label>
+                    Shipment Name <span className="text-danger">*</span>
+                  </Form.Label>
                   <Form.Control
                     type="text"
                     value={shipmentName}
                     onChange={(e) => setShipmentName(e.target.value)}
                     isInvalid={!!formErrors.shipmentName}
                   />
+                  <Form.Control.Feedback type="invalid">
+                    {formErrors.shipmentName}
+                  </Form.Control.Feedback>
                 </Form.Group>
               </div>
+
+              <div className="col-md-4">
+                <Form.Group>
+                  <Form.Label>Notes</Form.Label>
+                  <Form.Control
+                    as="textarea"
+                    rows={1}
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                  />
+                </Form.Group>
+              </div>
+
+              {/* ================= RECEIPT DOCUMENTS ================= */}
+              <div className="col-6 mt-2">
+                <Form.Group>
+                  <Form.Label className="d-flex align-items-center gap-2">
+                    Receipt Documents
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="text-success p-0"
+                      onClick={addReceiptFile}
+                    >
+                      <i className="bi bi-plus-circle"></i> Add
+                    </Button>
+                  </Form.Label>
+
+                  {/* ===== EXISTING RECEIPTS ===== */}
+                  {existingReceipts.map((file, idx) => (
+                    <div key={idx} className="d-flex align-items-center mb-2">
+                      <div className="input-group flex-grow-1">
+
+                        {/* Hidden file input */}
+                        <input
+                          type="file"
+                          accept="image/*,application/pdf"
+                          style={{ display: "none" }}
+                          id={`replace-file-${idx}`}
+                          onChange={(e) => {
+                            if (e.target.files[0]) {
+                              replaceExistingFile(idx, e.target.files[0]);
+                            }
+                          }}
+                        />
+
+                        {/* Choose File button */}
+                        <span
+                          className="input-group-text"
+                          style={{ cursor: "pointer" }}
+                          onClick={() =>
+                            document.getElementById(`replace-file-${idx}`).click()
+                          }
+                        >
+                          Choose File
+                        </span>
+
+                        {/* File name */}
+                        <Form.Control
+                          readOnly
+                          value={file.split("/").pop()}
+                          className="bg-white"
+                        />
+                      </div>
+
+                      {/* Remove button */}
+                      <Button
+                        variant="link"
+                        size="sm"
+                        className="p-0 ms-2"
+                        onClick={() => {
+                          setExistingReceipts(prev => prev.filter((_, i) => i !== idx));
+                          setRemovedReceipts(prev => [...prev, file]); // ✅ FIX
+                        }}
+                      >
+                        <i className="bi bi-x-circle text-danger"></i>
+                      </Button>
+                    </div>
+                  ))}
+                  {/* ===== NEW FILE INPUTS ===== */}
+                  {receiptFiles.map((file, idx) => (
+                    <div
+                      key={idx}
+                      className="d-flex align-items-center gap-2 mb-2"
+                    >
+                      <Form.Control
+                        type="file"
+                        accept="image/*,application/pdf"
+                        className="flex-grow-1"
+                        onChange={(e) =>
+                          handleReceiptFileChange(idx, e.target.files[0])
+                        }
+                      />
+
+                      <Button
+                        variant="link"
+                        size="sm"
+                        className="p-0"
+                        onClick={() => removeReceiptFile(idx)}
+                      >
+                        <i className="bi bi-x-circle text-danger"></i>
+                      </Button>
+
+                    </div>
+                  ))}
+                </Form.Group>
+              </div>
+
             </div>
 
-            {/* Products */}
+            {/* ================= PRODUCTS ================= */}
             <div className="mt-4">
               <div className="d-flex justify-content-between align-items-center mb-2">
-                <Form.Label>Products</Form.Label>
+                <Form.Label>
+                  Products <span className="text-danger">*</span>
+                </Form.Label>
 
                 <Button
                   variant="success"
@@ -373,7 +564,7 @@ export default function EditSalesPage() {
                       challan_date: challanDate,
                       shipment_date: shipmentDate,
                       shipment_name: shipmentName,
-                      notes: notes,
+                      notes,
                       items,
                     };
                     localStorage.setItem("draftSale", JSON.stringify(draftSale));
@@ -397,19 +588,24 @@ export default function EditSalesPage() {
                       <th>Action</th>
                     </tr>
                   </thead>
-
                   <tbody>
                     {paginatedItems.map((item, index) => (
                       <tr key={startIndex + index}>
                         <td>{item.name}</td>
                         <td>
-                          <Form.Control type="number" min="1" value={item.quantity} readOnly />
+                          <Form.Control
+                            type="number"
+                            value={item.quantity}
+                            readOnly
+                          />
                         </td>
                         <td>
                           <Button
                             variant="outline-danger"
                             size="sm"
-                            onClick={() => handleDeleteItem(startIndex + index)}
+                            onClick={() =>
+                              handleDeleteItem(startIndex + index)
+                            }
                           >
                             <IoTrashOutline />
                           </Button>
@@ -423,34 +619,12 @@ export default function EditSalesPage() {
               )}
             </div>
 
-            {/* Pagination */}
-            {items.length > itemsPerPage && (
-              <div className="d-flex justify-content-between mt-3">
-                <Button
-                  variant="outline-secondary"
-                  size="sm"
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage(currentPage - 1)}
-                >
-                  Prev
-                </Button>
-
-                <span>Page {currentPage}</span>
-
-                <Button
-                  variant="outline-secondary"
-                  size="sm"
-                  disabled={endIndex >= items.length}
-                  onClick={() => setCurrentPage(currentPage + 1)}
-                >
-                  Next
-                </Button>
-              </div>
-            )}
-
-            {/* Footer */}
+            {/* ================= FOOTER ================= */}
             <div className="mt-4 d-flex justify-content-end gap-2">
-              <Button variant="secondary" onClick={() => navigate("/sales-order")}>
+              <Button
+                variant="secondary"
+                onClick={() => navigate("/sales-order")}
+              >
                 Cancel
               </Button>
               <Button variant="success" onClick={handleSave}>
@@ -459,7 +633,9 @@ export default function EditSalesPage() {
             </div>
           </Form>
         </Card.Body>
+
       </Card>
+
     </div>
   );
 }

@@ -103,7 +103,6 @@ export default function App() {
           <Route path="sales/edit/:id" element={<EditSalesPage />} />
           <Route path="sales-order-overview" element={<SalesOverviewPage />} />
           <Route path="sales-order-overview/:id" element={<SalesOverviewPage />} />
-          <Route path="add-product" element={<AddProductPage />} />
           {/* <Route path="product/edit/:id" element={<AddProductPage />} /> */}
           <Route path="service-product" element={<ServiceList />} />
           <Route path="service-product/add" element={<AddServicePage />} />

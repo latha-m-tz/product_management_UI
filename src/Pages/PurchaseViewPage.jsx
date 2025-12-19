@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import api, { setAuthToken, API_BASE_URL } from "../api";
+import {  useLocation } from "react-router-dom";
+
 import {
   Card,
   Row,
@@ -22,6 +24,8 @@ export default function PurchaseViewPage() {
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState("");
+  const location = useLocation();
+
   const getFileName = (url) => {
     if (!url) return "";
     return url.split("/").pop(); // gets last part of URL (filename)
@@ -109,18 +113,25 @@ export default function PurchaseViewPage() {
 
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h5 className="mb-0">Purchase Overview</h5>
-      
+
         <Button
           size="sm"
-          onClick={() => navigate(-1)}
+          onClick={() => {
+            if (location.state?.fromTracking) {
+              navigate("/tracking", { state: { fromTracking: true } });
+            } else {
+              navigate(-1);
+            }
+          }}
           style={{
             backgroundColor: "grey",
             borderColor: "grey",
-            marginTop: "6px", // adds small gap from top
+            marginTop: "6px",
           }}
         >
           ← Back
         </Button>
+
       </div>
       {/* Purchase Details Section */}
       <SectionCard title="Purchase Details">

@@ -104,9 +104,6 @@ const AddServicePage = () => {
 
         anyValidItem = true;
 
-        /* =========================
-           PRODUCT VALIDATION
-        ========================= */
         if (item.type === "product") {
           if (!item.product_id) {
             newErrors[`product_id_${i}`] = "Product is required";
@@ -123,14 +120,11 @@ const AddServicePage = () => {
           }
         }
 
-        /* =========================
-           SPAREPART VALIDATION
-        ========================= */
+    
         if (item.type === "sparepart") {
           if (!item.sparepart_id) {
             newErrors[`sparepart_id_${i}`] = "Sparepart is required";
-          }
-
+          } 
           /* Quantity only for NON-PCB */
           if (!item.isPCB) {
             const qty = Number(item.quantity);
@@ -143,10 +137,6 @@ const AddServicePage = () => {
             newErrors[`status_${i}`] = "Status is required";
           }
 
-          /* =========================
-             PCB STATUS FLOW ENFORCEMENT
-             Inward → Delivered → Return
-          ========================= */
           if (item.isPCB) {
             const allowed = allowedStatus[i];
 
@@ -454,29 +444,32 @@ const AddServicePage = () => {
   };
 
 
-  const removeRow = (index) => {
-    if (formData.items.length <= 2) {
-      toast.error("At least one Product and one Sparepart row is required");
-      return;
-    }
+ const removeRow = (index) => {
+  MySwal.fire({
+    title: "Delete this item?",
+    text: "This action cannot be undone",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonColor: "#d33",
+    cancelButtonColor: "#2FA64F",
+    confirmButtonText: "Yes, delete",
+  }).then((result) => {
+    if (!result.isConfirmed) return;
 
-    MySwal.fire({
-      title: "Are you sure?",
-      text: "You cannot undo this!",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#2FA64F",
-      confirmButtonText: "Yes, delete!",
-    }).then((result) => {
-      if (result.isConfirmed) {
-        const items = [...formData.items];
-        items.splice(index, 1);
-        setFormData((prev) => ({ ...prev, items }));
-        toast.success("Row deleted");
-      }
+    setFormData((prev) => {
+      const items = [...prev.items];
+      items.splice(index, 1);
+
+      return {
+        ...prev,
+        items, // can be empty — allowed
+      };
     });
-  };
+
+    toast.success("Item deleted");
+  });
+};
+
 
 
   const handleSubmit = async (e) => {

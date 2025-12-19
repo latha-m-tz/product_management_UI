@@ -240,103 +240,158 @@ export default function AddAssemblePage() {
     // }
 
 
-const handleAddProduct = async () => {
-    const { fromSerial, toSerial, testedBy, product_id } = form;
-    let newErrors = {};
+    const handleAddProduct = async () => {
+        const { fromSerial, toSerial, testedBy, product_id } = form;
+        let newErrors = {};
 
-    if (!product_id) newErrors.product_id = "Product is required.";
-    if (!fromSerial) newErrors.fromSerial = "From Serial is required.";
-    if (!toSerial) newErrors.toSerial = "To Serial is required.";
+        /* ------------------ BASIC VALIDATION ------------------ */
+        if (!product_id) newErrors.product_id = "Product is required.";
+        if (!fromSerial) newErrors.fromSerial = "From Serial is required.";
+        if (!toSerial) newErrors.toSerial = "To Serial is required.";
 
-    if (Object.keys(newErrors).length > 0) {
-        setErrors(newErrors);
-        return;
-    }
-
-    const selectedProduct =
-        productOptions.find(p => p.id === parseInt(product_id)) || {};
-
-    const prefix = selectedProduct.serial_prefix || "";
-    let serialsToAdd = [];
-
-    // 🔹 Build serial(s)
-    if (fromSerial !== toSerial) {
-        const startNum = parseInt(fromSerial.replace(/\D/g, ""), 10);
-        const endNum = parseInt(toSerial.replace(/\D/g, ""), 10);
-
-        if (isNaN(startNum) || isNaN(endNum) || startNum > endNum) {
-            toast.error("Invalid serial range.");
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
             return;
         }
 
-        for (let i = startNum; i <= endNum; i++) {
-            serialsToAdd.push(`${prefix}${i.toString().padStart(6, "0")}`);
+        /* ------------------ PRODUCT + PREFIX ------------------ */
+        const selectedProduct =
+            productOptions.find(p => p.id === parseInt(product_id)) || {};
+
+        const prefix = selectedProduct.serial_prefix || "";
+        let serialsToAdd = [];
+
+        /* ------------------ BUILD SERIALS ------------------ */
+        if (fromSerial !== toSerial) {
+            const startNum = parseInt(fromSerial.replace(/\D/g, ""), 10);
+            const endNum = parseInt(toSerial.replace(/\D/g, ""), 10);
+
+            if (isNaN(startNum) || isNaN(endNum) || startNum > endNum) {
+                toast.error("Invalid serial range.");
+                return;
+            }
+
+            for (let i = startNum; i <= endNum; i++) {
+                serialsToAdd.push(`${prefix}${i.toString().padStart(6, "0")}`);
+            }
+        } else {
+            serialsToAdd.push(fromSerial.trim().toUpperCase());
         }
-    } else {
-        serialsToAdd.push(fromSerial.trim().toUpperCase());
-    }
 
-    // 🔹 Remove local duplicates
-    serialsToAdd = serialsToAdd.filter(
-        s => !products.some(p => p.serial_no === s)
-    );
+        /* ------------------ REMOVE LOCAL DUPLICATES ------------------ */
+        serialsToAdd = serialsToAdd.filter(
+            s => !products.some(p => p.serial_no === s)
+        );
 
-    if (serialsToAdd.length === 0) {
-        toast.error("Serial already exists in the list.");
-        return;
-    }
+        if (serialsToAdd.length === 0) {
+            toast.error("Serial already exists in the list.");
+            return;
+        }
 
-    try {
-        const res = await api.post("/check-serials-purchased", {
-            product_id: parseInt(product_id),
-            serials: serialsToAdd,
-        });
-
-        /* ❌ BLOCK IF SHORTAGES EXIST */
-        if (res.data.sparepart_shortages?.length > 0) {
-            let msg = "Cannot assemble due to sparepart shortages:\n";
-            res.data.sparepart_shortages.forEach(s => {
-                msg += `\n${s.sparepart_name} → Short by ${s.shortage}`;
+        try {
+            const res = await api.post("/check-serials-purchased", {
+                product_id: parseInt(product_id),
+                serials: serialsToAdd,
             });
+            if (Array.isArray(res.data.items)) {
+                const blockedItems = res.data.items.filter(
+                    item => item.status && item.status !== "ok" && item.status !== "available"
+                );
 
-            toast.error(msg, {
-                autoClose: 9000,
-                style: { whiteSpace: "pre-line" }
-            });
-            return;
+                if (blockedItems.length > 0) {
+                    blockedItems.forEach(item => {
+                        toast.error(
+                            `Serial ${item.serial_no}: ${item.message}`,
+                            { autoClose: 6000 }
+                        );
+                    });
+                    return; // ⛔ STOP ADDING
+                }
+            }
+
+            if (res.data.sparepart_shortages?.length > 0) {
+                let msg = "Cannot assemble due to sparepart shortages:\n";
+                res.data.sparepart_shortages.forEach(s => {
+                    msg += `\n${s.sparepart_name} → Short by ${s.shortage}`;
+                });
+
+                toast.error(msg, {
+                    autoClose: 9000,
+                    style: { whiteSpace: "pre-line" }
+                });
+                return;
+            }
+
+            /* ❌ GLOBAL BACKEND BLOCK */
+            if (res.data.can_assemble === false) {
+                toast.error(res.data.message || "Cannot assemble.");
+                return;
+            }
+
+
+            /* ------------------ SUCCESS SERIALS ------------------ */
+            const allowedSerials = res.data.serials || serialsToAdd;
+
+            const newProducts = allowedSerials.map(s => ({
+                serial_no: s,
+                product_id: parseInt(product_id),
+                tested_by: testedBy,
+                tested_status: ["PASS"],
+                test_remarks: "",
+                from_serial: fromSerial,
+                to_serial: toSerial || s,
+            }));
+
+            setProducts(prev => [...prev, ...newProducts]);
+            setForm(prev => ({
+                ...prev,
+                fromSerial: "",
+                toSerial: "",
+            }));
+
+            // toast.success(`${newProducts.length} serial(s) added successfully.`);
+
+        } catch (error) {
+            console.error("Error checking serials:", error);
+
+            const data = error.response?.data;
+
+            /* ✅ CASE 1: item-level errors */
+            if (Array.isArray(data?.items)) {
+                data.items.forEach(item => {
+                    toast.error(
+                        `Serial ${item.serial_no}: ${item.message}`,
+                        { autoClose: 6000 }
+                    );
+                });
+                return;
+            }
+
+            /* ✅ CASE 2: Laravel validation errors */
+            if (data?.errors) {
+                Object.values(data.errors).flat().forEach(msg => {
+                    toast.error(msg, { autoClose: 6000 });
+                });
+                return;
+            }
+
+            /* ✅ CASE 3: single error field */
+            if (data?.error) {
+                toast.error(data.error, { autoClose: 6000 });
+                return;
+            }
+
+            /* ✅ CASE 4: normal message */
+            if (data?.message) {
+                toast.error(data.message, { autoClose: 6000 });
+                return;
+            }
+
+            /* ❌ FALLBACK */
+            toast.error("Error checking serials.");
         }
 
-        /* ❌ BLOCK IF BACKEND SAYS NO */
-        if (res.data.can_assemble === false) {
-            toast.error(res.data.message || "Cannot assemble.");
-            return;
-        }
-
-        /* ✅ SUCCESS — USE BACKEND SERIALS */
-        const allowedSerials = res.data.serials || serialsToAdd;
-
-        const newProducts = allowedSerials.map(s => ({
-            serial_no: s,
-            product_id: parseInt(product_id),
-            tested_by: testedBy,
-            tested_status: ["PASS"],
-            test_remarks: "",
-            from_serial: fromSerial,
-            to_serial: toSerial || s,
-        }));
-
-        setProducts(prev => [...prev, ...newProducts]);
-        setForm(prev => ({ ...prev, fromSerial: "", toSerial: "" }));
-
-        toast.success(`${newProducts.length} serial(s) added successfully.`);
-
-    } catch (error) {
-        console.error("Error checking serials:", error);
-        toast.error(error.response?.data?.message || "Error checking serials.");
-    }
-};
-
-
+    };
 
     const handleRowChange = (index, field, value) => {
         const updated = [...products];
@@ -391,87 +446,73 @@ const handleAddProduct = async () => {
             }
         });
     };
-   const handleSubmit = async () => {
-    try {
-        if (products.length === 0) {
-            toast.error("Add at least one product before saving.");
-            return;
-        }
-
-        const grouped = {};
-        products.forEach(p => {
-            if (!grouped[p.product_id]) grouped[p.product_id] = [];
-            grouped[p.product_id].push(p.serial_no);
-        });
-
-        let allValidSerials = [];
-
-        // ⭐ VALIDATE EACH PRODUCT SEPARATELY
-        for (const pid in grouped) {
-            const checkRes = await api.post("/check-serials-purchased", {
-                product_id: parseInt(pid),  // backend requires product_id, NOT product_ids
-                serials: grouped[pid],
-            });
-
-            const purchased = checkRes.data.serial_validation?.purchased || [];
-            const notPurchased = checkRes.data.serial_validation?.not_purchased || [];
-
-            if (notPurchased.length > 0) {
-                toast.error(
-                    `Product ${pid}: These serial(s) are not purchased → ${notPurchased.join(", ")}`
-                );
+    const handleSubmit = async () => {
+        try {
+            if (products.length === 0) {
+                toast.error("Add at least one product before saving.");
+                return;
             }
 
-            allValidSerials.push(...purchased);
-        }
+            let hasErrors = false;
 
-        // ⭐ FILTER ONLY PURCHASED SERIALS
-        const productsToSave = products.filter(p =>
-            allValidSerials.includes(p.serial_no)
-        );
+            const saveGroups = {};
+            products.forEach(p => {
+                if (!saveGroups[p.product_id]) saveGroups[p.product_id] = [];
+                saveGroups[p.product_id].push(p);
+            });
 
-        if (productsToSave.length === 0) {
-            toast.error("No valid purchased serials to save.");
-            return;
-        }
-
-        // ⭐ GROUP AGAIN FOR SAVING
-        const saveGroups = {};
-        productsToSave.forEach(p => {
-            if (!saveGroups[p.product_id]) saveGroups[p.product_id] = [];
-            saveGroups[p.product_id].push(p);
-        });
-
-        // ⭐ SAVE EACH PRODUCT ID TO /inventory
-        for (const pid in saveGroups) {
-            const payload = {
-                product_id: parseInt(pid),
-                firmware_version: form.firmwareVersion,
-                tested_date: form.testedDate,
-                items: saveGroups[pid].map(p => ({
-                    serial_no: p.serial_no,
-                    tested_by: p.tested_by || null,
-                    tested_status: Array.isArray(p.tested_status)
-                        ? p.tested_status.join(",")
-                        : p.tested_status ?? null,
-                    test_remarks: p.test_remarks || "",
-                    from_serial: p.from_serial,
-                    to_serial: p.to_serial,
+            for (const pid in saveGroups) {
+                const payload = {
+                    product_id: parseInt(pid),
+                    firmware_version: form.firmwareVersion,
                     tested_date: form.testedDate,
-                })),
-            };
+                    items: saveGroups[pid].map(p => ({
+                        serial_no: p.serial_no,
+                        tested_by: p.tested_by || null,
+                        tested_status: Array.isArray(p.tested_status)
+                            ? p.tested_status.join(",")
+                            : p.tested_status ?? null,
+                        test_remarks: p.test_remarks || "",
+                        tested_date: form.testedDate,
+                    })),
+                };
 
-            await api.post("/inventory", payload);
+                const res = await api.post("/inventory", payload);
+
+                // 🔥 CHECK ONLY FAILED ITEMS
+                if (Array.isArray(res.data?.items)) {
+                    const failedItems = res.data.items.filter(
+                        item => item.status === "error" || item.status === "failed"
+                    );
+
+                    if (failedItems.length > 0) {
+                        hasErrors = true;
+                        failedItems.forEach(item => {
+                            toast.error(
+                                `Serial ${item.serial_no}: ${item.message}`,
+                                { autoClose: 7000 }
+                            );
+                        });
+                    }
+                }
+            }
+
+            // ⛔ Stop only if real errors occurred
+            if (hasErrors) return;
+
+            // ✅ SUCCESS PATH
+            toast.success("Inventory saved successfully!");
+            navigate("/assemble");
+
+        } catch (error) {
+            console.error(error);
+            toast.error(error.response?.data?.message || "Error saving inventory.");
         }
+    };
 
-        toast.success("Inventory saved successfully!");
-        navigate("/assemble");
 
-    } catch (error) {
-        console.error(error);
-        toast.error(error.response?.data?.message || "Error saving inventory.");
-    }
-};
+
+
 
     const filteredProducts = products.filter((p) => {
         const lowerCaseSearchTerm = searchTerm.toLowerCase();

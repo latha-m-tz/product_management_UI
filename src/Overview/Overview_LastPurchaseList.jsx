@@ -13,7 +13,7 @@ const salesData = [
 const LastPurchaseList = () => {
   return (
     <div className="sales-card">
-      <h5 className="sales-title">Last Purchase List</h5>
+      <h5 className="sales-title">Recent Purchase List</h5>
       <div className="sales-table-wrapper">
         <div className="table-responsive">
           <table className="sales-table table">
