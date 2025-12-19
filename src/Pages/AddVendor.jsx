@@ -86,7 +86,7 @@ export default function AddVendor() {
       if (phone && phone.isValid()) {
         setVendor(prev => ({
           ...prev,
-          mobile_no: phone.number, // store in E.164 format
+          mobile_no: phone.number,
           country_code: phone.countryCallingCode,
         }));
         setVendorErrors(prev => ({ ...prev, mobile_no: "" }));
@@ -106,30 +106,34 @@ export default function AddVendor() {
 
     // Email Validation
     if (vendor.email) {
-      const emailTrimmed = vendor.email.trim();
+      const emailTrimmed = vendor.email.trim().toLowerCase();
 
       if (/\s/.test(emailTrimmed)) {
         errors.email = "Email cannot contain spaces";
-      } else if (emailTrimmed !== emailTrimmed.toLowerCase()) {
-        errors.email = "Email must be in lowercase (e.g. name@example.com)";
       } else if (!emailPattern.test(emailTrimmed)) {
         errors.email = "Invalid email format (e.g. name@example.com)";
       }
+
+      const duplicateContactEmail = contactPersons.some(
+        (c) => c.email && c.email.trim().toLowerCase() === emailTrimmed
+      );
+
+      if (duplicateContactEmail) {
+        errors.email = "Company email cannot be the same as a contact person's email";
+      }
     }
 
-    // Vendor Name Required
+
     if (!vendor.vendor?.trim()) {
       errors.vendor = "Vendor name is required";
     }
 
-    // ❌ Vendor Mobile Not Required
     if (vendor.mobile_no) {
       if (!isValidPhoneNumber(vendor.mobile_no)) {
         errors.mobile_no = "Invalid mobile number for selected country";
       }
     }
 
-    // GST Check
     if (vendor.gst_no) {
       const gst = vendor.gst_no.trim().toUpperCase();
       if (gst.length !== 15) {
@@ -288,7 +292,6 @@ export default function AddVendor() {
     const contactToSave = { ...contact };
     let updatedContacts = [...contactPersons];
 
-    // 🔹 Check if already has a main contact person (when adding or editing)
     const hasMainContact = updatedContacts.some(
       (c, idx) => c.isMain && idx !== editingIndex
     );
@@ -300,7 +303,6 @@ export default function AddVendor() {
 
 
 
-    // 🔹 Check duplicate within same vendor contact persons
     const duplicateInContacts =
       contactToSave.mobile_no &&
       updatedContacts.some(
@@ -310,22 +312,31 @@ export default function AddVendor() {
           idx !== editingIndex
       );
 
-    // 🔹 Check duplicate with vendor company mobile number
     const duplicateWithVendor =
       contactToSave.mobile_no &&
       vendor.mobile_no &&
       contactToSave.mobile_no === vendor.mobile_no;
+      if (duplicateWithVendor) {
+  setContactErrors({
+    mobile_no:
+      "Contact mobile number cannot be the same as the company mobile number",
+  });
+  return;
+}
 
-    // 🔹 Show exact message
     if (duplicateInContacts) {
-      toast.error(`This mobile number is already used by another contact person.`);
+      setContactErrors({
+        mobile_no: "This mobile number is already used by another contact person",
+      });
       return;
     }
 
-    if (duplicateWithVendor) {
-      toast.error(`Contact mobile number cannot be the same as the vendor's company mobile number.`);
-      return;
-    }
+
+    // if (duplicateWithVendor) {
+    //   errors.mobile_no =
+    //     "Contact mobile number cannot be the same as the company mobile number";
+    // }
+
 
     if (contactToSave.isMain) {
       updatedContacts = updatedContacts.map((c) => ({ ...c, isMain: false }));
@@ -409,41 +420,77 @@ export default function AddVendor() {
     try {
       const phone = parsePhoneNumberFromString(value);
 
-      if (!phone) {
-        setContactErrors(prev => ({ ...prev, mobile_no: "Invalid mobile number" }));
+      if (!phone || !phone.isValid()) {
+        setContactErrors(prev => ({
+          ...prev,
+          mobile_no: "Invalid mobile number"
+        }));
         return;
       }
 
-      if (!phone.isValid()) {
-        setContactErrors(prev => ({ ...prev, mobile_no: "Invalid mobile number" }));
+      const formatted = phone.number;
+
+      // ❗ CHECK AGAINST COMPANY MOBILE HERE
+      if (vendor.mobile_no && formatted === vendor.mobile_no) {
+        setContactErrors(prev => ({
+          ...prev,
+          mobile_no:
+            "",
+        }));
         return;
       }
 
-      // ✅ Valid number: store E.164 format
       setContact(prev => ({
         ...prev,
-        mobile_no: phone.number,
+        mobile_no: formatted,
         country_code: phone.countryCallingCode
       }));
 
       setContactErrors(prev => ({ ...prev, mobile_no: "" }));
-    } catch (error) {
-      setContactErrors(prev => ({ ...prev, mobile_no: "Invalid mobile number" }));
+
+    } catch {
+      setContactErrors(prev => ({
+        ...prev,
+        mobile_no: "Invalid mobile number"
+      }));
     }
   };
+
 
   const validateContact = () => {
     const errors = {};
 
     if (!contact.name.trim()) errors.name = "Name is required";
+    if (contact.mobile_no) {
+      if (!isValidPhoneNumber(contact.mobile_no)) {
+        errors.mobile_no = "Invalid mobile number";
+      }
+    }
 
     if (contact.mobile_no) {
       if (!isValidPhoneNumber(contact.mobile_no)) {
         errors.mobile_no = "Invalid mobile number for selected country";
       }
     }
+    if (
+      contact.mobile_no &&
+      vendor.mobile_no &&
+      contact.mobile_no === vendor.mobile_no
+    ) {
+      errors.mobile_no =
+        "Contact mobile number cannot be the same as the company mobile number";
+    }
 
-    // Email validation
+    // ❗ Contact email vs Company email
+    if (
+      contact.email &&
+      vendor.email &&
+      contact.email.trim().toLowerCase() === vendor.email.trim().toLowerCase()
+    ) {
+      errors.email =
+        "Contact email cannot be the same as the company email";
+    }
+
     if (contact.email) {
       const emailCleaned = contact.email.trim();
 
@@ -712,13 +759,14 @@ export default function AddVendor() {
                 <CountryPhoneInput
                   label="Mobile No"
                   value={vendor.mobile_no}
-                  onChange={handleVendorMobileChange} // ✅ correct handler
+                  onChange={handleVendorMobileChange}
                   country={contactCountry}
                   onCountryChange={setContactCountry}
-                  error={vendorErrors.mobile_no} // ✅ vendor errors
+                  error={vendorErrors.mobile_no}
                 />
-
-
+                {contactErrors.mobile_no && (
+                  <div style={feedbackStyle}>{contactErrors.mobile_no}</div>
+                )}
               </Form.Group>
             </Col>
             <Col md={4}>
@@ -761,8 +809,6 @@ export default function AddVendor() {
               toast.error("Please fill the company details first!");
               return;
             }
-
-
             setContact({
               name: "",
               designation: "",
@@ -961,8 +1007,9 @@ export default function AddVendor() {
                       defaultCountry="IN"
                       error={contactErrors.mobile_no}
                     />
-
-
+                    {/* {contactErrors.mobile_no && (
+                      <div style={feedbackStyle}>{contactErrors.mobile_no}</div>
+                    )} */}
                   </Form.Group>
                 </Col>
               </Row>
@@ -979,7 +1026,6 @@ export default function AddVendor() {
                         const input = e.target.value;
                         setContact({ ...contact, email: input });
 
-                        // ✅ Clear email error instantly when user changes input
                         if (contactErrors.email) {
                           setContactErrors((prev) => ({
                             ...prev,

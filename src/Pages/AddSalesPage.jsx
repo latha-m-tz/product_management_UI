@@ -33,12 +33,33 @@ export default function AddSalesPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [quantity, setQuantity] = useState(1);
   const itemsPerPage = 10;
+  const [receiptFiles, setReceiptFiles] = useState([null]);
 
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const paginatedItems = items.slice(startIndex, endIndex);
 
   const MySwal = withReactContent(Swal);
+  const addReceiptFile = () => {
+    const last = receiptFiles[receiptFiles.length - 1];
+    if (!last) {
+      toast.error("Please choose a file before adding another");
+      return;
+    }
+    setReceiptFiles([...receiptFiles, null]);
+  };
+
+  const removeReceiptFile = (index) => {
+    const updated = [...receiptFiles];
+    updated.splice(index, 1);
+    setReceiptFiles(updated.length ? updated : [null]);
+  };
+
+  const handleReceiptFileChange = (index, file) => {
+    const updated = [...receiptFiles];
+    updated[index] = file;
+    setReceiptFiles(updated);
+  };
 
   useEffect(() => {
     const token = localStorage.getItem("authToken");
@@ -166,9 +187,9 @@ export default function AddSalesPage() {
     }
     // } else if (new Date(shipmentDate) > new Date()) {
     //   errors.shipmentDate = "Shipment Date cannot be in the future";
-    // } else if (new Date(shipmentDate) < new Date(challanDate)) {
-    //   errors.shipmentDate = "Shipment Date cannot be before Challan Date";
-    // }
+     else if (new Date(shipmentDate) < new Date(challanDate)) {
+      errors.shipmentDate = "Shipment Date cannot be before Challan Date";
+    }
 
     if (items.length === 0) {
       errors.items = "Please add at least one product";
@@ -197,30 +218,44 @@ export default function AddSalesPage() {
   const handleSave = async () => {
     if (!validateForm()) return;
 
-    const payload = {
-      customer_id: parseInt(customerId),
-      challan_no: challanNo.trim(),
-      challan_date: challanDate,
-      shipment_date: shipmentDate,
-      shipment_name: shipmentName.trim(),
-      notes: notes.trim(),
-      items: items.flatMap((item) =>
-        item.serials.map((sn) => ({
-          product_id: item.product_id,
-          serial_no: String(sn).trim(),
-          quantity: 1,
-        }))
-      ),
-    };
+    const formData = new FormData();
+
+    /* ================= HEADER FIELDS ================= */
+    formData.append("customer_id", String(customerId)); // 🔥 FIX
+    formData.append("challan_no", challanNo.trim());
+    formData.append("challan_date", challanDate);
+    formData.append("shipment_date", shipmentDate);
+    formData.append("shipment_name", shipmentName.trim());
+    formData.append("notes", notes.trim());
+
+    /* ================= ITEMS ================= */
+    items.forEach((item, i) => {
+      item.serials.forEach((sn) => {
+        formData.append(`items[${i}][serial_no]`, String(sn).trim());
+        formData.append(`items[${i}][quantity]`, "1");
+      });
+    });
+
+    /* ================= RECEIPT FILES ================= */
+    receiptFiles.forEach((file) => {
+      if (file instanceof File) {
+        formData.append("receipt_files[]", file);
+      }
+    });
 
     try {
       if (saleId) {
-        await api.put(`/sales/${saleId}`, payload);
+        await api.post(`/sales/${saleId}?_method=PUT`, formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
         toast.success("Sale updated successfully!");
       } else {
-        await api.post("/sales", payload);
+        await api.post("/sales", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
         toast.success("Sale added successfully!");
       }
+
       localStorage.removeItem("inSaleProducts");
       localStorage.removeItem("selectedProducts");
       navigate("/sales-order");
@@ -228,6 +263,7 @@ export default function AddSalesPage() {
       toast.error(err.response?.data?.message || "Failed to save sale!");
     }
   };
+
 
   const handleChange = (field, value) => {
     const setters = {
@@ -322,12 +358,14 @@ export default function AddSalesPage() {
       <Card
         className="border-0 shadow-sm rounded-3"
         style={{ backgroundColor: "#f4f4f8" }}
-      >        <Card.Body>
+      >
+        <Card.Body>
           <Form>
             <div className="row g-3">
-              {/* Customer */}
-              <div className="col-md-6">
-                <Form.Group className="mb-3">
+
+              {/* ================= ROW 1 (3 ITEMS) ================= */}
+              <div className="col-md-4">
+                <Form.Group>
                   <RequiredLabel>Customer</RequiredLabel>
                   {loading ? (
                     <Spinner animation="border" size="sm" />
@@ -340,7 +378,7 @@ export default function AddSalesPage() {
                       <option value="">-- Select Customer --</option>
                       {customers.map((cust) => (
                         <option key={cust.id} value={cust.id}>
-                          {cust.customer}  {cust.city ? `(${cust.city})` : ""}
+                          {cust.customer} {cust.city ? `(${cust.city})` : ""}
                         </option>
                       ))}
                     </Form.Select>
@@ -351,9 +389,7 @@ export default function AddSalesPage() {
                 </Form.Group>
               </div>
 
-
-              {/* Challan No */}
-              <div className="col-md-6">
+              <div className="col-md-4">
                 <Form.Group>
                   <RequiredLabel>Challan No</RequiredLabel>
                   <Form.Control
@@ -369,8 +405,7 @@ export default function AddSalesPage() {
                 </Form.Group>
               </div>
 
-              {/* Dates */}
-              <div className="col-md-6">
+              <div className="col-md-4">
                 <Form.Group>
                   <RequiredLabel>Challan Date</RequiredLabel>
                   <Form.Control
@@ -385,7 +420,8 @@ export default function AddSalesPage() {
                 </Form.Group>
               </div>
 
-              <div className="col-md-6">
+              {/* ================= ROW 2 (3 ITEMS) ================= */}
+              <div className="col-md-4">
                 <Form.Group>
                   <RequiredLabel>Shipment Date</RequiredLabel>
                   <Form.Control
@@ -400,8 +436,7 @@ export default function AddSalesPage() {
                 </Form.Group>
               </div>
 
-              {/* Shipment Name */}
-              <div className="col-md-6">
+              <div className="col-md-4">
                 <Form.Group>
                   <RequiredLabel>Shipment Name</RequiredLabel>
                   <Form.Control
@@ -417,21 +452,62 @@ export default function AddSalesPage() {
                 </Form.Group>
               </div>
 
-              {/* Notes */}
-              <div className="col-12">
+              <div className="col-md-4">
                 <Form.Group>
                   <Form.Label>Notes</Form.Label>
                   <Form.Control
                     as="textarea"
-                    rows={3}
+                    rows={1}
                     value={notes}
                     onChange={(e) => handleChange("notes", e.target.value)}
                   />
                 </Form.Group>
               </div>
+
+              {/* ================= ROW 3 (RECEIPT DOCUMENTS) ================= */}
+              <div className="col-6">
+                <Form.Group className="mt-2">
+                  <Form.Label>
+                    Receipt Documents
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="text-success ms-2 p-0"
+                      onClick={addReceiptFile}
+                    >
+                      <i className="bi bi-plus-circle"></i> Add
+                    </Button>
+                  </Form.Label>
+
+                  {receiptFiles.map((file, idx) => (
+                    <div key={idx} className="d-flex align-items-center gap-2 mb-2">
+                      <Form.Control
+                        type="file"
+                        accept="image/*,application/pdf"
+                        onChange={(e) =>
+                          handleReceiptFileChange(idx, e.target.files[0])
+                        }
+                      />
+
+                      {receiptFiles.length >= 1 && (
+                        <Button
+                          variant="link"
+                          size="sm"
+                          className="p-0"
+                          onClick={() => removeReceiptFile(idx)}
+                        >
+                          <i className="bi bi-x-circle text-danger"></i>
+                        </Button>
+
+                      )}
+                    </div>
+                  ))}
+                </Form.Group>
+              </div>
+
             </div>
 
-            {/* Products */}
+            {/* ================= PRODUCTS (UNCHANGED) ================= */}
             <div className="mt-4">
               <RequiredLabel>Products</RequiredLabel>
               <Button
@@ -468,21 +544,13 @@ export default function AddSalesPage() {
                       <th>Action</th>
                     </tr>
                   </thead>
-
                   <tbody>
                     {items.map((item, index) => (
                       <tr key={index}>
                         <td>{item.product_name}</td>
-
                         <td>
-                          <Form.Control
-                            type="number"
-                            min="1"
-                            value={item.quantity}
-                            readOnly
-                          />
+                          <Form.Control type="number" value={item.quantity} readOnly />
                         </td>
-
                         <td>
                           <Button
                             variant="outline-danger"
@@ -496,12 +564,10 @@ export default function AddSalesPage() {
                     ))}
                   </tbody>
                 </Table>
-
               )}
-
             </div>
 
-            {/* Actions */}
+            {/* ================= ACTIONS ================= */}
             <div className="mt-4 d-flex justify-content-end gap-2">
               <Button variant="secondary" onClick={() => navigate("/sales-order")}>
                 Cancel
@@ -513,6 +579,7 @@ export default function AddSalesPage() {
           </Form>
         </Card.Body>
       </Card>
+
     </div>
   );
 }

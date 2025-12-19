@@ -45,6 +45,36 @@ export default function SalesListPage() {
       toast.error("Failed to load product summary!");
     }
   };
+  const renderProducts = (items = []) => {
+    if (!items.length) return "-";
+
+    const uniqueProducts = [
+      ...new Set(
+        items
+          .map((i) => i.product?.name)
+          .filter(Boolean)
+      ),
+    ];
+
+    return uniqueProducts.join(", ");
+  };
+
+
+  const renderQuantities = (items = []) => {
+    if (!items.length) return "-";
+
+    const qtyMap = {};
+
+    items.forEach((i) => {
+      const name = i.product?.name;
+      if (!name) return;
+
+      qtyMap[name] = (qtyMap[name] || 0) + Number(i.quantity || 0);
+    });
+
+    return Object.values(qtyMap).join(", ");
+  };
+
 
   const fetchSales = async () => {
     setLoading(true);
@@ -99,7 +129,15 @@ export default function SalesListPage() {
   const columns = [
     { header: "Customer", accessor: (row) => row.customer?.customer },
     { header: "Challan No", accessor: "challan_no" },
-    { header: "Challan Date", accessor: (row) => row.challan_date },
+    {
+      header: "Products",
+      accessor: (row) => renderProducts(row.items),
+    },
+    {
+      header: "Quantity",
+      accessor: (row) => renderQuantities(row.items),
+    },
+    // { header: "Challan Date", accessor: (row) => row.challan_date },
     { header: "Shipment Date", accessor: (row) => row.shipment_date },
     {
       header: "Actions",

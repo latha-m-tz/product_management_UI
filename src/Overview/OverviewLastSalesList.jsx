@@ -46,7 +46,7 @@ const LastSalesList = () => {
   return (
     <Card className="border-0 shadow-sm h-100">
       <Card.Body>
-        <h5 className="fw-semibold text-dark mb-4">Last Sales List</h5>
+        <h5 className="fw-semibold text-dark mb-4">Recent Sales List</h5>
 
         {loading ? (
           <div className="d-flex justify-content-center align-items-center py-5">
@@ -61,7 +61,7 @@ const LastSalesList = () => {
                   <th>Customer</th>
                   <th>Shipment Date</th>
                   <th>Product</th>
-                  <th>Quantity</th>
+                  <th>Serial No</th>
                 </tr>
               </thead>
 
@@ -81,8 +81,8 @@ const LastSalesList = () => {
           {/* Product Name */}
           <td>{p.product_name}</td>
 
-          {/* Quantity */}
-          <td>{p.quantity}</td>
+          {/* Serial No */}
+          <td>{p.serial_no}</td>
         </tr>
       ))
     ))

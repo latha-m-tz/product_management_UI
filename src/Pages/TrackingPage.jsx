@@ -81,44 +81,20 @@ const TrackingPage = () => {
     const token = localStorage.getItem("authToken");
     if (token) setAuthToken(token);
   }, []);
-
-  // useEffect(() => {
-  //   const previousPath = document.referrer;
-
-  //   const isFromTrackingChild =
-  //     previousPath.includes("spare-partsPurchase/view") ||
-  //     previousPath.includes("sales-order-overview") ||
-  //     previousPath.includes("service_vci/view");
-
-  //   if (isFromTrackingChild) {
-  //     const savedSerial = localStorage.getItem("lastSerialNumber");
-
-  //     if (savedSerial) {
-  //       setSerialNumber(savedSerial);
-  //       fetchTimeline();
-  //     }
-  //   } else {
-  //     setSerialNumber("");
-  //     setTimeline([]);
-  //   }
-  // }, []);
   useEffect(() => {
-    if (location.state?.fromTracking === true) {
-      const savedSerial = localStorage.getItem("lastSerialNumber");
+    const fromTracking = location.state?.fromTracking === true;
+    const savedSerial = localStorage.getItem("lastSerialNumber");
 
-      if (savedSerial) {
-        setSerialNumber(savedSerial);
-        fetchTimeline();
-      }
+    if (fromTracking && savedSerial) {
+      setSerialNumber(savedSerial);
+      fetchTimeline(savedSerial);
 
-      // Clear state so it does not repeat again
-      navigate(location.pathname, { replace: true });
-    } else {
-      // Coming from sidebar or other pages → show empty
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+    else if (!fromTracking && !savedSerial) {
       setSerialNumber("");
       setTimeline([]);
     }
-
   }, [location.key]);
 
   useEffect(() => {
@@ -127,23 +103,6 @@ const TrackingPage = () => {
     }
   }, [serialNumber]);
 
-  useEffect(() => {
-    if (serialNumber) {
-      fetchTimeline();
-    }
-  }, [serialNumber]);
-  useEffect(() => {
-    if (location.state?.fromTracking) {
-      const savedSerial = localStorage.getItem("lastSerialNumber");
-
-      if (savedSerial) {
-        setSerialNumber(savedSerial);
-        fetchTimeline();
-      }
-
-      navigate(location.pathname, { replace: true });
-    }
-  }, [location.state]);
 
   const getStageColor = (stage) => "#2E3A59";
   const formatDateTime = (value) => {
@@ -159,23 +118,32 @@ const TrackingPage = () => {
     });
   };
 
-  const fetchTimeline = async () => {
-    if (!serialNumber) { setTimeline([]); return; }
-    setLoading(true); setError("");
+  const fetchTimeline = async (sn = serialNumber) => {
+    if (!sn) {
+      setTimeline([]);
+      return;
+    }
+
+    localStorage.setItem("lastSerialNumber", sn);
+    setLoading(true);
+    setError("");
+
     try {
-      const response = await api.get(`/tracking-timeline/${serialNumber}`);
+      const response = await api.get(`/tracking-timeline/${sn}`);
       const data = response.data;
 
       const saleItems = data.sale
-        ? data.sale.flatMap((sale) => sale.items.map((item) => ({
-          ...item,
-          sale_id: sale.id,
-          challan_no: sale.challan_no || "N/A",
-          challan_date: sale.challan_date || "N/A",
-          customer: sale.customer?.customer || "N/A",
-          created_at: sale.created_at || "N/A",
-          serial_number: serialNumber,
-        })))
+        ? data.sale.flatMap((sale) =>
+          sale.items.map((item) => ({
+            ...item,
+            sale_id: sale.id,
+            challan_no: sale.challan_no || "N/A",
+            challan_date: sale.challan_date || "N/A",
+            customer: sale.customer?.customer || "N/A",
+            created_at: sale.created_at || "N/A",
+            serial_number: sn,
+          }))
+        )
         : [];
 
       const serviceItems = data.service_vci
@@ -185,24 +153,25 @@ const TrackingPage = () => {
           challan_date: item.challan_date || "N/A",
           vendor: item.vendor_name || "N/A",
           product: item.product_name || "N/A",
-          service_type: item.service_type || "N/A",
           created_at: item.created_at || "N/A",
-          serial_number: serialNumber,
+          serial_number: sn,
         }))
         : [];
 
       setTimeline([
-        { stage: "SPARE PARTS PURCHASE", items: data.spare_parts?.map(i => ({ ...i, serial_number: serialNumber })) || [] },
-        { stage: "INVENTORY", items: data.inventory?.map(i => ({ ...i, serial_number: serialNumber })) || [] },
+        { stage: "SPARE PARTS PURCHASE", items: data.spare_parts || [] },
+        { stage: "INVENTORY", items: data.inventory || [] },
         { stage: "SALE", items: saleItems },
         { stage: "SERVICE", items: serviceItems },
       ]);
     } catch (err) {
-      console.error(err);
-      setError("Failed to fetch tracking timeline. Please try again.");
-      setTimeline(defaultTimelineStructure);
-    } finally { setLoading(false); }
+      setError("Failed to fetch tracking timeline");
+      setTimeline([]);
+    } finally {
+      setLoading(false);
+    }
   };
+
 
   // const handleMoreDetails = (stage, item) => {
   //   switch (stage) {
@@ -226,29 +195,20 @@ const TrackingPage = () => {
   const renderCardContent = (stage, item, idx) => {
     const defaultDate = formatDateTime(item.created_at);
     const goToChallan = () => {
+      const navConfig = { state: { fromTracking: true } };
+
       switch (stage) {
         case "SPARE PARTS PURCHASE":
-          if (!item.purchase_id) {
-            console.error("purchase_id is missing:", item);
-            return;
-          }
-          navigate(`/spare-partsPurchase/view/${item.purchase_id}`, {
-            state: { fromTracking: true }
-          });
+          navigate(`/spare-partsPurchase/view/${item.purchase_id}`, navConfig);
           break;
-
         case "SALE":
-          navigate(`/sales-order-overview/${item.sale_id}`, {
-            state: { fromTracking: true }
-          });
+          navigate(`/sales-order-overview/${item.sale_id}`, navConfig);
           break;
-
         case "SERVICE":
-          navigate(`/service_vci/view/${item.service_id}`);
+          navigate(`/service_vci/view/${item.service_id}`, navConfig);
           break;
-
         default:
-          console.warn("No matching route for this stage");
+          console.warn("No route for this stage");
       }
     };
 

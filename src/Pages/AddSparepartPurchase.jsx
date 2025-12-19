@@ -45,7 +45,7 @@ export default function AddSparepartPurchase() {
           sp => sp.sparepart_id === id
         );
         if (indexToRemove !== -1) {
-          updated.splice(indexToRemove, 1); 
+          updated.splice(indexToRemove, 1);
         }
       });
 
@@ -83,7 +83,7 @@ export default function AddSparepartPurchase() {
 
     const newRow = {
       ...current,
-      row_id: Date.now() + Math.random(), 
+      row_id: Date.now() + Math.random(),
       qty: "",
       from_serial: "",
       to_serial: "",
@@ -113,7 +113,7 @@ export default function AddSparepartPurchase() {
   const selectValue = spareparts
     .filter(sp => sp.sparepart_id)
     .map((sp, index) => ({
-      value: `${sp.sparepart_id}-${index}`, 
+      value: `${sp.sparepart_id}-${index}`,
       sparepart_id: sp.sparepart_id,
       label:
         availableSpareparts.find(a => a.id === sp.sparepart_id)?.name || "",
@@ -284,19 +284,33 @@ export default function AddSparepartPurchase() {
 
     if (isSerialItem && (field === "from_serial" || field === "to_serial")) {
       const cleaned = value.replace(/\D/g, "").slice(0, 6);
-
       updated[index][field] = cleaned;
 
-      const from = Number(updated[index].from_serial);
-      const to = Number(updated[index].to_serial);
+      const from = updated[index].from_serial;
+      const to = updated[index].to_serial;
 
-      updated[index].qty =
-        from && to && to >= from ? to - from + 1 : "";
-    }
-    else if (!isSerialItem && field === "qty") {
-      updated[index].qty = value.replace(/\D/g, "");
-    }
-    else {
+      // qty calculation
+      if (from.length === 6 && to.length === 6 && Number(to) >= Number(from)) {
+        updated[index].qty = Number(to) - Number(from) + 1;
+      } else {
+        updated[index].qty = "";
+      }
+
+      // 🔥 inline error handling
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        if (!newErrors.items) newErrors.items = {};
+        if (!newErrors.items[index]) newErrors.items[index] = {};
+
+        if (cleaned.length > 0 && cleaned.length < 6) {
+          newErrors.items[index][field] = "Must be exactly 6 digits";
+        } else {
+          delete newErrors.items[index][field];
+        }
+
+        return newErrors;
+      });
+    } else {
       updated[index][field] = value;
     }
 
@@ -453,6 +467,9 @@ export default function AddSparepartPurchase() {
   const validateForm = () => {
     const errs = {};
 
+    /* =========================
+       HEADER LEVEL VALIDATION
+       ========================= */
     if (!vendorId) errs.vendor_id = "Vendor is required";
     if (!challanNo) errs.challan_no = "Challan No is required";
     if (!challanDate) errs.challan_date = "Challan Date is required";
@@ -466,6 +483,10 @@ export default function AddSparepartPurchase() {
         errs.received_date = "Received Date cannot be before Challan Date";
       }
     }
+
+    /* =========================
+       DUPLICATE SERIAL CHECK
+       ========================= */
     const seenSerials = new Set();
 
     for (let i = 0; i < spareparts.length; i++) {
@@ -474,10 +495,12 @@ export default function AddSparepartPurchase() {
 
       if (!type.includes("serial")) continue;
 
+      if (!sp.from_serial || !sp.to_serial) continue;
+
+      if (!/^\d{6}$/.test(sp.from_serial) || !/^\d{6}$/.test(sp.to_serial)) continue;
+
       const from = Number(sp.from_serial);
       const to = Number(sp.to_serial);
-
-      if (!from || !to) continue;
 
       for (let s = from; s <= to; s++) {
         const key = `${sp.sparepart_id}-${s}`;
@@ -489,45 +512,62 @@ export default function AddSparepartPurchase() {
       }
     }
 
+    /* =========================
+       ITEM LEVEL VALIDATION
+       ========================= */
     const itemErrors = {};
 
     spareparts.forEach((sp, idx) => {
       const type = sparepartTypeOf(sp.sparepart_id);
       const itemErr = {};
 
+      /* Sparepart */
       if (!sp.sparepart_id) {
         itemErr.sparepart_id = "Sparepart is required";
       }
 
+      /* SERIAL TYPE */
       if (type.includes("serial")) {
-        if (!sp.from_serial || !sp.from_serial.trim()) {
+        // From Serial
+        if (!sp.from_serial) {
           itemErr.from_serial = "From Serial is required";
+        } else if (!/^\d{6}$/.test(sp.from_serial)) {
+          itemErr.from_serial = "From Serial must be exactly 6 digits";
         }
 
-        if (!sp.to_serial || !sp.to_serial.trim()) {
+        // To Serial
+        if (!sp.to_serial) {
           itemErr.to_serial = "To Serial is required";
+        } else if (!/^\d{6}$/.test(sp.to_serial)) {
+          itemErr.to_serial = "To Serial must be exactly 6 digits";
         }
 
-        if (sp.from_serial && sp.to_serial) {
-          const fromNum = Number(sp.from_serial);
-          const toNum = Number(sp.to_serial);
-
-          if (fromNum > toNum) {
-            itemErr.from_serial = "From Serial must be <= To Serial";
-            itemErr.to_serial = "From Serial must be <= To Serial";
-          }
-
-          if (!/^\d{6}$/.test(sp.from_serial)) {
-            itemErr.from_serial = "From Serial must be exactly 6 digits";
-          }
-          if (!/^\d{6}$/.test(sp.to_serial)) {
-            itemErr.to_serial = "To Serial must be exactly 6 digits";
+        // Range check
+        if (
+          sp.from_serial &&
+          sp.to_serial &&
+          /^\d{6}$/.test(sp.from_serial) &&
+          /^\d{6}$/.test(sp.to_serial)
+        ) {
+          if (Number(sp.from_serial) > Number(sp.to_serial)) {
+            itemErr.from_serial = "From Serial must be ≤ To Serial";
+            itemErr.to_serial = "From Serial must be ≤ To Serial";
           }
         }
       }
 
-      if (!sp.qty || Number(sp.qty) < 1) {
-        itemErr.qty = "Quantity is required";
+      /* NON-SERIAL TYPE */
+      if (!type.includes("serial")) {
+        if (!sp.qty || Number(sp.qty) < 1) {
+          itemErr.qty = "Quantity is required";
+        }
+      }
+
+      /* SERIAL TYPE QTY (auto-calculated but still validate) */
+      if (type.includes("serial")) {
+        if (!sp.qty || Number(sp.qty) < 1) {
+          itemErr.qty = "Quantity is required";
+        }
       }
 
       if (Object.keys(itemErr).length > 0) {
@@ -540,9 +580,9 @@ export default function AddSparepartPurchase() {
     }
 
     setErrors(errs);
-
     return Object.keys(errs).length === 0;
   };
+
 
 
 
@@ -898,7 +938,7 @@ export default function AddSparepartPurchase() {
               onMenuOpen={() => {
                 if (!vendorId) {
                   toast.error("Please choose Vendor first");
-                  return false; 
+                  return false;
                 }
               }}
 
@@ -959,6 +999,11 @@ export default function AddSparepartPurchase() {
                               handleInputChange(index, "to_serial", value);
                             }}
                           />
+                          {errors.items?.[index]?.from_serial && (
+                            <div style={{ color: "red", fontSize: "0.8rem" }}>
+                              {errors.items[index].from_serial}
+                            </div>
+                          )}
                         </Form.Group>
                       </Col>
 
@@ -972,7 +1017,11 @@ export default function AddSparepartPurchase() {
                               handleInputChange(index, "to_serial", e.target.value)
                             }
                           />
-
+                          {errors.items?.[index]?.to_serial && (
+                            <div style={{ color: "red", fontSize: "0.8rem" }}>
+                              {errors.items[index].to_serial}
+                            </div>
+                          )}
                         </Form.Group>
                       </Col>
 
@@ -982,6 +1031,7 @@ export default function AddSparepartPurchase() {
                             Qty <span className="text-danger">*</span>
                           </Form.Label>
                           <Form.Control value={sp.qty} disabled />
+
                         </Form.Group>
                       </Col>
                     </>
@@ -1000,6 +1050,10 @@ export default function AddSparepartPurchase() {
                               handleInputChange(index, "qty", e.target.value)
                             }
                           />
+                          {errors.items?.[index]?.qty && (
+                            <div style={{ color: "red", fontSize: "0.8rem" }}>
+                              {errors.items[index].qty}
+                            </div>)}
                         </Form.Group>
                       </Col>
                       <Col md={2} />

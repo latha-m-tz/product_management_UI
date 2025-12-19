@@ -889,10 +889,6 @@ export default function EditSparepartPurchase({ purchaseId }) {
       payload.append("received_date", receivedDate || "");
       payload.append("tracking_number", String(trackingNumber || ""));
       payload.append("courier_name", String(courier_name || ""));
-
-      /* ===============================
-         ITEMS (🔥 SERIALS FIXED HERE 🔥)
-         =============================== */
       mergedSpareparts.forEach((sp, i) => {
         (sp.ids || []).forEach((id, j) => {
           payload.append(`items[${i}][ids][${j}]`, id);
@@ -914,17 +910,10 @@ export default function EditSparepartPurchase({ purchaseId }) {
           payload.append(`items[${i}][serials][${j}]`, serial);
         });
       });
-
-      /* ===============================
-         DELETED ITEMS
-         =============================== */
       deletedSparepartIds.forEach((id, i) => {
         payload.append(`deleted_ids[${i}]`, id);
       });
 
-      /* ===============================
-         FILES
-         =============================== */
       recipientFiles.forEach((file, i) => {
         if (file instanceof File) {
           payload.append(`document_recipient[${i}]`, file);
@@ -936,9 +925,6 @@ export default function EditSparepartPurchase({ purchaseId }) {
         JSON.stringify(removedFiles.recipient || [])
       );
 
-      /* ===============================
-         API CALL
-         =============================== */
       await api.post(`/purchaseUpdate/${purchaseKey}`, payload, {
         headers: { "Content-Type": "multipart/form-data" },
       });
@@ -1124,7 +1110,6 @@ export default function EditSparepartPurchase({ purchaseId }) {
                     <Button
                       variant="link"
                       size="sm"
-                      className="text-danger p-0"
                       onClick={() => removeFileField("recipient", idx)}
                     >
                       <i className="bi bi-x-circle"></i>
