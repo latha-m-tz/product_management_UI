@@ -63,17 +63,12 @@ export default function SalesListPage() {
   const renderQuantities = (items = []) => {
     if (!items.length) return "-";
 
-    const qtyMap = {};
-
-    items.forEach((i) => {
-      const name = i.product?.name;
-      if (!name) return;
-
-      qtyMap[name] = (qtyMap[name] || 0) + Number(i.quantity || 0);
-    });
-
-    return Object.values(qtyMap).join(", ");
+    return items.reduce(
+      (total, item) => total + Number(item.quantity || 0),
+      0
+    );
   };
+
 
 
   const fetchSales = async () => {
