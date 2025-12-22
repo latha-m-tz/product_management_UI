@@ -119,7 +119,7 @@ export default function SalesOverviewPage() {
   }));
 
   const columns = [
-    { header: "S.No", accessor: (row) => row.sno },
+    // { header: "S.No", accessor: (row) => row.sno },
     {
       header: "Product",
       accessor: (row) => <strong>{row.product_name}</strong>
@@ -241,7 +241,7 @@ export default function SalesOverviewPage() {
       >
         <div className="row mb-3 align-items-center">
           <div className="col-md-6">
-            <h5 className="mb-0 fw-bold">Product Breakdown</h5>
+            <h5 className="mb-0 fw-bold">Product details</h5>
           </div>
 
           <div className="col-md-6">
