@@ -93,26 +93,14 @@ const ComponentStock = () => {
             stockData.map((item, index) => (
               <div key={index} className="five-col mb-3">
                 <div className="d-flex">
-                  {/* NO IMAGE — ONLY TEXT */}
                   <div className="d-flex flex-column justify-content-center">
                     <small className="custom-small-text">{item.name}</small>
-<div className="fw-bold fs-5">
-  {(item.total_quantity ?? item.qty ?? item.quantity ?? 0) + " Qty"}
-</div>
-                    {/* <small className="text-muted d-block">
-                      Using {item.usedVCI} VCI's
-                    </small> */}
-                    {/* <small className={item.up ? "text-success" : "text-danger"}>
-                      {item.up ? (
-                        <FaArrowUp style={{ fontSize: "10px" }} />
-                      ) : (
-                        <FaArrowDown style={{ fontSize: "10px" }} />
-                      )}
-                    </small> */}
+                    <div className="fw-bold fs-5">
+                      {(item.total_quantity ?? item.qty ?? item.quantity ?? 0) + " Qty"}
+                    </div>
                   </div>
                 </div>
               </div>
-
             ))
           ) : (
             <div className="text-center w-100 py-4">
@@ -126,6 +114,7 @@ const ComponentStock = () => {
           )}
         </div>
       </div>
+
     </div>
   );
 };

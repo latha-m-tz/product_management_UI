@@ -112,17 +112,17 @@ export default function EditSalesPage() {
     setShipmentDate(data.shipment_date || "");
     setShipmentName(data.shipment_name || "");
     setNotes(data.notes || "");
-  if (Array.isArray(data.existingReceipts)) {
-    setExistingReceipts(data.existingReceipts);
-  }
+    if (Array.isArray(data.existingReceipts)) {
+      setExistingReceipts(data.existingReceipts);
+    }
 
-  // if (Array.isArray(data.receiptFiles)) {
-  //   setReceiptFiles(data.receiptFiles);
-  // }
+    // if (Array.isArray(data.receiptFiles)) {
+    //   setReceiptFiles(data.receiptFiles);a
+    // }
 
-  if (Array.isArray(data.removedReceipts)) {
-    setRemovedReceipts(data.removedReceipts);
-  }
+    if (Array.isArray(data.removedReceipts)) {
+      setRemovedReceipts(data.removedReceipts);
+    }
 
   }, []);
 
@@ -138,10 +138,12 @@ export default function EditSalesPage() {
       setShipmentDate(sale.shipment_date || "");
       setShipmentName(sale.shipment_name || "");
       setNotes(sale.notes || "");
+
+      // ✅ FIX HERE
       setExistingReceipts(
-        (receipts || []).map(path => ({
-          file_path: path,
-          file_name: path.split("/").pop(),
+        (receipts || []).map(r => ({
+          file_path: r.file_path,
+          file_name: r.file_name,
         }))
       );
 
@@ -153,6 +155,7 @@ export default function EditSalesPage() {
       setLoadedSale(true);
     });
   }, [id]);
+
 
 
 

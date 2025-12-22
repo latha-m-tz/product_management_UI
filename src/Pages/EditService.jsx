@@ -20,7 +20,7 @@ const EditServicePage = () => {
   const [spareparts, setSpareparts] = useState([]);
   const getAllowedStatuses = (item) => {
     if (item.type === "sparepart") {
-      return ["Return"]; // 🔒 ONLY Return
+      return ["Return"]; 
     }
 
     if (item.type === "product") {
