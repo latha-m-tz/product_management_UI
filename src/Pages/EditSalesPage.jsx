@@ -7,10 +7,12 @@ import withReactContent from "sweetalert2-react-content";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { useNavigate, useParams } from "react-router-dom";
 import { IoTrashOutline } from "react-icons/io5";
+import { useRef } from "react";
 
 export default function EditSalesPage() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const saleLoadedRef = useRef(false);
 
   const [customers, setCustomers] = useState([]);
   const [customerId, setCustomerId] = useState("");
@@ -24,8 +26,8 @@ export default function EditSalesPage() {
   const [loadedSale, setLoadedSale] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [receiptFiles, setReceiptFiles] = useState([]);
-  const [existingReceipts, setExistingReceipts] = useState([]);   // from API
-  const [removedReceipts, setRemovedReceipts] = useState([]);     // deleted by user
+  const [existingReceipts, setExistingReceipts] = useState([]);
+  const [removedReceipts, setRemovedReceipts] = useState([]);
 
   const MySwal = withReactContent(Swal);
 
@@ -35,7 +37,6 @@ export default function EditSalesPage() {
   const paginatedItems = items.slice(startIndex, endIndex);
 
   const addReceiptFile = () => {
-    // prevent adding if last row is empty
     if (receiptFiles.length > 0 && receiptFiles[receiptFiles.length - 1] === null) {
       toast.error("Please choose a file first");
       return;
@@ -46,7 +47,7 @@ export default function EditSalesPage() {
   const replaceExistingFile = (index, newFile) => {
     const oldFile = existingReceipts[index];
 
-    setRemovedReceipts(prev => [...prev, oldFile]); // ✅ FIX
+    setRemovedReceipts(prev => [...prev, oldFile.file_path]);
     setExistingReceipts(prev => prev.filter((_, i) => i !== index));
     setReceiptFiles(prev => [...prev, newFile]);
   };
@@ -67,7 +68,6 @@ export default function EditSalesPage() {
     if (token) setAuthToken(token);
   }, []);
 
-  // Load customers
   useEffect(() => {
     api
       .get(`/customers/get`)
@@ -75,29 +75,27 @@ export default function EditSalesPage() {
       .catch(() => toast.error("Failed to load customers"));
   }, []);
 
-  // Group items coming from sale API
-  const groupProducts = (serialItems) => {
+  const groupProducts = (products) => {
     const grouped = {};
 
-    serialItems.forEach((item) => {
+    products.forEach((item) => {
       const pid = item.product_id;
 
       if (!grouped[pid]) {
         grouped[pid] = {
           product_id: pid,
-          name:
-            (typeof item.product === "string"
-              ? item.product
-              : item.product?.name) ||
-            item.name ||
-            "Unknown Product",
+          name: item.product?.name || "Unknown Product",
           serials: [],
           quantity: 0,
         };
       }
 
-      grouped[pid].serials.push(item.serial_no);
-      grouped[pid].quantity += 1;
+      if (item.serial_no) {
+        grouped[pid].serials.push(String(item.serial_no));
+        grouped[pid].quantity = grouped[pid].serials.length;
+      } else {
+        grouped[pid].quantity += Number(item.quantity || 1);
+      }
     });
 
     return Object.values(grouped);
@@ -114,33 +112,49 @@ export default function EditSalesPage() {
     setShipmentDate(data.shipment_date || "");
     setShipmentName(data.shipment_name || "");
     setNotes(data.notes || "");
-    setItems(data.items || []);
+  if (Array.isArray(data.existingReceipts)) {
+    setExistingReceipts(data.existingReceipts);
+  }
 
-    setLoadedSale(true); // prevents API overwrite
+  // if (Array.isArray(data.receiptFiles)) {
+  //   setReceiptFiles(data.receiptFiles);
+  // }
+
+  if (Array.isArray(data.removedReceipts)) {
+    setRemovedReceipts(data.removedReceipts);
+  }
+
   }, []);
-  useEffect(() => {
-    if (loadedSale) return;   // <-- now prevents overwrite
 
-    const hasSelected = localStorage.getItem("selectedProducts");
+  useEffect(() => {
+    if (saleLoadedRef.current) return;
 
     api.get(`/sales/${id}`).then((res) => {
-      const sale = res.data;
+      const { sale, products, receipts } = res.data;
 
-      setCustomerId(sale.customer?.id || "");
-      setChallanNo(sale.challan_no);
-      setChallanDate(sale.challan_date);
-      setShipmentDate(sale.shipment_date);
+      setCustomerId(sale.customer_id || "");
+      setChallanNo(sale.challan_no || "");
+      setChallanDate(sale.challan_date || "");
+      setShipmentDate(sale.shipment_date || "");
       setShipmentName(sale.shipment_name || "");
       setNotes(sale.notes || "");
-      setExistingReceipts(sale.receipt_files || []);
+      setExistingReceipts(
+        (receipts || []).map(path => ({
+          file_path: path,
+          file_name: path.split("/").pop(),
+        }))
+      );
 
-      if (!hasSelected) {
-        setItems(groupProducts(sale.items || []));
-      }
+      setItems(prev =>
+        prev.length > 0 ? prev : groupProducts(products || [])
+      );
 
+      saleLoadedRef.current = true;
       setLoadedSale(true);
     });
-  }, [id, loadedSale]);
+  }, [id]);
+
+
 
   useEffect(() => {
     if (!loadedSale) return;
@@ -152,6 +166,7 @@ export default function EditSalesPage() {
     }
   }, [loadedSale]);
 
+
   const loadSelectedProducts = () => {
     const stored = localStorage.getItem("selectedProducts");
     if (!stored) return;
@@ -162,16 +177,13 @@ export default function EditSalesPage() {
     setItems(prevItems => {
       const map = {};
 
-      // Unique key using BOTH product_id + product_name
       const makeKey = (p) => `${p.product_id}_${p.product_name || p.name}`;
 
-      // Add previous items
       prevItems.forEach(item => {
         const key = makeKey(item);
         map[key] = { ...item };
       });
 
-      // Add selected items
       selected.forEach(p => {
         const pid = Number(p.product_id);
         const name = p.product_name || p.name || "Unknown Product";
@@ -203,9 +215,6 @@ export default function EditSalesPage() {
       return Object.values(map);
     });
   };
-
-
-
   const validateForm = () => {
     const errors = {};
 
@@ -265,15 +274,22 @@ export default function EditSalesPage() {
     let index = 0;
 
     items.forEach((item) => {
+      // Case 1: Serial based products
       if (Array.isArray(item.serials) && item.serials.length > 0) {
         item.serials.forEach((serial) => {
           formData.append(`items[${index}][product_id]`, item.product_id);
-          formData.append(`items[${index}][serial_no]`, String(serial).trim());
+          formData.append(`items[${index}][serial_no]`, serial);
           formData.append(`items[${index}][quantity]`, 1);
           index++;
         });
       }
+      else {
+        formData.append(`items[${index}][product_id]`, item.product_id);
+        formData.append(`items[${index}][quantity]`, item.quantity);
+        index++;
+      }
     });
+
 
     receiptFiles.forEach((file) => {
       if (file instanceof File) {
@@ -494,10 +510,10 @@ export default function EditSalesPage() {
                           Choose File
                         </span>
 
-                        {/* File name */}
+                        {/* ✅ Correct file name */}
                         <Form.Control
                           readOnly
-                          value={file.split("/").pop()}
+                          value={file.file_name || ""}
                           className="bg-white"
                         />
                       </div>
@@ -509,7 +525,7 @@ export default function EditSalesPage() {
                         className="p-0 ms-2"
                         onClick={() => {
                           setExistingReceipts(prev => prev.filter((_, i) => i !== idx));
-                          setRemovedReceipts(prev => [...prev, file]); // ✅ FIX
+                          setRemovedReceipts(prev => [...prev, file.file_path]);
                         }}
                       >
                         <i className="bi bi-x-circle text-danger"></i>
@@ -566,6 +582,9 @@ export default function EditSalesPage() {
                       shipment_name: shipmentName,
                       notes,
                       items,
+                      existingReceipts,
+                      removedReceipts, // ✅ ADD THIS
+
                     };
                     localStorage.setItem("draftSale", JSON.stringify(draftSale));
                     navigate("/add-product");

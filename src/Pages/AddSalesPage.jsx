@@ -34,6 +34,7 @@ export default function AddSalesPage() {
   const [quantity, setQuantity] = useState(1);
   const itemsPerPage = 10;
   const [receiptFiles, setReceiptFiles] = useState([null]);
+  const [savedReceiptNames, setSavedReceiptNames] = useState([]);
 
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
@@ -83,6 +84,10 @@ export default function AddSalesPage() {
       setShipmentName(data.shipment_name || "");
       setNotes(data.notes || "");
       setItems(data.items || []);
+
+      setSavedReceiptNames(data.receiptFileNames || []);
+      setReceiptFiles([null]); // fresh upload slots
+
       localStorage.removeItem("draftSale");
     } else if (saleId) {
       api
@@ -95,6 +100,7 @@ export default function AddSalesPage() {
           setShipmentDate(sale.shipment_date);
           setShipmentName(sale.shipment_name || "");
           setNotes(sale.notes || "");
+          setSavedReceiptNames(data.receiptFileNames || []);
           setItems(
             sale.items.map((item) => ({
               id: item.id,
@@ -187,7 +193,7 @@ export default function AddSalesPage() {
     }
     // } else if (new Date(shipmentDate) > new Date()) {
     //   errors.shipmentDate = "Shipment Date cannot be in the future";
-     else if (new Date(shipmentDate) < new Date(challanDate)) {
+    else if (new Date(shipmentDate) < new Date(challanDate)) {
       errors.shipmentDate = "Shipment Date cannot be before Challan Date";
     }
 
@@ -228,15 +234,17 @@ export default function AddSalesPage() {
     formData.append("shipment_name", shipmentName.trim());
     formData.append("notes", notes.trim());
 
-    /* ================= ITEMS ================= */
-    items.forEach((item, i) => {
+    let itemIndex = 0;
+
+    items.forEach((item) => {
       item.serials.forEach((sn) => {
-        formData.append(`items[${i}][serial_no]`, String(sn).trim());
-        formData.append(`items[${i}][quantity]`, "1");
+        formData.append(`items[${itemIndex}][serial_no]`, String(sn).trim());
+        formData.append(`items[${itemIndex}][quantity]`, "1");
+        itemIndex++;
       });
     });
 
-    /* ================= RECEIPT FILES ================= */
+
     receiptFiles.forEach((file) => {
       if (file instanceof File) {
         formData.append("receipt_files[]", file);
@@ -478,6 +486,40 @@ export default function AddSalesPage() {
                       <i className="bi bi-plus-circle"></i> Add
                     </Button>
                   </Form.Label>
+                  {/* 🔹 EXISTING RECEIPTS (UI mimic like file input) */}
+                  {savedReceiptNames.map((name, idx) => (
+                    <div
+                      key={`saved-${idx}`}
+                      className="d-flex align-items-center gap-2 mb-2"
+                    >
+                      <div className="input-group">
+                        <span className="input-group-text">
+                          Choose File
+                        </span>
+
+                        <Form.Control
+                          type="text"
+                          value={name}
+                          disabled
+                          className="bg-white"
+                        />
+                      </div>
+
+                      <Button
+                        variant="link"
+                        size="sm"
+                        className="p-0"
+                        onClick={() =>
+                          setSavedReceiptNames(prev =>
+                            prev.filter((_, i) => i !== idx)
+                          )
+                        }
+                      >
+                        <i className="bi bi-x-circle text-danger"></i>
+                      </Button>
+                    </div>
+                  ))}
+
 
                   {receiptFiles.map((file, idx) => (
                     <div key={idx} className="d-flex align-items-center gap-2 mb-2">
@@ -523,6 +565,9 @@ export default function AddSalesPage() {
                     shipment_name: shipmentName,
                     notes,
                     items,
+                    receiptFileNames: receiptFiles
+                      .filter(f => f instanceof File)
+                      .map(f => f.name),
                   };
                   localStorage.setItem("draftSale", JSON.stringify(draftSale));
                   navigate("/add-product");

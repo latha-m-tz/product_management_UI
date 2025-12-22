@@ -97,13 +97,14 @@ export default function App() {
           {<Route index element={<Navigate to="overview" replace />} />}
 
           {/* Pages */}
-          { <Route path="overview" element={<Overview />} /> }
+          {<Route path="overview" element={<Overview />} />}
           <Route path="sales-order" element={<SalesListPage />} />
           <Route path="sales-order/add" element={<AddSalesPage />} />
           <Route path="sales/edit/:id" element={<EditSalesPage />} />
           <Route path="sales-order-overview" element={<SalesOverviewPage />} />
           <Route path="sales-order-overview/:id" element={<SalesOverviewPage />} />
-          {/* <Route path="product/edit/:id" element={<AddProductPage />} /> */}
+          <Route path="add-product" element={<AddProductPage />} />
+          <Route path="product/edit/:id" element={<AddProductPage />} />
           <Route path="service-product" element={<ServiceList />} />
           <Route path="service-product/add" element={<AddServicePage />} />
           <Route path="service/:id/edit" element={<EditService />} />
@@ -148,4 +149,3 @@ export default function App() {
   )
 }
 
-        
