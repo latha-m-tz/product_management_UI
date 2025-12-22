@@ -88,9 +88,6 @@ const AddServicePage = () => {
       }
     }
 
-    /* =========================
-       ITEMS VALIDATION
-    ========================= */
     if (!Array.isArray(formData.items) || formData.items.length === 0) {
       newErrors.items = "At least one service item is required";
     } else {
