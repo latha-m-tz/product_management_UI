@@ -171,9 +171,13 @@ export default function App() {
       fetchSpareparts();
     } catch (error) {
       console.error("Error deleting:", error);
-      if (error.response?.data?.message) {
-        toast.error(`Failed to delete spare part: ${error.response.data.message}`);
-      } else {
+      if (error.response?.status === 409) {
+        toast.error(error.response.data.message);
+      }
+      else if (error.response?.data?.message) {
+        toast.error(error.response.data.message);
+      }
+      else {
         toast.error("Failed to delete spare part.");
       }
     }
@@ -217,31 +221,31 @@ export default function App() {
 
   const errorStyle = { color: "#dc3545", fontSize: "13px", marginTop: "4px" };
 
-const paginated = spareparts
-  .filter(part => {
-    const searchLower = search.toLowerCase();
-    return (
-      part.name?.toLowerCase().includes(searchLower) ||
-      (part.code ?? "").toLowerCase().includes(searchLower) ||
-      (part.vendor ?? "").toLowerCase().includes(searchLower) ||
-      (part.is_active ?? "").toString().toLowerCase().includes(searchLower) ||
-      (part.quantity ?? "").toString().includes(searchLower)
-    );
-  })
+  const paginated = spareparts
+    .filter(part => {
+      const searchLower = search.toLowerCase();
+      return (
+        part.name?.toLowerCase().includes(searchLower) ||
+        (part.code ?? "").toLowerCase().includes(searchLower) ||
+        (part.vendor ?? "").toLowerCase().includes(searchLower) ||
+        (part.is_active ?? "").toString().toLowerCase().includes(searchLower) ||
+        (part.quantity ?? "").toString().includes(searchLower)
+      );
+    })
 
-.sort((a, b) => Number(b.id) - Number(a.id))
+    .sort((a, b) => Number(b.id) - Number(a.id))
 
-  // ⭐ custom sorting only if user selected a field
-  .sort((a, b) => {
-    if (!sortField) return 0;
-    const valueA = (a[sortField] ?? "").toString().toLowerCase();
-    const valueB = (b[sortField] ?? "").toString().toLowerCase();
-    if (valueA < valueB) return sortDirection === "asc" ? -1 : 1;
-    if (valueA > valueB) return sortDirection === "asc" ? 1 : -1;
-    return 0;
-  })
+    // ⭐ custom sorting only if user selected a field
+    .sort((a, b) => {
+      if (!sortField) return 0;
+      const valueA = (a[sortField] ?? "").toString().toLowerCase();
+      const valueB = (b[sortField] ?? "").toString().toLowerCase();
+      if (valueA < valueB) return sortDirection === "asc" ? -1 : 1;
+      if (valueA > valueB) return sortDirection === "asc" ? 1 : -1;
+      return 0;
+    })
 
-  .slice((page - 1) * perPage, page * perPage);
+    .slice((page - 1) * perPage, page * perPage);
 
 
   return (

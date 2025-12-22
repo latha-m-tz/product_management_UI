@@ -27,7 +27,7 @@ export default function Sidebar({ collapsed }) {
     ],
 
     inventory: [
-      { link: "assemble", title: "Assemble", icon: ["/assemble.png", "/assemble.png"] },
+      { link: "assemble", title: "Assemble", icon: ["/puzzle.png", "/puzzle.png"] },
     ],
 
     sales: [

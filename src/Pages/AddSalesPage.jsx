@@ -42,18 +42,25 @@ export default function AddSalesPage() {
 
   const MySwal = withReactContent(Swal);
   const addReceiptFile = () => {
-    const last = receiptFiles[receiptFiles.length - 1];
-    if (!last) {
-      toast.error("Please choose a file before adding another");
-      return;
-    }
-    setReceiptFiles([...receiptFiles, null]);
+    setReceiptFiles(prev => {
+      if (prev.length === 0) return [null];
+
+      const last = prev[prev.length - 1];
+      if (!last) {
+        toast.error("Please choose a file before adding another");
+        return prev;
+      }
+
+      return [...prev, null];
+    });
   };
+
+
 
   const removeReceiptFile = (index) => {
     const updated = [...receiptFiles];
     updated.splice(index, 1);
-    setReceiptFiles(updated.length ? updated : [null]);
+    setReceiptFiles(updated);
   };
 
   const handleReceiptFileChange = (index, file) => {
@@ -519,8 +526,6 @@ export default function AddSalesPage() {
                       </Button>
                     </div>
                   ))}
-
-
                   {receiptFiles.map((file, idx) => (
                     <div key={idx} className="d-flex align-items-center gap-2 mb-2">
                       <Form.Control
@@ -530,20 +535,17 @@ export default function AddSalesPage() {
                           handleReceiptFileChange(idx, e.target.files[0])
                         }
                       />
-
-                      {receiptFiles.length >= 1 && (
-                        <Button
-                          variant="link"
-                          size="sm"
-                          className="p-0"
-                          onClick={() => removeReceiptFile(idx)}
-                        >
-                          <i className="bi bi-x-circle text-danger"></i>
-                        </Button>
-
-                      )}
+                      <Button
+                        variant="link"
+                        size="sm"
+                        className="p-0"
+                        onClick={() => removeReceiptFile(idx)}
+                      >
+                        <i className="bi bi-x-circle text-danger"></i>
+                      </Button>
                     </div>
                   ))}
+
                 </Form.Group>
               </div>
 

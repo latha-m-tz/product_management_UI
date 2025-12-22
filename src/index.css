@@ -438,3 +438,29 @@ input[type="file"].form-control-file {
   align-items: center;
   justify-content: center;
 }
+.stock-scroll-wrapper {
+  overflow-x: auto;
+}
+
+.scroll-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px; /* Adds space between items */
+}
+
+.five-col {
+  flex: 0 0 32%; /* This makes each item take up roughly a third of the row */
+  box-sizing: border-box;
+}
+
+.custom-small-text {
+  font-size: 12px;
+}
+
+.card {
+  margin: 15px;
+}
+
+.d-flex {
+  display: flex;
+}

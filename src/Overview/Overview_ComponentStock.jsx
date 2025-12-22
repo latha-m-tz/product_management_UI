@@ -20,7 +20,7 @@ const ComponentStock = () => {
       <h5 className="fw-semibold mb-1">Components Stock</h5>
       <small className="text-muted d-block mb-4">Spare parts</small>
       <div className="stock-scroll-wrapper">
-        <div className="d-flex flex-wrap scroll-container">
+        <div className="scroll-container">
           {dummyData.map((item, index) => (
             <div key={index} className="five-col mb-3">
               <div className="d-flex">
