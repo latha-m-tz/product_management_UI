@@ -311,7 +311,7 @@ export default function EditSalesPage() {
           "Content-Type": "multipart/form-data",
         },
       });
-
+      localStorage.removeItem("draftSale");
       toast.success("Sale updated successfully!");
       navigate("/sales-order");
     } catch (err) {

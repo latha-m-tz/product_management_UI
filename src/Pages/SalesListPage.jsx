@@ -102,6 +102,7 @@ export default function SalesListPage() {
         await api.delete(`/sales/${sale.id}`);
         toast.success("Sale deleted!");
         fetchSales();
+        fetchProductSummary();
       }
     } catch {
       toast.error("Failed to delete sale!");

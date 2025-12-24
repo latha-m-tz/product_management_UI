@@ -70,13 +70,22 @@ export default function PurchaseListPage() {
     try {
       await api.delete(`/sparepart-purchase-items/${id}`);
       toast.success("Purchase deleted successfully!");
-      const newData = purchaseData.filter((item) => item.purchase_id !== id);
+
+      const newData = purchaseData.filter(
+        (item) => item.purchase_id !== id
+      );
       setPurchaseData(newData);
-      if ((page - 1) * perPage >= newData.length && page > 1) setPage(page - 1);
-    } catch {
-      toast.error("Failed to delete purchase.");
+
+      if ((page - 1) * perPage >= newData.length && page > 1) {
+        setPage(page - 1);
+      }
+    } catch (error) {
+      toast.error(
+        error.response?.data?.message || "Failed to delete purchase."
+      );
     }
   };
+
 
   const handleSort = (field) => {
     const direction = sortField === field && sortDirection === "asc" ? "desc" : "asc";
@@ -109,7 +118,7 @@ export default function PurchaseListPage() {
       <BreadCrumb title="Purchase List" />
 
       {/* STOCK OVERALL SUMMARY */}
-      <Card className="p-3 mb-3 shadow-sm" style={{ background: "#F8F9FA" ,fontSize: "0.90rem" ,fontFamily:"product-sans,sans-serif"}}>
+      <Card className="p-3 mb-3 shadow-sm" style={{ background: "#F8F9FA", fontSize: "0.90rem", fontFamily: "product-sans,sans-serif" }}>
         <h6 className="fw-bold mb-3">Current Stock Overall Summary</h6>
 
         <div className="list-group">
@@ -262,9 +271,9 @@ export default function PurchaseListPage() {
                 ))}
                 <th
                   style={{
-                  paddingLeft: "30px",
-                  backgroundColor: "#2E3A59",
-                  color: "white",
+                    paddingLeft: "30px",
+                    backgroundColor: "#2E3A59",
+                    color: "white",
                   }}
                 >
                   Action

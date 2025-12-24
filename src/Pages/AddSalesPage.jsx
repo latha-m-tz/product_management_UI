@@ -35,7 +35,7 @@ export default function AddSalesPage() {
   const itemsPerPage = 10;
   const [receiptFiles, setReceiptFiles] = useState([null]);
   const [savedReceiptNames, setSavedReceiptNames] = useState([]);
-
+  const [needsReceiptReupload, setNeedsReceiptReupload] = useState(false);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const paginatedItems = items.slice(startIndex, endIndex);
@@ -67,6 +67,10 @@ export default function AddSalesPage() {
     const updated = [...receiptFiles];
     updated[index] = file;
     setReceiptFiles(updated);
+
+    if (file instanceof File) {
+      setNeedsReceiptReupload(false);
+    }
   };
 
   useEffect(() => {
@@ -90,11 +94,18 @@ export default function AddSalesPage() {
       setShipmentDate(data.shipment_date || "");
       setShipmentName(data.shipment_name || "");
       setNotes(data.notes || "");
-      setItems(data.items || []);
-
+      setItems(
+        (data.items || []).map(item => ({
+          ...item,
+          serials: item.serials || []
+        }))
+      );
       setSavedReceiptNames(data.receiptFileNames || []);
-      setReceiptFiles([null]); // fresh upload slots
+      setReceiptFiles([]);
 
+      if ((data.receiptFileNames || []).length > 0) {
+        setNeedsReceiptReupload(true);
+      }
       localStorage.removeItem("draftSale");
     } else if (saleId) {
       api
@@ -109,9 +120,10 @@ export default function AddSalesPage() {
           setNotes(sale.notes || "");
           setSavedReceiptNames(data.receiptFileNames || []);
           setItems(
-            sale.items.map((item) => ({
-              id: item.id,
-              serialNo: item.serial_no || "",
+            sale.items.map(item => ({
+              product_id: item.product_id,
+              product_name: item.product_name,
+              serials: item.serial_no ? [item.serial_no] : [],
               quantity: item.quantity,
             }))
           );
@@ -203,7 +215,13 @@ export default function AddSalesPage() {
     else if (new Date(shipmentDate) < new Date(challanDate)) {
       errors.shipmentDate = "Shipment Date cannot be before Challan Date";
     }
+    // if (savedReceiptNames.length > 0) {
+    //   const uploadedFiles = receiptFiles.filter(f => f instanceof File);
 
+    //   if (uploadedFiles.length === 0) {
+    //     errors.receiptFiles = "Please re-upload receipt files before saving";
+    //   }
+    // }
     if (items.length === 0) {
       errors.items = "Please add at least one product";
     } else {
@@ -233,7 +251,6 @@ export default function AddSalesPage() {
 
     const formData = new FormData();
 
-    /* ================= HEADER FIELDS ================= */
     formData.append("customer_id", String(customerId)); // 🔥 FIX
     formData.append("challan_no", challanNo.trim());
     formData.append("challan_date", challanDate);
@@ -251,12 +268,15 @@ export default function AddSalesPage() {
       });
     });
 
-
-    receiptFiles.forEach((file) => {
-      if (file instanceof File) {
-        formData.append("receipt_files[]", file);
-      }
+    savedReceiptNames.forEach((name, index) => {
+      formData.append(`existing_receipts[${index}]`, name);
     });
+    receiptFiles
+      .filter(file => file instanceof File)
+      .forEach(file => {
+        formData.append("receipt_files[]", file);
+      });
+
 
     try {
       if (saleId) {
@@ -531,9 +551,10 @@ export default function AddSalesPage() {
                       <Form.Control
                         type="file"
                         accept="image/*,application/pdf"
-                        onChange={(e) =>
-                          handleReceiptFileChange(idx, e.target.files[0])
-                        }
+                        onChange={(e) => {
+                          const file = e.currentTarget.files?.[0];
+                          handleReceiptFileChange(idx, file);
+                        }}
                       />
                       <Button
                         variant="link"
@@ -567,9 +588,12 @@ export default function AddSalesPage() {
                     shipment_name: shipmentName,
                     notes,
                     items,
-                    receiptFileNames: receiptFiles
-                      .filter(f => f instanceof File)
-                      .map(f => f.name),
+                    receiptFileNames: [
+                      ...savedReceiptNames,
+                      ...receiptFiles
+                        .filter(f => f instanceof File)
+                        .map(f => f.name)
+                    ]
                   };
                   localStorage.setItem("draftSale", JSON.stringify(draftSale));
                   navigate("/add-product");

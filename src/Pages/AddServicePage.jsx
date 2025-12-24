@@ -117,13 +117,17 @@ const AddServicePage = () => {
           }
         }
 
-    
+
         if (item.type === "sparepart") {
           if (!item.sparepart_id) {
             newErrors[`sparepart_id_${i}`] = "Sparepart is required";
-          } 
-          /* Quantity only for NON-PCB */
-          if (!item.isPCB) {
+          }
+
+          if (item.isPCB) {
+            if (!item.vci_serial_no) {
+              newErrors[`vci_serial_no_${i}`] = "Serial No is required";
+            }
+          } else {
             const qty = Number(item.quantity);
             if (!item.quantity || Number.isNaN(qty) || qty <= 0) {
               newErrors[`quantity_${i}`] = "Quantity must be greater than 0";
@@ -134,10 +138,11 @@ const AddServicePage = () => {
             newErrors[`status_${i}`] = "Status is required";
           }
 
+
+
           if (item.isPCB) {
             const allowed = allowedStatus[i];
 
-            // allowedStatus exists AND selection is invalid
             if (
               allowed &&
               allowed.length > 0 &&
@@ -391,11 +396,11 @@ const AddServicePage = () => {
   const addRow = () => {
     const last = formData.items[formData.items.length - 1];
 
-    // Required: Product must be selected
     if (!last.sparepart_id) {
-      toast.error("Please select a product before adding another row.");
+      toast.error("Please select a sparepart before adding another row.");
       return;
     }
+
 
     // PCB validation
     if (last.isPCB) {
@@ -441,31 +446,31 @@ const AddServicePage = () => {
   };
 
 
- const removeRow = (index) => {
-  MySwal.fire({
-    title: "Delete this item?",
-    text: "This action cannot be undone",
-    icon: "warning",
-    showCancelButton: true,
-    confirmButtonColor: "#d33",
-    cancelButtonColor: "#2FA64F",
-    confirmButtonText: "Yes, delete",
-  }).then((result) => {
-    if (!result.isConfirmed) return;
+  const removeRow = (index) => {
+    MySwal.fire({
+      title: "Delete this item?",
+      text: "This action cannot be undone",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#2FA64F",
+      confirmButtonText: "Yes, delete",
+    }).then((result) => {
+      if (!result.isConfirmed) return;
 
-    setFormData((prev) => {
-      const items = [...prev.items];
-      items.splice(index, 1);
+      setFormData((prev) => {
+        const items = [...prev.items];
+        items.splice(index, 1);
 
-      return {
-        ...prev,
-        items, // can be empty — allowed
-      };
+        return {
+          ...prev,
+          items, // can be empty — allowed
+        };
+      });
+
+      toast.success("Item deleted");
     });
-
-    toast.success("Item deleted");
-  });
-};
+  };
 
 
 
@@ -492,6 +497,7 @@ const AddServicePage = () => {
 
     formData.items.forEach((item, index) => {
       if (!item || !item.type) return;
+      payload.append(`items[${index}][type]`, item.type);
 
       payload.append(`items[${index}][status]`, String(item.status || "").trim());
       payload.append(`items[${index}][remarks]`, String(item.remarks || "").trim());
@@ -503,9 +509,19 @@ const AddServicePage = () => {
       }
 
       if (item.type === "sparepart") {
-        payload.append(`items[${index}][sparepart_id]`, String(item.sparepart_id));
-        payload.append(`items[${index}][quantity]`, String(item.quantity));
+        payload.append(`items[${index}][sparepart_id]`, item.sparepart_id);
+        payload.append(`items[${index}][status]`, String(item.status || "").trim());
+
+        if (item.isPCB) {
+          payload.append(
+            `items[${index}][vci_serial_no]`,
+            item.vci_serial_no
+          );
+        } else {
+          payload.append(`items[${index}][quantity]`, item.quantity);
+        }
       }
+
 
       if (item.upload_image instanceof File) {
         payload.append(`items[${index}][upload_image]`, item.upload_image);
@@ -684,7 +700,7 @@ const AddServicePage = () => {
                       )
                     }
                   >
-                        <i className="bi bi-x-circle"></i>
+                    <i className="bi bi-x-circle"></i>
                   </Button>
                 </div>
               ))}
@@ -762,7 +778,8 @@ const AddServicePage = () => {
                 {/* =========================
           */}
                 <td>
-                  {item.type === "product" ? (
+                  {/* ================= PRODUCT ================= */}
+                  {item.type === "product" && (
                     <>
                       <Row>
                         <Col>
@@ -778,6 +795,7 @@ const AddServicePage = () => {
                             }
                           />
                         </Col>
+
                         <Col>
                           <Form.Control
                             placeholder="Serial To"
@@ -792,32 +810,60 @@ const AddServicePage = () => {
                           />
                         </Col>
                       </Row>
+
                       {errors[`serial_${i}`] && (
                         <div className="invalid-feedback d-block">
                           {errors[`serial_${i}`]}
                         </div>
                       )}
                     </>
-                  ) : (
+                  )}
+
+                  {/* ================= SPAREPART ================= */}
+                  {item.type === "sparepart" && (
                     <>
-                      <Form.Control
-                        type="number"
-                        min="1"
-                        placeholder="Quantity"
-                        value={item.quantity || ""}
-                        isInvalid={!!errors[`quantity_${i}`]}
-                        onChange={(e) =>
-                          handleItemChange(i, {
-                            target: { name: "quantity", value: e.target.value },
-                          })
-                        }
-                      />
-                      <Form.Control.Feedback type="invalid">
-                        {errors[`quantity_${i}`]}
-                      </Form.Control.Feedback>
+                      {/* PCB / BARCODE → SERIAL NO */}
+                      {item.isPCB ? (
+                        <>
+                          <Form.Control
+                            placeholder="Serial No"
+                            value={item.vci_serial_no || ""}
+                            isInvalid={!!errors[`vci_serial_no_${i}`]}
+                            maxLength={6}
+                            onChange={(e) =>
+                              handleItemChange(i, {
+                                target: { name: "vci_serial_no", value: e.target.value },
+                              })
+                            }
+                          />
+                          <Form.Control.Feedback type="invalid">
+                            {errors[`vci_serial_no_${i}`]}
+                          </Form.Control.Feedback>
+                        </>
+                      ) : (
+                        /* NORMAL SPAREPART → QUANTITY */
+                        <>
+                          <Form.Control
+                            type="number"
+                            min="1"
+                            placeholder="Quantity"
+                            value={item.quantity || ""}
+                            isInvalid={!!errors[`quantity_${i}`]}
+                            onChange={(e) =>
+                              handleItemChange(i, {
+                                target: { name: "quantity", value: e.target.value },
+                              })
+                            }
+                          />
+                          <Form.Control.Feedback type="invalid">
+                            {errors[`quantity_${i}`]}
+                          </Form.Control.Feedback>
+                        </>
+                      )}
                     </>
                   )}
                 </td>
+
 
                 {/* =========================
           STATUS
