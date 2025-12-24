@@ -524,8 +524,6 @@ export default function App() {
                     </div>
                   )}
                 </div>
-
-
                 <div className="mb-2 col-12 form-field">
                   <Form.Label className="mb-1" style={{ fontSize: "13px", fontWeight: 500 }}>
                     Required per VCI <span style={{ color: "red" }}>*</span>

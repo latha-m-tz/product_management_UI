@@ -18,9 +18,20 @@ const EditServicePage = () => {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(true);
   const [spareparts, setSpareparts] = useState([]);
+  const today = new Date().toISOString().split("T")[0];
+
+  const onlySixDigits = (value) => {
+    return value.replace(/\D/g, "").slice(0, 6);
+  };
+
+  const getFileName = (path) => {
+    if (!path) return "";
+    return path.split("/").pop();
+  };
+
   const getAllowedStatuses = (item) => {
     if (item.type === "sparepart") {
-      return ["Return"]; 
+      return ["Return"];
     }
 
     if (item.type === "product") {
@@ -257,6 +268,9 @@ const EditServicePage = () => {
 
     if (!formData.vendor_id) newErrors.vendor_id = "Vendor is required";
     if (!formData.challan_no) newErrors.challan_no = "Challan No is required";
+    if (formData.challan_date > today) {
+      newErrors.challan_date = "Future date is not allowed";
+    }
 
     formData.items.forEach((item, i) => {
 
@@ -301,55 +315,81 @@ const EditServicePage = () => {
 
     return item.quantity && Number(item.quantity) > 0;
   };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
 
     const fd = new FormData();
+
+    // Laravel PUT override
     fd.append("_method", "PUT");
+
+    // =========================
+    // SERVICE HEADER FIELDS
+    // =========================
     fd.append("vendor_id", formData.vendor_id);
     fd.append("challan_no", formData.challan_no);
     fd.append("challan_date", formData.challan_date);
     fd.append("tracking_no", formData.tracking_no || "");
 
-    // Receipt Files
+    // =========================
+    // RECEIPT FILES
+    // =========================
     formData.receipt_files.forEach((file, i) => {
       if (file instanceof File) {
         fd.append(`receipt_files[${i}]`, file);
       }
     });
 
+    // =========================
+    // SERVICE ITEMS
+    // =========================
     formData.items.forEach((item, i) => {
-      if (item.id) fd.append(`items[${i}][id]`, item.id);
+
+      // Existing item ID (for edit)
+      if (item.id) {
+        fd.append(`items[${i}][id]`, item.id);
+      }
 
       fd.append(`items[${i}][status]`, item.status || "");
       fd.append(`items[${i}][remarks]`, item.remarks || "");
 
-      // PRODUCT
+      // ---------- PRODUCT ----------
       if (item.type === "product") {
-        fd.append(`items[${i}][product_id]`, item.product_id);
-        fd.append(`items[${i}][serial_from]`, item.serial_from);
-        fd.append(`items[${i}][serial_to]`, item.serial_to);
+        fd.append(`items[${i}][product_id]`, item.product_id || "");
+        fd.append(`items[${i}][serial_from]`, item.serial_from || "");
+        fd.append(`items[${i}][serial_to]`, item.serial_to || "");
       }
 
-      // SPAREPART
+      // ---------- SPAREPART ----------
       if (item.type === "sparepart") {
-        fd.append(`items[${i}][sparepart_id]`, item.sparepart_id);
+        fd.append(`items[${i}][sparepart_id]`, item.sparepart_id || "");
 
         if (item.isPCB) {
-          fd.append(`items[${i}][vci_serial_no]`, item.vci_serial_no);
+          fd.append(`items[${i}][vci_serial_no]`, item.vci_serial_no || "");
         } else {
-          fd.append(`items[${i}][quantity]`, item.quantity);
+          fd.append(`items[${i}][quantity]`, item.quantity || "");
         }
       }
 
+      // =========================
+      // 🔑 KEEP EXISTING IMAGE
+      // =========================
+      if (typeof item.upload_image === "string") {
+        fd.append(`items[${i}][existing_image]`, item.upload_image);
+      }
+
+      // =========================
+      // 🔁 NEW IMAGE (REPLACE)
+      // =========================
       if (item.upload_image instanceof File) {
         fd.append(`items[${i}][upload_image]`, item.upload_image);
       }
     });
 
-
+    // =========================
+    // SUBMIT REQUEST
+    // =========================
     try {
       await api.post(`/service-vci/${id}`, fd, {
         headers: { "Content-Type": "multipart/form-data" },
@@ -363,7 +403,7 @@ const EditServicePage = () => {
 
       if (error.response?.data?.errors) {
         const backendErrors = error.response.data.errors;
-        const formatted = {};
+        const formattedErrors = {};
         let firstErrorMessage = null;
 
         Object.keys(backendErrors).forEach((key) => {
@@ -375,21 +415,21 @@ const EditServicePage = () => {
 
           if (key.startsWith("items.")) {
             const parts = key.split(".");
-            const rowIndex = parts[1]; // items.0.quantity => 0
+            const rowIndex = parts[1]; // items.0.quantity → 0
 
             if (key.includes("vci_serial_no")) {
-              formatted[`vci_serial_no_${rowIndex}`] = message;
-            } else {
-              formatted[`quantity_${rowIndex}`] = message;
+              formattedErrors[`vci_serial_no_${rowIndex}`] = message;
+            } else if (key.includes("quantity")) {
+              formattedErrors[`quantity_${rowIndex}`] = message;
+            } else if (key.includes("status")) {
+              formattedErrors[`status_${rowIndex}`] = message;
             }
-
           } else {
-            formatted[key] = message;
+            formattedErrors[key] = message;
           }
         });
 
-        setErrors(formatted);
-
+        setErrors(formattedErrors);
         toast.error(firstErrorMessage);
 
       } else {
@@ -397,6 +437,7 @@ const EditServicePage = () => {
       }
     }
   };
+
 
 
   if (loading) return <div className="p-5 text-center">Loading...</div>;
@@ -442,6 +483,7 @@ const EditServicePage = () => {
                 type="date"
                 name="challan_date"
                 value={formData.challan_date}
+                max={today}
                 onChange={handleChange}
                 isInvalid={!!errors.challan_date}
               />
@@ -493,15 +535,15 @@ const EditServicePage = () => {
                     size="sm"
                     className="text-success ms-1 p-0"
                     onClick={() => {
-                      const lastFile = formData.receipt_files[formData.receipt_files.length - 1];
+                      const last =
+                        formData.receipt_files[formData.receipt_files.length - 1];
 
-                      // Must upload before adding next row
-                      if (!lastFile || (!(lastFile instanceof File) && typeof lastFile !== "string")) {
-                        toast.error("Please upload the receipt file before adding another.");
+                      if (!last || (!(last instanceof File) && typeof last !== "string")) {
+                        toast.error("Please upload a file before adding another receipt.");
                         return;
                       }
 
-                      setFormData(prev => ({
+                      setFormData((prev) => ({
                         ...prev,
                         receipt_files: [...prev.receipt_files, null],
                       }));
@@ -511,55 +553,75 @@ const EditServicePage = () => {
                   </Button>
                 </Form.Label>
 
-                {formData.receipt_files.map((file, i) => (
-                  <div key={i} className="d-flex align-items-center mb-2">
+                {formData.receipt_files.map((file, i) => {
+                  const isExisting = typeof file === "string";
+                  const displayName = file
+                    ? isExisting
+                      ? getFileName(file)
+                      : file.name
+                    : "No file chosen";
 
-                    {/* File Input */}
-                    <Form.Control
-                      type="file"
-                      accept="image/*,application/pdf"
-                      onChange={(e) => {
-                        const updated = [...formData.receipt_files];
-                        updated[i] = e.target.files[0];
-                        setFormData(prev => ({ ...prev, receipt_files: updated }));
-                      }}
-                    />
+                  return (
+                    <div key={i} className="d-flex align-items-center mb-2">
+                      {/* FAKE FILE INPUT */}
+                      <div className="input-group flex-grow-1">
+                        <button
+                          type="button"
+                          className="btn btn-outline-secondary"
+                          onClick={() =>
+                            document.getElementById(`receipt-input-${i}`).click()
+                          }
+                        >
+                          Choose File
+                        </button>
 
-                    {/* Delete button (DISABLED for first row) */}
-                    <Button
-                      variant="link"
-                      size="sm"
-                      className="text-danger ms-2 p-0"
-                      disabled={i === 0}
-                      onClick={() =>
-                        setFormData(prev => ({
-                          ...prev,
-                          receipt_files: prev.receipt_files.filter((_, idx) => idx !== i),
-                        }))
-                      }
-                    >
-                      <i className="bi bi-x-circle"></i>
-                    </Button>
-                  </div>
-                ))}
+                        <input
+                          type="text"
+                          className="form-control"
+                          value={displayName}
+                          readOnly
+                        />
+                      </div>
 
-                {/* EXISTING FILE LINKS */}
-                {formData.receipt_files.map((file, i) =>
-                  typeof file === "string" ? (
-                    <div key={`existing-${i}`} className="mt-1">
-                      <a
-                        href={`${API_BASE_URL.replace("/api", "")}/storage/${file}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      {/* REAL FILE INPUT (HIDDEN) */}
+                      <input
+                        type="file"
+                        accept="image/*,application/pdf"
+                        className="d-none"
+                        id={`receipt-input-${i}`}
+                        onChange={(e) => {
+                          const updated = [...formData.receipt_files];
+                          updated[i] = e.target.files[0];
+                          setFormData((prev) => ({
+                            ...prev,
+                            receipt_files: updated,
+                          }));
+                        }}
+                      />
+
+                      {/* ❌ REMOVE */}
+                      <Button
+                        variant="link"
+                        size="sm"
+                        className="text-danger ms-2 p-0"
+                        disabled={formData.receipt_files.length === 1}
+                        onClick={() =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            receipt_files: prev.receipt_files.filter((_, idx) => idx !== i),
+                          }))
+                        }
                       >
-                         View Uploaded File {i + 1}
-                      </a>
+                        <i className="bi bi-x-circle"></i>
+                      </Button>
                     </div>
-                  ) : null
-                )}
+                  );
+                })}
+
               </Form.Group>
             </Col>
           </Row>
+
 
         </Row>
 
@@ -628,11 +690,16 @@ const EditServicePage = () => {
                         <Col>
                           <Form.Control
                             placeholder="Serial From"
+                            inputMode="numeric"
+                            maxLength={6}
                             value={item.serial_from || ""}
                             isInvalid={!!errors[`serial_${i}`]}
                             onChange={(e) =>
                               handleItemChange(i, {
-                                target: { name: "serial_from", value: e.target.value },
+                                target: {
+                                  name: "serial_from",
+                                  value: onlySixDigits(e.target.value),
+                                },
                               })
                             }
                           />
@@ -640,11 +707,16 @@ const EditServicePage = () => {
                         <Col>
                           <Form.Control
                             placeholder="Serial To"
+                            inputMode="numeric"
+                            maxLength={6}
                             value={item.serial_to || ""}
                             isInvalid={!!errors[`serial_${i}`]}
                             onChange={(e) =>
                               handleItemChange(i, {
-                                target: { name: "serial_to", value: e.target.value },
+                                target: {
+                                  name: "serial_to",
+                                  value: onlySixDigits(e.target.value),
+                                },
                               })
                             }
                           />
@@ -661,11 +733,16 @@ const EditServicePage = () => {
                     <>
                       <Form.Control
                         placeholder="VCI Serial"
+                        inputMode="numeric"
+                        maxLength={6}
                         value={item.vci_serial_no || ""}
                         isInvalid={!!errors[`vci_serial_no_${i}`]}
                         onChange={(e) =>
                           handleItemChange(i, {
-                            target: { name: "vci_serial_no", value: e.target.value },
+                            target: {
+                              name: "vci_serial_no",
+                              value: onlySixDigits(e.target.value),
+                            },
                           })
                         }
                       />
@@ -733,26 +810,54 @@ const EditServicePage = () => {
 
                 {/* IMAGE */}
                 <td>
-                  <Form.Control
-                    type="file"
-                    onChange={(e) =>
-                      handleItemChange(i, {
-                        target: { name: "upload_image", files: e.target.files },
-                      })
-                    }
-                  />
-
-                  {item.upload_image && typeof item.upload_image === "string" && (
-                    <a
-                      href={item.upload_image}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="d-block mt-1"
+                  <div className="d-flex align-items-center border rounded px-2 py-1">
+                    {/* Choose File Button */}
+                    <label
+                      htmlFor={`item-file-${i}`}
+                      className="btn btn-secondary btn-sm me-2"
                     >
-                      View File
-                    </a>
-                  )}
+                      Choose File
+                    </label>
+
+                    {/* File Name */}
+                    <div
+                      className="text-truncate"
+                      style={{ maxWidth: "140px", lineHeight: "1.2" }}
+                    >                      {item.upload_image ? (
+                      typeof item.upload_image === "string" ? (
+                        <a
+                          href={`${API_BASE_URL.replace("/api", "")}/storage/${item.upload_image}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-dark text-decoration-none"
+                        >
+                          {getFileName(item.upload_image)}
+                        </a>
+                      ) : (
+                        <span className="text-dark">
+                          {item.upload_image.name}
+                        </span>
+                      )
+                    ) : (
+                      <span className="text-muted">No file chosen</span>
+                    )}
+                    </div>
+
+                    {/* Hidden File Input */}
+                    <Form.Control
+                      type="file"
+                      accept="image/*,application/pdf"
+                      className="d-none"
+                      id={`item-file-${i}`}
+                      onChange={(e) =>
+                        handleItemChange(i, {
+                          target: { name: "upload_image", files: e.target.files },
+                        })
+                      }
+                    />
+                  </div>
                 </td>
+
 
                 {/* ACTION */}
                 <td className="text-center">
