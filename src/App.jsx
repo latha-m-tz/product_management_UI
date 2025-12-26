@@ -53,7 +53,7 @@ import PurchaseOverallPage from "./Pages/PurchaseOverallPage";
 import ProductSaleStatusPage from "./Pages/ProductSaleStatusPage";
 import { LoaderProvider, useLoader } from "./LoaderContext";
 import GlobalLoader from "./components/GlobalLoader";
-import PurchaseBarcodePage from "./Pages/PurchaseBarcodePage";
+// import PurchaseBarcodePage from "./Pages/PurchaseBarcodePage";
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem("authToken"));
 
@@ -152,7 +152,6 @@ function GlobalLoaderWrapper() {
           <Route path="/service-delivery/add" element={<AddServiceDelivery />} />
           <Route path="/service-delivery/:id/edit" element={<EditServiceDelivery />} />
           <Route path="/product-sale-status/:productId" element={<ProductSaleStatusPage />} />
-          <Route path="/purchase/barcode" element={<PurchaseBarcodePage />} />
         </Route>
       </Routes>
     </Router>
