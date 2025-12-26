@@ -7,10 +7,13 @@ import { useNavigate, useParams } from "react-router-dom";
 import { IoTrashOutline } from "react-icons/io5";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
+import { useLoader } from "../LoaderContext";
 
 const EditServicePage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { loading: globalLoading, setLoading: setGlobalLoading } = useLoader();
+
   const MySwal = withReactContent(Swal);
 
   const [products, setProducts] = useState([]);
@@ -19,6 +22,10 @@ const EditServicePage = () => {
   const [loading, setLoading] = useState(true);
   const [spareparts, setSpareparts] = useState([]);
   const today = new Date().toISOString().split("T")[0];
+  const [existingReceipts, setExistingReceipts] = useState([]);
+  const [deletedReceipts, setDeletedReceipts] = useState([]); // ✅ ADD
+  // string paths
+  const [newReceipts, setNewReceipts] = useState([]);           // File objects
 
   const onlySixDigits = (value) => {
     return value.replace(/\D/g, "").slice(0, 6);
@@ -31,7 +38,14 @@ const EditServicePage = () => {
 
   const getAllowedStatuses = (item) => {
     if (item.type === "sparepart") {
-      return ["Return"];
+      const allowed = ["Inward", "Return"];
+
+      // ✅ include existing status so it displays
+      if (item.status && !allowed.includes(item.status)) {
+        allowed.unshift(item.status);
+      }
+
+      return allowed;
     }
 
     if (item.type === "product") {
@@ -41,13 +55,15 @@ const EditServicePage = () => {
     return [];
   };
 
+
   const [formData, setFormData] = useState({
     vendor_id: "",
     challan_no: "",
     challan_date: "",
     tracking_no: "",
-    receipt_files: [],
     items: [],
+    receipt_files: [],
+
   });
 
   useEffect(() => {
@@ -57,27 +73,34 @@ const EditServicePage = () => {
     const loadServiceData = async () => {
       try {
         const [prodRes, spRes, venRes, serviceRes] = await Promise.all([
-          api.get("/product"),              // ✅ PRODUCTS
-          api.get("/spareparts/get"),       // ✅ SPAREPARTS
+          api.get("/product"),
+          api.get("/spareparts/get"),
           api.get("/vendorsget"),
           api.get(`/service-vci/${id}`),
         ]);
 
+        /* ================= PRODUCTS ================= */
         setProducts(
           Array.isArray(prodRes.data)
             ? prodRes.data
             : prodRes.data.products || []
         );
 
-        setSpareparts(spRes.data.spareparts || []);
+        /* ================= SPAREPARTS & VENDORS ================= */
+        const sparepartsList = spRes.data?.spareparts || [];
+        setSpareparts(sparepartsList);
         setVendors(venRes.data || []);
-
 
         const service = serviceRes.data;
 
+        setExistingReceipts(service.receipt_files || []);
+        setDeletedReceipts([]);
+        setNewReceipts([]);
+
         const formattedItems = service.items.map((it) => {
+
+          /* ===== PRODUCT ===== */
           if (it.product_id) {
-            // PRODUCT ROW
             return {
               id: it.id,
               type: "product",
@@ -89,20 +112,15 @@ const EditServicePage = () => {
               upload_image: it.upload_image || null,
             };
           }
-          const getAllowedStatuses = (item) => {
-            if (item.type === "sparepart") {
-              return ["Return"]; // 🔒 ONLY Return
-            }
 
-            if (item.type === "product") {
-              return ["Inward", "Testing", "Delivered"];
-            }
+          /* ===== SPAREPART ===== */
+          const spare = sparepartsList.find(
+            (p) => p.id === it.sparepart_id
+          );
 
-            return [];
-          };
-
-          const spare = spRes.data.spareparts.find(p => p.id === it.sparepart_id);
-          const isPCB = spare?.product_type_name === "vci";
+          const isPCB =
+            spare?.name?.toUpperCase().includes("PCB") ||
+            spare?.name?.toUpperCase().includes("BARCODE");
 
           return {
             id: it.id,
@@ -117,22 +135,24 @@ const EditServicePage = () => {
           };
         });
 
-
+        /* ================= FORM DATA ================= */
         setFormData({
-          vendor_id: service.vendor_id,
-          challan_no: service.challan_no,
-          challan_date: service.challan_date,
-          tracking_no: service.tracking_no,
-          receipt_files: service.receipt_files && service.receipt_files.length > 0
+          vendor_id: service.vendor_id || "",
+          challan_no: service.challan_no || "",
+          challan_date: service.challan_date || "",
+          tracking_no: service.tracking_no || "",
+          items: formattedItems,
+          receipt_files: service.receipt_files?.length
             ? service.receipt_files
             : [null],
-          items: formattedItems,
         });
 
         setLoading(false);
+
       } catch (error) {
         console.error(error);
         toast.error("Failed to load data!");
+        setLoading(false);
       }
     };
 
@@ -156,7 +176,6 @@ const EditServicePage = () => {
     const items = [...formData.items];
     const row = items[index];
 
-    // PRODUCT SELECT
     if (name === "product_id") {
       row.product_id = Number(value);
       row.sparepart_id = "";
@@ -165,17 +184,20 @@ const EditServicePage = () => {
       row.isPCB = false;
     }
 
-    // SPAREPART SELECT
     if (name === "sparepart_id") {
-      const spare = products.find(p => p.id === Number(value));
+      const spare = spareparts.find(sp => sp.id === Number(value));
+
       row.sparepart_id = Number(value);
       row.product_id = "";
-      row.isPCB = spare?.product_type_name === "vci";
+
+      row.isPCB =
+        spare?.name?.toUpperCase().includes("PCB") ||
+        spare?.name?.toUpperCase().includes("BARCODE");
+
       row.vci_serial_no = "";
       row.quantity = "";
     }
 
-    // SERIAL / QTY
     if (["serial_from", "serial_to", "vci_serial_no", "quantity"].includes(name)) {
       row[name] = value.replace(/\D/g, "");
     }
@@ -317,7 +339,14 @@ const EditServicePage = () => {
   };
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validate()) return;
+
+    // 🚫 Prevent double submit
+    if (globalLoading) return;
+
+    if (!validate()) {
+      toast.error("Please fill the required fields.");
+      return;
+    }
 
     const fd = new FormData();
 
@@ -331,37 +360,36 @@ const EditServicePage = () => {
     fd.append("challan_no", formData.challan_no);
     fd.append("challan_date", formData.challan_date);
     fd.append("tracking_no", formData.tracking_no || "");
-
-    // =========================
-    // RECEIPT FILES
-    // =========================
-    formData.receipt_files.forEach((file, i) => {
-      if (file instanceof File) {
-        fd.append(`receipt_files[${i}]`, file);
-      }
+    existingReceipts.forEach((file) => {
+      fd.append("existing_receipt_files[]", file);
     });
 
-    // =========================
-    // SERVICE ITEMS
-    // =========================
-    formData.items.forEach((item, i) => {
+    newReceipts.forEach((file) => {
+      fd.append("receipt_files[]", file);
+    });
+    deletedReceipts.forEach((file) => {
+      fd.append("deleted_receipt_files[]", file);
+    });
 
-      // Existing item ID (for edit)
+    formData.items.forEach((item, i) => {
       if (item.id) {
         fd.append(`items[${i}][id]`, item.id);
       }
 
+      fd.append(`items[${i}][type]`, item.type);
+
       fd.append(`items[${i}][status]`, item.status || "");
       fd.append(`items[${i}][remarks]`, item.remarks || "");
 
-      // ---------- PRODUCT ----------
+
+      // PRODUCT
       if (item.type === "product") {
         fd.append(`items[${i}][product_id]`, item.product_id || "");
         fd.append(`items[${i}][serial_from]`, item.serial_from || "");
         fd.append(`items[${i}][serial_to]`, item.serial_to || "");
       }
 
-      // ---------- SPAREPART ----------
+      // SPAREPART
       if (item.type === "sparepart") {
         fd.append(`items[${i}][sparepart_id]`, item.sparepart_id || "");
 
@@ -372,25 +400,20 @@ const EditServicePage = () => {
         }
       }
 
-      // =========================
-      // 🔑 KEEP EXISTING IMAGE
-      // =========================
+      // KEEP EXISTING IMAGE
       if (typeof item.upload_image === "string") {
         fd.append(`items[${i}][existing_image]`, item.upload_image);
       }
 
-      // =========================
-      // 🔁 NEW IMAGE (REPLACE)
-      // =========================
+      // NEW IMAGE
       if (item.upload_image instanceof File) {
         fd.append(`items[${i}][upload_image]`, item.upload_image);
       }
     });
 
-    // =========================
-    // SUBMIT REQUEST
-    // =========================
     try {
+      setGlobalLoading(true); // 🌐 GLOBAL LOADER ON
+
       await api.post(`/service-vci/${id}`, fd, {
         headers: { "Content-Type": "multipart/form-data" },
       });
@@ -409,13 +432,10 @@ const EditServicePage = () => {
         Object.keys(backendErrors).forEach((key) => {
           const message = backendErrors[key][0];
 
-          if (!firstErrorMessage) {
-            firstErrorMessage = message;
-          }
+          if (!firstErrorMessage) firstErrorMessage = message;
 
           if (key.startsWith("items.")) {
-            const parts = key.split(".");
-            const rowIndex = parts[1]; // items.0.quantity → 0
+            const rowIndex = key.split(".")[1];
 
             if (key.includes("vci_serial_no")) {
               formattedErrors[`vci_serial_no_${rowIndex}`] = message;
@@ -431,12 +451,14 @@ const EditServicePage = () => {
 
         setErrors(formattedErrors);
         toast.error(firstErrorMessage);
-
       } else {
         toast.error("Failed to update service!");
       }
+    } finally {
+      setGlobalLoading(false); // 🌐 GLOBAL LOADER OFF (ALWAYS)
     }
   };
+
 
 
 
@@ -535,8 +557,9 @@ const EditServicePage = () => {
                     size="sm"
                     className="text-success ms-1 p-0"
                     onClick={() => {
-                      const last =
-                        formData.receipt_files[formData.receipt_files.length - 1];
+                      const receipts = formData.receipt_files || [];
+
+                      const last = receipts[receipts.length - 1];
 
                       if (!last || (!(last instanceof File) && typeof last !== "string")) {
                         toast.error("Please upload a file before adding another receipt.");
@@ -553,7 +576,7 @@ const EditServicePage = () => {
                   </Button>
                 </Form.Label>
 
-                {formData.receipt_files.map((file, i) => {
+                {(formData.receipt_files || []).map((file, i) => {
                   const isExisting = typeof file === "string";
                   const displayName = file
                     ? isExisting
@@ -608,7 +631,7 @@ const EditServicePage = () => {
                         onClick={() =>
                           setFormData((prev) => ({
                             ...prev,
-                            receipt_files: prev.receipt_files.filter((_, idx) => idx !== i),
+                            receipt_files: prev.receipt_files.filter((_, idx) => idx !== i).filter(Boolean),
                           }))
                         }
                       >
@@ -936,8 +959,8 @@ const EditServicePage = () => {
             Cancel
           </Button>
 
-          <Button type="submit" variant="success">
-            Update Service
+          <Button type="submit" variant="success" disabled={globalLoading}>
+            {globalLoading ? "Updating..." : "Update Service"}
           </Button>
         </div>
       </Form>

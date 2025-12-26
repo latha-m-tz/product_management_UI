@@ -8,12 +8,13 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import { useNavigate, useParams } from "react-router-dom";
 import { IoTrashOutline } from "react-icons/io5";
 import { useRef } from "react";
+import { useLoader } from "../LoaderContext";
 
 export default function EditSalesPage() {
   const navigate = useNavigate();
   const { id } = useParams();
   const saleLoadedRef = useRef(false);
-
+  const { loading, setLoading } = useLoader();
   const [customers, setCustomers] = useState([]);
   const [customerId, setCustomerId] = useState("");
   const [challanNo, setChallanNo] = useState("");
@@ -252,72 +253,66 @@ export default function EditSalesPage() {
   };
 
   const handleSave = async () => {
+    if (loading) return;
+
     if (!validateForm()) {
       toast.warning("Please fix the highlighted errors!");
       return;
     }
 
-    const formData = new FormData();
-
-    formData.append("customer_id", customerId);
-    formData.append("challan_no", challanNo.trim());
-    formData.append("challan_date", challanDate);
-    formData.append("shipment_date", shipmentDate);
-    formData.append("shipment_name", shipmentName.trim());
-    formData.append("notes", notes.trim());
-
-    // items.forEach((item, i) => {
-    //   if (Array.isArray(item.serials)) {
-    //     item.serials.forEach((serial) => {
-    //       formData.append(`items[${i}][serial_no]`, String(serial).trim());
-    //       formData.append(`items[${i}][quantity]`, 1);
-    //     });
-    //   }
-    // });
-    let index = 0;
-
-    items.forEach((item) => {
-      // Case 1: Serial based products
-      if (Array.isArray(item.serials) && item.serials.length > 0) {
-        item.serials.forEach((serial) => {
-          formData.append(`items[${index}][product_id]`, item.product_id);
-          formData.append(`items[${index}][serial_no]`, serial);
-          formData.append(`items[${index}][quantity]`, 1);
-          index++;
-        });
-      }
-      else {
-        formData.append(`items[${index}][product_id]`, item.product_id);
-        formData.append(`items[${index}][quantity]`, item.quantity);
-        index++;
-      }
-    });
-
-
-    receiptFiles.forEach((file) => {
-      if (file instanceof File) {
-        formData.append("receipt_files[]", file);
-      }
-    });
-
-    formData.append(
-      "removed_receipt_files",
-      JSON.stringify(removedReceipts)
-    );
-
     try {
-      await api.post(`/sales/${id}?_method=PUT`, formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
+      setLoading(true);
+
+      const formData = new FormData();
+
+      formData.append("customer_id", customerId);
+      formData.append("challan_no", challanNo.trim());
+      formData.append("challan_date", challanDate);
+      formData.append("shipment_date", shipmentDate);
+      formData.append("shipment_name", shipmentName.trim());
+      formData.append("notes", notes.trim());
+
+      let index = 0;
+      items.forEach((item) => {
+        if (Array.isArray(item.serials) && item.serials.length > 0) {
+          item.serials.forEach((serial) => {
+            formData.append(`items[${index}][product_id]`, item.product_id);
+            formData.append(`items[${index}][serial_no]`, serial);
+            formData.append(`items[${index}][quantity]`, 1);
+            index++;
+          });
+        } else {
+          formData.append(`items[${index}][product_id]`, item.product_id);
+          formData.append(`items[${index}][quantity]`, item.quantity);
+          index++;
+        }
       });
+
+      receiptFiles.forEach((file) => {
+        if (file instanceof File) {
+          formData.append("receipt_files[]", file);
+        }
+      });
+
+      formData.append(
+        "removed_receipt_files",
+        JSON.stringify(removedReceipts)
+      );
+
+      await api.post(`/sales/${id}?_method=PUT`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
       localStorage.removeItem("draftSale");
       toast.success("Sale updated successfully!");
       navigate("/sales-order");
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to update sale!");
+    } finally {
+      setLoading(false); // 🌐 GLOBAL LOADER OFF
     }
   };
+
 
 
   const handleDeleteItem = (index) => {
@@ -649,8 +644,12 @@ export default function EditSalesPage() {
               >
                 Cancel
               </Button>
-              <Button variant="success" onClick={handleSave}>
-                Update
+              <Button
+                variant="success"
+                onClick={handleSave}
+                disabled={loading}
+              >
+                {loading ? "Updating..." : "Update"}
               </Button>
             </div>
           </Form>

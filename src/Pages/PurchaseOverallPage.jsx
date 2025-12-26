@@ -39,27 +39,29 @@ export default function PurchaseOverallPage() {
     }
   };
   const expanded = stock.flatMap((row) => {
-    if (row.type === "pcb") {
-      return (row.available_serials || []).map((x) => ({
+    if (row.available_serials && row.available_serials.length > 0) {
+      return row.available_serials.map((x) => ({
         sparepart_id: row.sparepart_id,
         sparepart_name: row.sparepart_name,
         serial: x.serial,
         in_service: x.in_service,
-        type: "pcb",
+        isSerialBased: true,
       }));
     }
 
-    // NON-PCB: only one row
+    // ✅ Quantity-based spareparts
     return [
       {
         sparepart_id: row.sparepart_id,
         sparepart_name: row.sparepart_name,
-        type: "non-pcb",
+        isSerialBased: false,
         available_quantity: row.available_quantity,
         service_quantity: row.service_quantity,
       },
     ];
   });
+
+
 
   const filtered = selectedSparepartName
     ? expanded.filter((item) => item.sparepart_name === selectedSparepartName)
@@ -134,7 +136,7 @@ export default function PurchaseOverallPage() {
               <tr>
                 <th style={{ width: "60px", textAlign: "center", backgroundColor: "#2E3A59", color: "white" }}>S.No</th>
 
-                {isPCB ? (
+                {expanded.some(i => i.isSerialBased) ? (
                   <>
                     <th style={{ backgroundColor: "#2E3A59", color: "white" }}>Sparepart</th>
                     <th style={{ backgroundColor: "#2E3A59", color: "white" }}>Serial Number</th>
@@ -170,7 +172,7 @@ export default function PurchaseOverallPage() {
                       {(page - 1) * perPage + index + 1}
                     </td>
 
-                    {row.type === "pcb" ? (
+                    {row.isSerialBased ? (
                       <>
                         <td>{row.sparepart_name}</td>
                         <td>{row.serial}</td>

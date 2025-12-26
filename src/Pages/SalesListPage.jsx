@@ -133,7 +133,6 @@ export default function SalesListPage() {
       header: "Quantity",
       accessor: (row) => renderQuantities(row.items),
     },
-    // { header: "Challan Date", accessor: (row) => row.challan_date },
     { header: "Shipment Date", accessor: (row) => row.shipment_date },
     {
       header: "Actions",

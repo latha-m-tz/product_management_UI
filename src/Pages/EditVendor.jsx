@@ -13,6 +13,7 @@ import CountrySelect from "../components/CountrySelect";
 import CountryPhoneInput from "../components/CountryPhoneInput";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
+import { useLoader } from "../LoaderContext";
 import '../index.css';
 
 export default function EditVendor() {
@@ -20,6 +21,7 @@ export default function EditVendor() {
   const navigate = useNavigate();
   const [countryCode, setCountryCode] = useState("IN");
   const [contactKey, setContactKey] = useState(0);
+  const { loading, setLoading } = useLoader();
 
 
 
@@ -678,14 +680,14 @@ export default function EditVendor() {
     if (!vendor.district?.trim()) newErrors.district = "District is required";
     if (!vendor.state?.trim()) newErrors.state = "State is required";
 
-    // ❌ ADDRESS NOT REQUIRED
-    // removed newErrors.address
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const saveVendor = async () => {
+    if (loading) return; // 🚫 prevent double click
+
     if (!validateVendor()) {
       toast.error("Please fill the required fields.");
       return;
@@ -704,21 +706,17 @@ export default function EditVendor() {
     };
 
     try {
-      const res = await api.put(`/${id}`, payload);
-      const data = res.data;
+      setLoading(true); // 🌐 GLOBAL LOADER ON
 
-      setErrors({});
+      await api.put(`/${id}`, payload);
+
       toast.success("Vendor updated successfully!");
-      setTimeout(() => navigate("/vendor"), 1000);
-
+      navigate("/vendor");
     } catch (err) {
       console.error("Update vendor error:", err);
 
-      // Backend validation errors
       if (err.response?.status === 422 && err.response?.data?.errors) {
-        const backendErrors = err.response.data.errors;
-
-        Object.entries(backendErrors).forEach(([key, messages]) => {
+        Object.entries(err.response.data.errors).forEach(([key, messages]) => {
           const msg = Array.isArray(messages) ? messages[0] : messages;
 
           if (key === "mobile_no") toast.error("Mobile number already taken");
@@ -726,20 +724,16 @@ export default function EditVendor() {
           else if (key === "vendor") toast.error("Company name already exists");
           else toast.error(msg);
         });
-
-        return;
-      }
-
-      // Other backend messages
-      if (err.response?.data?.message) {
+      } else if (err.response?.data?.message) {
         toast.error(err.response.data.message);
-        return;
+      } else {
+        toast.error("Network error! Please try again.");
       }
-
-      // TRUE Network error
-      toast.error("Network error! Please try again.");
+    } finally {
+      setLoading(false); // 🌐 GLOBAL LOADER OFF
     }
   };
+
 
 
 
@@ -1124,7 +1118,13 @@ export default function EditVendor() {
       {/* --- Save / Cancel Buttons --- */}
       <div className="d-flex justify-content-end mt-3">
         <Button variant="secondary" className="me-2" onClick={() => navigate("/vendor")}>Cancel</Button>
-        <Button variant="success" onClick={saveVendor}>Update</Button>
+        <Button
+          variant="success"
+          onClick={saveVendor}
+          disabled={loading}
+        >
+          {loading ? "Updating..." : "Update"}
+        </Button>
       </div>
       {/* Right Side Panel */}
       <div

@@ -9,6 +9,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import '../index.css';
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
+import { useLoader } from "../LoaderContext";
 
 const headerStyle = {
     headerBackground: "#2E3A59",
@@ -53,6 +54,7 @@ export default function AddAssemblePage() {
     const navigate = useNavigate();
     const [checkedForDelete, setCheckedForDelete] = useState({});
     const [users, setUsers] = useState([]);
+    const { loading, setLoading } = useLoader();
 
 
 
@@ -241,6 +243,8 @@ export default function AddAssemblePage() {
 
 
     const handleAddProduct = async () => {
+        if (loading) return;     // 🚫 block double click
+        setLoading(true);
         const { fromSerial, toSerial, testedBy, product_id } = form;
         let newErrors = {};
 
@@ -254,14 +258,12 @@ export default function AddAssemblePage() {
             return;
         }
 
-        /* ------------------ PRODUCT + PREFIX ------------------ */
         const selectedProduct =
             productOptions.find(p => p.id === parseInt(product_id)) || {};
 
         const prefix = selectedProduct.serial_prefix || "";
         let serialsToAdd = [];
 
-        /* ------------------ BUILD SERIALS ------------------ */
         if (fromSerial !== toSerial) {
             const startNum = parseInt(fromSerial.replace(/\D/g, ""), 10);
             const endNum = parseInt(toSerial.replace(/\D/g, ""), 10);
@@ -278,7 +280,6 @@ export default function AddAssemblePage() {
             serialsToAdd.push(fromSerial.trim().toUpperCase());
         }
 
-        /* ------------------ REMOVE LOCAL DUPLICATES ------------------ */
         serialsToAdd = serialsToAdd.filter(
             s => !products.some(p => p.serial_no === s)
         );
@@ -329,7 +330,6 @@ export default function AddAssemblePage() {
             }
 
 
-            /* ------------------ SUCCESS SERIALS ------------------ */
             const allowedSerials = res.data.serials || serialsToAdd;
 
             const newProducts = allowedSerials.map(s => ({
@@ -356,7 +356,6 @@ export default function AddAssemblePage() {
 
             const data = error.response?.data;
 
-            /* ✅ CASE 1: item-level errors */
             if (Array.isArray(data?.items)) {
                 data.items.forEach(item => {
                     toast.error(
@@ -367,7 +366,6 @@ export default function AddAssemblePage() {
                 return;
             }
 
-            /* ✅ CASE 2: Laravel validation errors */
             if (data?.errors) {
                 Object.values(data.errors).flat().forEach(msg => {
                     toast.error(msg, { autoClose: 6000 });
@@ -375,22 +373,21 @@ export default function AddAssemblePage() {
                 return;
             }
 
-            /* ✅ CASE 3: single error field */
             if (data?.error) {
                 toast.error(data.error, { autoClose: 6000 });
                 return;
             }
 
-            /* ✅ CASE 4: normal message */
             if (data?.message) {
                 toast.error(data.message, { autoClose: 6000 });
                 return;
             }
 
-            /* ❌ FALLBACK */
             toast.error("Error checking serials.");
         }
-
+        finally {
+            setLoading(false);   
+        }
     };
 
     const handleRowChange = (index, field, value) => {
@@ -447,6 +444,8 @@ export default function AddAssemblePage() {
         });
     };
     const handleSubmit = async () => {
+        if (loading) return;     // 🚫 prevent double submit
+        setLoading(true);
         try {
             if (products.length === 0) {
                 toast.error("Add at least one product before saving.");
@@ -507,6 +506,8 @@ export default function AddAssemblePage() {
         } catch (error) {
             console.error(error);
             toast.error(error.response?.data?.message || "Error saving inventory.");
+        } finally {
+            setLoading(false);     // ✅ ALWAYS STOP LOADER
         }
     };
 
@@ -736,8 +737,9 @@ export default function AddAssemblePage() {
                             variant="success"
                             size="sm"
                             onClick={handleAddProduct}
+                            disabled={loading}
                         >
-                            + Add Product
+                            {loading ? "Processing..." : "+ Add Product"}
                         </Button>
                     </Col>
                 </Row>
@@ -979,8 +981,12 @@ export default function AddAssemblePage() {
                     >
                         Cancel
                     </Button>
-                    <Button variant="success" onClick={handleSubmit}>
-                        Save
+                    <Button
+                        variant="success"
+                        onClick={handleSubmit}
+                        disabled={loading}
+                    >
+                        {loading ? "Saving..." : "Save"}
                     </Button>
                 </div>
             )}

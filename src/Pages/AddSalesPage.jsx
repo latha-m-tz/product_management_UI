@@ -16,13 +16,14 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import BreadCrumb from "../components/BreadCrumb";
 import { useNavigate, useParams } from "react-router-dom";
 import { IoTrashOutline } from "react-icons/io5";
+import { useLoader } from "../LoaderContext";
 
 export default function AddSalesPage() {
   const navigate = useNavigate();
+  const { loading, setLoading } = useLoader();
   const { saleId } = useParams();
   const [customerId, setCustomerId] = useState("");
   const [customers, setCustomers] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [challanNo, setChallanNo] = useState("");
   const [challanDate, setChallanDate] = useState("");
   const [shipmentDate, setShipmentDate] = useState("");
@@ -74,14 +75,21 @@ export default function AddSalesPage() {
   };
 
   useEffect(() => {
-    const token = localStorage.getItem("authToken");
-    if (token) setAuthToken(token);
-    api
-      .get("/customers/get")
-      .then((res) => setCustomers(res.data))
-      .catch(() => toast.error("Failed to load customers"))
-      .finally(() => setLoading(false));
-  }, []);
+  const fetchCustomers = async () => {
+    try {
+      const token = localStorage.getItem("authToken");
+      if (token) setAuthToken(token);
+
+      const res = await api.get("/customers/get");
+      setCustomers(res.data);
+    } catch {
+      toast.error("Failed to load customers");
+    }
+  };
+
+  fetchCustomers();
+}, []);
+
 
   useEffect(() => {
     const draft = localStorage.getItem("draftSale");
@@ -247,57 +255,53 @@ export default function AddSalesPage() {
   };
 
   const handleSave = async () => {
+    if (loading) return; 
     if (!validateForm()) return;
 
-    const formData = new FormData();
-
-    formData.append("customer_id", String(customerId)); // 🔥 FIX
-    formData.append("challan_no", challanNo.trim());
-    formData.append("challan_date", challanDate);
-    formData.append("shipment_date", shipmentDate);
-    formData.append("shipment_name", shipmentName.trim());
-    formData.append("notes", notes.trim());
-
-    let itemIndex = 0;
-
-    items.forEach((item) => {
-      item.serials.forEach((sn) => {
-        formData.append(`items[${itemIndex}][serial_no]`, String(sn).trim());
-        formData.append(`items[${itemIndex}][quantity]`, "1");
-        itemIndex++;
-      });
-    });
-
-    savedReceiptNames.forEach((name, index) => {
-      formData.append(`existing_receipts[${index}]`, name);
-    });
-    receiptFiles
-      .filter(file => file instanceof File)
-      .forEach(file => {
-        formData.append("receipt_files[]", file);
-      });
-
-
     try {
-      if (saleId) {
-        await api.post(`/sales/${saleId}?_method=PUT`, formData, {
-          headers: { "Content-Type": "multipart/form-data" },
+      setLoading(true); 
+      const formData = new FormData();
+      formData.append("customer_id", String(customerId));
+      formData.append("challan_no", challanNo.trim());
+      formData.append("challan_date", challanDate);
+      formData.append("shipment_date", shipmentDate);
+      formData.append("shipment_name", shipmentName.trim());
+      formData.append("notes", notes.trim());
+
+      let itemIndex = 0;
+      items.forEach(item => {
+        item.serials.forEach(sn => {
+          formData.append(`items[${itemIndex}][serial_no]`, String(sn).trim());
+          formData.append(`items[${itemIndex}][quantity]`, "1");
+          itemIndex++;
         });
+      });
+
+      savedReceiptNames.forEach((name, index) => {
+        formData.append(`existing_receipts[${index}]`, name);
+      });
+
+      receiptFiles
+        .filter(f => f instanceof File)
+        .forEach(file => formData.append("receipt_files[]", file));
+
+      if (saleId) {
+        await api.post(`/sales/${saleId}?_method=PUT`, formData);
         toast.success("Sale updated successfully!");
       } else {
-        await api.post("/sales", formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
+        await api.post("/sales", formData);
         toast.success("Sale added successfully!");
       }
 
-      localStorage.removeItem("inSaleProducts");
-      localStorage.removeItem("selectedProducts");
       navigate("/sales-order");
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to save sale!");
+    } finally {
+      setLoading(false); // 🔥 GLOBAL LOADER OFF
     }
   };
+
+
 
 
   const handleChange = (field, value) => {
@@ -643,8 +647,8 @@ export default function AddSalesPage() {
               <Button variant="secondary" onClick={() => navigate("/sales-order")}>
                 Cancel
               </Button>
-              <Button variant="success" onClick={handleSave}>
-                {saleId ? "Update" : "Save"}
+              <Button variant="success" onClick={handleSave} disabled={loading}>
+                {loading ? "Processing..." : saleId ? "Update" : "Save"}
               </Button>
             </div>
           </Form>

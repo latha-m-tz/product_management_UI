@@ -33,14 +33,18 @@ export default function PurchaseListPage() {
   }, []);
 
   const fetchPurchases = async () => {
-    setLoading(true);
+    // setLoading(true);
     try {
       const res = await api.get(`/sparepart-purchases`);
       setPurchaseData(res.data);
-    } catch {
-      toast.error("Failed to fetch purchase data.");
-    } finally {
-      setLoading(false);
+    } catch (error) {
+      const backendMsg = error.response?.data?.message;
+
+      toast.error(
+        backendMsg
+          ? `Delete failed: ${backendMsg}`
+          : "Failed to delete purchase."
+      );
     }
   };
 

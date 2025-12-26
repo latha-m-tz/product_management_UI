@@ -11,12 +11,15 @@ import { useParams, useNavigate } from "react-router-dom";
 import { isValidPhoneNumber } from "libphonenumber-js";
 import CountrySelect from "../components/CountrySelect";
 import CountryPhoneInput from "../components/CountryPhoneInput";
+import { useLoader } from "../LoaderContext";
 
 export default function EditCustomer() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { loading: globalLoading, setLoading: setGlobalLoading } = useLoader();
   const [mobile, setMobile] = useState("");
   const [mobileError, setMobileError] = useState("");
+  const [pageLoading, setPageLoading] = useState(true);
 
 
   const [customer, setCustomer] = useState({
@@ -35,7 +38,6 @@ export default function EditCustomer() {
   const [cityOptions, setCityOptions] = useState([]);
   const [errors, setErrors] = useState({});
   const [countryCode, setCountryCode] = useState("");
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetch("https://ipapi.co/json/")
@@ -50,12 +52,16 @@ export default function EditCustomer() {
 
 
   useEffect(() => {
-    const token = localStorage.getItem("authToken");
-    setAuthToken(token);
     const fetchCustomer = async () => {
       try {
+        setPageLoading(true);
+
+        const token = localStorage.getItem("authToken");
+        if (token) setAuthToken(token);
+
         const res = await api.get(`/customers/${id}/edit`);
         const data = res.data;
+
         if (data.status === "success") {
           setCustomer({
             ...data.customer,
@@ -70,25 +76,24 @@ export default function EditCustomer() {
             mobile_no: data.customer.mobile_no ?? "",
             status: data.customer.status ?? "active",
           });
+
           if (data.customer.pincode) {
             fetchPincodeDetails(data.customer.pincode);
           }
-        }
-        else {
+        } else {
           toast.error("Failed to load customer");
-          // navigate("/customers");
         }
       } catch (err) {
         console.error(err);
         toast.error("Error fetching customer");
-        // navigate("/customers");
       } finally {
-        setLoading(false);
+        setPageLoading(false);
       }
     };
 
     fetchCustomer();
-  }, [id, navigate]);
+  }, [id]);
+
 
 
   const validateCustomer = () => {
@@ -198,6 +203,9 @@ export default function EditCustomer() {
     if (!validateCustomer()) return;
 
     try {
+      // 🔥 GLOBAL LOADER ON (ONLY ON CLICK UPDATE)
+      setGlobalLoading(true);
+
       const res = await api.put(`/customers/${id}`, customer);
 
       if (res.data.status === "success") {
@@ -205,41 +213,40 @@ export default function EditCustomer() {
         navigate("/customer");
         return;
       }
-
     } catch (err) {
       console.error("Update Error:", err);
 
-      // 🎯 Case 1: Laravel validation errors (422)
+      // 🎯 Laravel validation errors
       if (err.response?.status === 422) {
         const backendErrors = err.response.data.errors;
-
         if (backendErrors) {
           const formatted = {};
-
           Object.keys(backendErrors).forEach((field) => {
-            formatted[field] = backendErrors[field][0]; // first error message
+            formatted[field] = backendErrors[field][0];
           });
-
           setErrors(formatted);
           toast.error("Please fix the errors and try again");
         }
         return;
       }
 
-      // 🎯 Case 2: Any custom error message
       if (err.response?.data?.message) {
         toast.error(err.response.data.message);
+      } else {
+        toast.error("Error updating customer!");
       }
-
-      toast.error("Error updating customer!");
+    } finally {
+      // 🟢 ALWAYS STOP GLOBAL LOADER
+      setGlobalLoading(false);
     }
   };
 
 
 
+
   const feedbackStyle = { color: "red", fontSize: "0.85rem", marginTop: "4px" };
 
-  if (loading) {
+  if (pageLoading) {
     return (
       <div className="d-flex justify-content-center align-items-center py-5">
         <Spinner animation="border" />
@@ -544,12 +551,16 @@ export default function EditCustomer() {
         <Button
           variant="secondary"
           className="me-2"
-          onClick={() => navigate(-1)}  // go back to previous page
+          onClick={() => navigate(-1)}
         >
           Cancel
         </Button>
-        <Button variant="success" onClick={updateCustomer}>
-          Update
+        <Button
+          variant="success"
+          onClick={updateCustomer}
+          disabled={globalLoading}
+        >
+          {globalLoading ? "Updating..." : "Update"}
         </Button>
       </div>
     </div>
