@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
 import Select, { components } from "react-select";
+import { useLoader } from "../LoaderContext";
 
 export default function AddSparepartPurchase() {
   const [vendorId, setVendorId] = useState("");
@@ -23,8 +24,8 @@ export default function AddSparepartPurchase() {
   const [courierName, setCourierName] = useState("");
   // const [fromSerial, setFromSerial] = useState("");
   // const [toSerial, setToSerial] = useState("");
-  const [addLoading, setAddLoading] = useState(false);
   const [availableSpareparts, setAvailableSpareparts] = useState([]);
+  const { loading, setLoading } = useLoader();
 
   const sparepartOptions = availableSpareparts.map(s => ({
     value: s.id,
@@ -183,7 +184,6 @@ export default function AddSparepartPurchase() {
       setRecipientFiles(prev => {
         const last = prev[prev.length - 1];
 
-        // Prevent double toast firing
         if (!last.file) {
           if (!toast.isActive("upload-warning")) {
             toast.error("Please upload a file before adding another document", {
@@ -197,6 +197,7 @@ export default function AddSparepartPurchase() {
       });
     }
   };
+
 
 
 
@@ -587,6 +588,8 @@ export default function AddSparepartPurchase() {
 
 
   const handleSubmit = async () => {
+    if (loading) return;
+
     if (!validateForm()) return;
 
     const formData = new FormData();
@@ -596,63 +599,64 @@ export default function AddSparepartPurchase() {
     if (vendorId) {
       const parts = vendorId.split("-");
       vendor_id = parts[0];
-      contact_person_id = parts[1] && parts[1] !== "0" ? parts[1] : null; // null if main vendor
-    } else {
-      vendor_id = "";
-      contact_person_id = null;
+      contact_person_id = parts[1] && parts[1] !== "0" ? parts[1] : null;
     }
+
     formData.append("vendor_id", vendor_id);
     if (contact_person_id) formData.append("contact_person_id", contact_person_id);
 
-
-
-    // formData.append("contact_person_id", contactPersonId || "")
     formData.append("challan_no", challanNo || "");
     formData.append("tracking_number", trackingNumber || "");
     formData.append("courier_name", courierName || "");
-
     formData.append("challan_date", challanDate);
     formData.append("received_date", receivedDate);
-
-
 
     recipientFiles.forEach((f) => {
       if (f.file) formData.append("document_recipient[]", f.file);
     });
 
-    // Append sparepart items
     spareparts.forEach((sp, index) => {
       if (!sp.sparepart_id) return;
 
       formData.append(`items[${index}][sparepart_id]`, sp.sparepart_id);
-      // if (sp.product_id) formData.append(`items[${index}][product_id]`, sp.product_id);
       if (sp.from_serial) formData.append(`items[${index}][from_serial]`, sp.from_serial);
       if (sp.to_serial) formData.append(`items[${index}][to_serial]`, sp.to_serial);
-      if (sp.warranty_status) formData.append(`items[${index}][warranty_status]`, sp.warranty_status);
-      formData.append(`items[${index}][quantity]`, sp.qty ? sp.qty : "");
+      if (sp.warranty_status)
+        formData.append(`items[${index}][warranty_status]`, sp.warranty_status);
+      formData.append(`items[${index}][quantity]`, sp.qty || "");
     });
 
     try {
-      const res = await api.post("/sparepartNew-purchases", formData, {
+      setLoading(true); // 🔥 SHOW GLOBAL LOADER
+
+      await api.post("/sparepartNew-purchases", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
+
       toast.success("Purchase saved successfully!");
       navigate("/spare-partsPurchase");
     } catch (err) {
       if (err.response?.data?.errors) {
         const backendErrors = err.response.data.errors;
         setErrors(backendErrors);
+
         Object.values(backendErrors).forEach((fieldErrors) => {
-          if (Array.isArray(fieldErrors)) fieldErrors.forEach((msg) => toast.error(msg));
-          else if (typeof fieldErrors === "string") toast.error(fieldErrors);
+          if (Array.isArray(fieldErrors)) {
+            fieldErrors.forEach((msg) => toast.error(msg));
+          } else {
+            toast.error(fieldErrors);
+          }
         });
       } else if (err.response?.data?.message) {
         toast.error(err.response.data.message);
       } else {
         toast.error("Something went wrong!");
       }
+    } finally {
+      setLoading(false); // 🔥 HIDE LOADER
     }
   };
+
 
   const feedbackStyle = { color: "red", fontSize: "0.85rem", marginTop: "4px" };
 
@@ -1083,8 +1087,6 @@ export default function AddSparepartPurchase() {
                       </Button>
                     </div>
                   </Col>
-
-
                 </Row>
               </Card>
             );
@@ -1108,8 +1110,12 @@ export default function AddSparepartPurchase() {
           >
             Cancel
           </Button>
-          <Button variant="success" onClick={handleSubmit}>
-            Save
+          <Button
+            variant="success"
+            onClick={handleSubmit}
+            disabled={loading}
+          >
+            {loading ? "Saving..." : "Save"}
           </Button>
         </div>
       </div>

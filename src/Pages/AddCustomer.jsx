@@ -12,6 +12,7 @@ import CountrySelect from "../components/CountrySelect";
 import CountryPhoneInput from "../components/CountryPhoneInput";
 // FIX: Ensure both parsing functions are imported
 import { parsePhoneNumberFromString, parsePhoneNumber } from "libphonenumber-js";
+import { useLoader } from "../LoaderContext";
 
 export default function AddCustomer() {
   const [customer, setCustomer] = useState({
@@ -31,6 +32,7 @@ export default function AddCustomer() {
   const [errors, setErrors] = useState({});
   const [countryCode, setCountryCode] = useState("");
   const navigate = useNavigate();
+  const { loading, setLoading } = useLoader();
 
   useEffect(() => {
     fetch("https://ipapi.co/json/")
@@ -174,44 +176,48 @@ export default function AddCustomer() {
     toast.error("Could not fetch details. Please enter City, District, and State manually.");
   };
 
- const saveCustomer = async () => {
-  if (!validateCustomer()) {
-    toast.error("Please correct the errors in the form before saving.");
-    return;
-  }
+  const saveCustomer = async () => {
+    // 🚫 prevent double click
+    if (loading) return;
 
-  try {
-    const response = await api.post("/customers", customer);
-
-    // axios returns the data directly
-    const data = response.data;
-
-    toast.success("Customer saved successfully!");
-    navigate("/customer");
-  } 
- catch (error) {
-  if (error.response) {
-    const data = error.response.data;
-
-    // Prefer backend errors[] array
-    if (data.errors) {
-      const firstError = Object.values(data.errors)[0][0]; 
-      toast.error(firstError);
+    if (!validateCustomer()) {
+      toast.error("Please correct the errors in the form before saving.");
       return;
     }
 
-    // Otherwise show message only if errors[] does NOT exist
-    if (data.message) {
-      toast.error(data.message);
-      return;
+    setLoading(true); // 🔥 START GLOBAL LOADER
+
+    try {
+      const response = await api.post("/customers", customer);
+
+      const data = response.data;
+
+      toast.success("Customer saved successfully!");
+      navigate("/customer");
+
+    } catch (error) {
+      if (error.response) {
+        const data = error.response.data;
+
+        // Prefer backend validation errors
+        if (data.errors) {
+          const firstError = Object.values(data.errors)[0][0];
+          toast.error(firstError);
+          return;
+        }
+
+        if (data.message) {
+          toast.error(data.message);
+          return;
+        }
+      }
+
+      toast.error("Network error! Check your connection.");
+    } finally {
+      setLoading(false); // 🔥 STOP GLOBAL LOADER ALWAYS
     }
-  }
+  };
 
-  toast.error("Network error! Check your connection.");
-
-
-  }
-};
 
 
   const feedbackStyle = { color: "red", fontSize: "0.85rem", marginTop: "4px" };
@@ -472,8 +478,12 @@ export default function AddCustomer() {
         >
           Cancel
         </Button>
-        <Button variant="success" onClick={saveCustomer}>
-          Save
+        <Button
+          variant="success"
+          onClick={saveCustomer}
+          disabled={loading}
+        >
+          {loading ? "Saving..." : "Save"}
         </Button>
       </div>
     </div>

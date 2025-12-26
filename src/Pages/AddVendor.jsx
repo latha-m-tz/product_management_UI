@@ -13,6 +13,7 @@ import CountryPhoneInput from "../components/CountryPhoneInput";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
+import { useLoader } from "../LoaderContext";
 
 export default function AddVendor() {
   const navigate = useNavigate();
@@ -39,6 +40,7 @@ export default function AddVendor() {
   const [panelKey, setPanelKey] = useState(0);
   const [contactCountry, setContactCountry] = useState("IN");
   const emailPattern = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i;
+  const { loading, setLoading } = useLoader();
 
   const capitalizeWords = (str) =>
     str.replace(/\b\w/g, (char) => char.toUpperCase());
@@ -316,13 +318,13 @@ export default function AddVendor() {
       contactToSave.mobile_no &&
       vendor.mobile_no &&
       contactToSave.mobile_no === vendor.mobile_no;
-      if (duplicateWithVendor) {
-  setContactErrors({
-    mobile_no:
-      "Contact mobile number cannot be the same as the company mobile number",
-  });
-  return;
-}
+    if (duplicateWithVendor) {
+      setContactErrors({
+        mobile_no:
+          "Contact mobile number cannot be the same as the company mobile number",
+      });
+      return;
+    }
 
     if (duplicateInContacts) {
       setContactErrors({
@@ -513,11 +515,13 @@ export default function AddVendor() {
   };
 
   const saveVendor = async () => {
+    if (loading) return;
     if (!validateVendor()) return;
 
-
     try {
-      const response = await api.post(
+      setLoading(true);
+
+      await api.post(
         "/vendors/new",
         {
           ...vendor,
@@ -531,39 +535,26 @@ export default function AddVendor() {
         }
       );
 
-      // ✅ If API call succeeds
       toast.success("Vendor added successfully!");
       navigate("/vendor");
     } catch (err) {
       console.error(err);
 
-      // ✅ Handle Laravel validation errors
-      if (err.response && err.response.data && err.response.data.errors) {
-        const errors = err.response.data.errors;
-
-        Object.entries(errors).forEach(([key, messages]) => {
+      if (err.response?.data?.errors) {
+        Object.entries(err.response.data.errors).forEach(([key, messages]) => {
           const message = Array.isArray(messages) ? messages.join(", ") : messages;
 
-          if (key === "vendor") {
-            toast.error("Company name already exists");
-          } else if (key === "email") {
-            toast.error("Email already taken");
-          } else if (key === "mobile_no") {
-            toast.error("Mobile number already taken");
-          } else if (key === "gst_no") {
-            toast.error("GST number already exists");
-          } else if (key.startsWith("contact_persons")) {
-            toast.error(message);  // ⭐ FIXED — show real backend validation message
-          } else {
-            toast.error(`${key.replace("_", " ")}: ${message}`);
-          }
+          if (key === "vendor") toast.error("Company name already exists");
+          else if (key === "email") toast.error("Email already taken");
+          else if (key === "mobile_no") toast.error("Mobile number already taken");
+          else if (key === "gst_no") toast.error("GST number already exists");
+          else toast.error(message);
         });
-
-      } else if (err.response && err.response.data && err.response.data.message) {
-        toast.error(err.response.data.message);
       } else {
         toast.error("Error saving vendor!");
       }
+    } finally {
+      setLoading(false); // 🌐 GLOBAL LOADER OFF
     }
   };
 
@@ -916,9 +907,14 @@ export default function AddVendor() {
             Cancel
           </Button>
 
-          <Button variant="success" onClick={saveVendor}>
-            Save
+          <Button
+            variant="success"
+            onClick={saveVendor}
+            disabled={loading}
+          >
+            {loading ? "Saving..." : "Save"}
           </Button>
+
         </div>
 
         <div

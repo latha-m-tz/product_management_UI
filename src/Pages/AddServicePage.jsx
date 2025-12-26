@@ -7,9 +7,11 @@ import "react-toastify/dist/ReactToastify.css";
 import { IoTrashOutline } from "react-icons/io5";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
+import { useLoader } from "../LoaderContext";
 
 const AddServicePage = () => {
   const navigate = useNavigate();
+  const { loading, setLoading } = useLoader();
   const [errors, setErrors] = useState({});
   const [products, setProducts] = useState([]);
   const [vendors, setVendors] = useState([]);
@@ -17,19 +19,30 @@ const AddServicePage = () => {
   const MySwal = withReactContent(Swal);
   const [allowedStatus, setAllowedStatus] = useState({});
   const [allSpareparts, setAllSpareparts] = useState([]);
+  const isPCBSparepart = (sparepartId) => {
+    const sp = allSpareparts.find(s => s.id === Number(sparepartId));
+    if (!sp) return false;
+
+    const name = (sp.name || "").toUpperCase();
+    return name.includes("PCB") || name.includes("BARCODE");
+  };
+
   const getAllowedStatuses = (item) => {
-    if (item.type === "sparepart") {
-      // Sparepart → ONLY Return
-      return ["Return"];
+    if (item.type === "product") {
+      return ["Inward", "Testing", "Delivered"];
     }
 
-    if (item.type === "product") {
-      // Product → ONLY these three
-      return ["Inward", "Testing", "Delivered"];
+    if (item.type === "sparepart") {
+      if (isPCBSparepart(item.sparepart_id)) {
+        return ["Inward", "Return"];
+      }
+
+      return ["Inward", "Return"];
     }
 
     return [];
   };
+
 
   const [formData, setFormData] = useState({
     vendor_id: "",
@@ -67,7 +80,6 @@ const AddServicePage = () => {
 
   const validate = () => {
     const newErrors = {};
-
     if (!String(formData.vendor_id || "").trim()) {
       newErrors.vendor_id = "Vendor is required";
     }
@@ -87,7 +99,6 @@ const AddServicePage = () => {
         newErrors.challan_date = "Future dates not allowed";
       }
     }
-
     if (!Array.isArray(formData.items) || formData.items.length === 0) {
       newErrors.items = "At least one service item is required";
     } else {
@@ -117,16 +128,32 @@ const AddServicePage = () => {
           }
         }
 
-
+        /* ================= SPAREPART ================= */
         if (item.type === "sparepart") {
           if (!item.sparepart_id) {
             newErrors[`sparepart_id_${i}`] = "Sparepart is required";
+            return;
           }
 
-          if (item.isPCB) {
+          const pcb = isPCBSparepart(item.sparepart_id);
+
+          if (pcb) {
+            // 🔥 PCB → SERIAL ONLY
             if (!item.vci_serial_no) {
               newErrors[`vci_serial_no_${i}`] = "Serial No is required";
             }
+
+            const allowed = getAllowedStatuses(item);
+
+            if (
+              allowed.length > 0 &&
+              item.status &&
+              !allowed.includes(item.status)
+            ) {
+              newErrors[`status_${i}`] =
+                `Invalid status. Allowed: ${allowed.join(", ")}`;
+            }
+
           } else {
             const qty = Number(item.quantity);
             if (!item.quantity || Number.isNaN(qty) || qty <= 0) {
@@ -136,22 +163,6 @@ const AddServicePage = () => {
 
           if (!item.status) {
             newErrors[`status_${i}`] = "Status is required";
-          }
-
-
-
-          if (item.isPCB) {
-            const allowed = allowedStatus[i];
-
-            if (
-              allowed &&
-              allowed.length > 0 &&
-              item.status &&
-              !allowed.includes(item.status)
-            ) {
-              newErrors[`status_${i}`] =
-                `Invalid status. Allowed: ${allowed.join(", ")}`;
-            }
           }
         }
       });
@@ -183,7 +194,6 @@ const AddServicePage = () => {
 
       let allowed = [];
 
-      // 🔒 STATUS FLOW ENFORCEMENT
       if (!status) {
         // FIRST TIME ENTRY
         allowed = ["Inward"];
@@ -210,23 +220,19 @@ const AddServicePage = () => {
 
     const fetchData = async () => {
       try {
+
         const [productRes, sparepartRes, vendorRes] = await Promise.all([
           api.get("/product"),
           api.get("/spareparts/get"),
           api.get("/vendorsget"),
         ]);
-        console.log("PRODUCTS API RESPONSE:", productRes.data);
-        console.log("SPAREPARTS API RESPONSE:", sparepartRes.data);
 
-        setProducts(
-          Array.isArray(productRes.data)
-            ? productRes.data
-            : productRes.data.products || productRes.data.data || []
-        );
+        setProducts(productRes.data || []);
         setAllSpareparts(sparepartRes.data.spareparts || []);
-        setVendors(vendorRes.data);
-      } catch (err) {
+        setVendors(vendorRes.data || []);
+      } catch {
         toast.error("Failed to fetch data!");
+      } finally {
       }
     };
 
@@ -270,7 +276,10 @@ const AddServicePage = () => {
 
       items[index].product_id = productId;
       items[index].sparepart_id = sparepartId;
-      items[index].isPCB = selectedSparepart?.product_type_name === "vci";
+      const name = selectedSparepart?.name || "";
+      items[index].isPCB =
+        name.toUpperCase().includes("PCB") ||
+        name.toUpperCase().includes("BARCODE");
 
       items[index].vci_serial_no = "";
       items[index].quantity = "";
@@ -319,34 +328,33 @@ const AddServicePage = () => {
         (sp) => sp.id === Number(value)
       );
 
+      const sparepartName = (selectedSparepart?.name || "").toUpperCase();
+
+      const isPCB =
+        sparepartName.includes("PCB") ||
+        sparepartName.includes("BARCODE");
+
       items[index].sparepart_id = Number(value);
-      items[index].isPCB = selectedSparepart?.product_type_name === "vci";
+      items[index].isPCB = isPCB;
 
-      items[index].vci_serial_no = "";
-      items[index].quantity = "";
-      items[index].status = "";
-      items[index].serial_from = "";
-      items[index].serial_to = "";
-
-      setErrors((prev) => {
-        const copy = { ...prev };
-        delete copy[`sparepart_id_${index}`];
-        delete copy[`vci_serial_no_${index}`];
-        delete copy[`quantity_${index}`];
-        return copy;
-      });
+      // 🔥 KEY FIX
+      if (isPCB) {
+        items[index].quantity = "";        // MUST BE EMPTY
+        items[index].vci_serial_no = "";   // SERIAL GOES HERE
+      } else {
+        items[index].vci_serial_no = "";
+      }
 
       setFormData((prev) => ({ ...prev, items }));
       return;
     }
 
+
     if (name === "serial_from" || name === "serial_to") {
-      // only numbers, max 6 digits
       const cleaned = value.replace(/\D/g, "").slice(0, 6);
 
       items[index][name] = cleaned;
 
-      // auto-fill Serial To when typing Serial From
       if (name === "serial_from") {
         items[index].serial_to = cleaned;
       }
@@ -477,6 +485,9 @@ const AddServicePage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // 🚫 prevent double click
+    if (loading) return;
+
     if (!validate()) {
       toast.error("Please fill the required fields.");
       return;
@@ -497,38 +508,59 @@ const AddServicePage = () => {
 
     formData.items.forEach((item, index) => {
       if (!item || !item.type) return;
-      payload.append(`items[${index}][type]`, item.type);
 
-      payload.append(`items[${index}][status]`, String(item.status || "").trim());
-      payload.append(`items[${index}][remarks]`, String(item.remarks || "").trim());
+      payload.append(`items[${index}][type]`, item.type);
+      payload.append(
+        `items[${index}][status]`,
+        String(item.status || "").trim()
+      );
+      payload.append(
+        `items[${index}][remarks]`,
+        String(item.remarks || "").trim()
+      );
 
       if (item.type === "product") {
-        payload.append(`items[${index}][product_id]`, String(item.product_id));
-        payload.append(`items[${index}][serial_from]`, String(item.serial_from));
-        payload.append(`items[${index}][serial_to]`, String(item.serial_to));
+        payload.append(
+          `items[${index}][product_id]`,
+          String(item.product_id)
+        );
+        payload.append(
+          `items[${index}][serial_from]`,
+          String(item.serial_from)
+        );
+        payload.append(
+          `items[${index}][serial_to]`,
+          String(item.serial_to)
+        );
       }
 
       if (item.type === "sparepart") {
         payload.append(`items[${index}][sparepart_id]`, item.sparepart_id);
-        payload.append(`items[${index}][status]`, String(item.status || "").trim());
 
         if (item.isPCB) {
           payload.append(
             `items[${index}][vci_serial_no]`,
-            item.vci_serial_no
+            String(item.vci_serial_no).trim()
           );
         } else {
-          payload.append(`items[${index}][quantity]`, item.quantity);
+          payload.append(
+            `items[${index}][quantity]`,
+            String(item.quantity).trim()
+          );
         }
       }
 
-
       if (item.upload_image instanceof File) {
-        payload.append(`items[${index}][upload_image]`, item.upload_image);
+        payload.append(
+          `items[${index}][upload_image]`,
+          item.upload_image
+        );
       }
     });
 
     try {
+      setLoading(true); // 🔥 GLOBAL LOADER ON
+
       await api.post("/service-vci", payload, {
         headers: { "Content-Type": "multipart/form-data" },
       });
@@ -538,33 +570,49 @@ const AddServicePage = () => {
 
     } catch (err) {
       console.error("Submit Error →", err);
+
       if (err.response?.data?.errors) {
         const backendErrors = err.response.data.errors;
         const newErrors = {};
 
-        Object.keys(backendErrors).forEach((key) => {
-          if (key.startsWith("items.")) {
+        Object.entries(backendErrors).forEach(([key, messages]) => {
+          const msg = messages[0] || "";
+
+          // items.0
+          if (key.match(/^items\.\d+$/)) {
             const index = key.split(".")[1];
-            const msg = backendErrors[key][0] || "";
 
-            if (msg.toLowerCase().includes("qty available")) {
+            if (msg.toLowerCase().includes("qty")) {
               newErrors[`quantity_${index}`] = msg;
-              return;
+            } else {
+              newErrors[`row_${index}`] = msg;
             }
-
-            newErrors[`row_${index}`] = msg;
-          } else {
-            newErrors[key] = backendErrors[key][0];
+            return;
           }
+
+          // items.0.quantity
+          if (key.match(/^items\.\d+\.quantity$/)) {
+            const index = key.split(".")[1];
+            newErrors[`quantity_${index}`] = msg;
+            return;
+          }
+
+          // normal fields
+          newErrors[key] = msg;
         });
 
         setErrors(newErrors);
         toast.error("Validation failed!");
-      } else {
+        return;
+      }
+      {
         toast.error("Failed to submit. Check console for details.");
       }
+    } finally {
+      setLoading(false); // 🔥 GLOBAL LOADER OFF (ALWAYS)
     }
   };
+
   return (
     <Container fluid>
       <Row className="align-items-center mb-3">
@@ -972,6 +1020,8 @@ const AddServicePage = () => {
                     type: "sparepart",
                     sparepart_id: "",
                     quantity: "",
+                    vci_serial_no: "",
+                    isPCB: false,
                     status: "",
                     remarks: "",
                   },
@@ -991,8 +1041,8 @@ const AddServicePage = () => {
             Cancel
           </Button>
 
-          <Button type="submit" variant="success">
-            Save
+          <Button type="submit" variant="success" disabled={loading}>
+            {loading ? "Saving..." : "Save"}
           </Button>
         </div>
       </Form>
