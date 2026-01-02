@@ -328,19 +328,10 @@ const EditServicePage = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const isItemRowComplete = (item) => {
-    if (!item.sparepart_id) return false;
 
-    if (item.isPCB) {
-      return item.vci_serial_no && item.vci_serial_no.trim() !== "";
-    }
-
-    return item.quantity && Number(item.quantity) > 0;
-  };
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // 🚫 Prevent double submit
     if (globalLoading) return;
 
     if (!validate()) {
@@ -350,16 +341,14 @@ const EditServicePage = () => {
 
     const fd = new FormData();
 
-    // Laravel PUT override
     fd.append("_method", "PUT");
 
-    // =========================
-    // SERVICE HEADER FIELDS
-    // =========================
     fd.append("vendor_id", formData.vendor_id);
     fd.append("challan_no", formData.challan_no);
     fd.append("challan_date", formData.challan_date);
     fd.append("tracking_no", formData.tracking_no || "");
+ 
+
     existingReceipts.forEach((file) => {
       fd.append("existing_receipt_files[]", file);
     });
@@ -643,6 +632,7 @@ const EditServicePage = () => {
 
               </Form.Group>
             </Col>
+            
           </Row>
 
 

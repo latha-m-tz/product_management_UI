@@ -632,23 +632,46 @@ export default function ServiceList() {
                     >
                       {row.challan_date}
                     </td>
-
-                    {/* SERIAL + SPAREPART */}
                     <td>
-                      <td>
-                        {/* SERIAL ITEM */}
-                        {row.item.vci_serial_no ? (
-                          <>
-                            <div
-                              style={{
-                                fontSize: "0.90rem",
-                                fontWeight: "600",
-                                fontFamily: "Product Sans, sans-serif",
-                              }}
-                            >
-                              {row.item.vci_serial_no}
-                            </div>
+                      {/* 🔵 SERIAL BASED ITEM (PCB etc.) */}
+                      {row.item?.vci_serial_no ? (
+                        <>
+                          <div
+                            style={{
+                              fontSize: "0.90rem",
+                              fontWeight: "600",
+                              fontFamily: "Product Sans, sans-serif",
+                            }}
+                          >
+                            {row.item.vci_serial_no}
+                          </div>
 
+                          {/* ✅ SHOW SPAREPART NAME (NO QTY) */}
+                          <div
+                            style={{
+                              fontSize: "0.80rem",
+                              color: "#555",
+                              fontFamily: "Product Sans, sans-serif",
+                            }}
+                          >
+                            {row.item.sparepart || "-"}
+                          </div>
+                        </>
+                      ) : row.item?.sparepart ? (
+                        /* 🟢 NON-SERIAL SPAREPART */
+                        <>
+                          <div
+                            style={{
+                              fontSize: "0.90rem",
+                              fontWeight: "600",
+                              fontFamily: "Product Sans, sans-serif",
+                            }}
+                          >
+                            {row.item.sparepart}
+                          </div>
+
+                          {/* ✅ QTY ONLY FOR NON-SERIAL */}
+                          {row.item.quantity ? (
                             <div
                               style={{
                                 fontSize: "0.80rem",
@@ -656,22 +679,13 @@ export default function ServiceList() {
                                 fontFamily: "Product Sans, sans-serif",
                               }}
                             >
-                              {row.item.product || "-"}
+                              Qty: {row.item.quantity}
                             </div>
-                          </>
-                        ) : (
-                          /* SPAREPART ITEM */
-                          <div
-                            style={{
-                              fontSize: "0.90rem",
-                              fontFamily: "Product Sans, sans-serif",
-                            }}
-                          >
-                            {row.item.sparepart || "-"}
-                          </div>
-                        )}
-                      </td>
-
+                          ) : null}
+                        </>
+                      ) : (
+                        "-"
+                      )}
                     </td>
 
                     {/* STATUS */}
